@@ -8,8 +8,8 @@ import argparse
 import sys
 
 __author__='Corey Forman'
-__date__='24 May 17'
-__version__='0.06'
+__date__='25 May 17'
+__version__='0.07'
 __description__='Python CLI Date Time Conversion Tool'
 
 class DateDecoder(object):
@@ -23,12 +23,18 @@ class DateDecoder(object):
     self.processed_unix_hex_32 = None
     self.processed_unix_hex_32le = None
     self.processed_cookie = None
+    self.processed_ole_be = None
+    self.processed_ole_le = None
     self.epoch_1601 = 11644473600000000
     self.epoch_1970 = datetime.datetime(1970,1,1)
     self.hundreds_nano = 10000000
     self.epoch_as_filetime = 116444736000000000
+    self.epoch_1899 = datetime.datetime(1899,12,30,0,0,0)
 
   def run(self):
+    if len(sys.argv[1:])==0:
+      argparse.print_help()
+      argparse.exit()
     logging.info('Launching Date Decode')
     logging.info('Processing Timestamp: ' + sys.argv[2])
     logging.info('Input Time Format: ' + sys.argv[1])
@@ -92,6 +98,18 @@ class DateDecoder(object):
 	print "Windows Cookie Date: " + self.processed_cookie
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
+    elif args.oleb:
+      try:
+	self.convertOleBE()
+        print "Windows OLE 64 bit double Big Endian: " + self.processed_ole_be
+      except Exception, e:
+        logging.error(str(type(e)) + "," + str(e))
+    elif args.olel:
+      try:
+        self.convertOleLE()
+        print "Windows OLE 64 bit double Little Endian: " + self.processed_ole_le
+      except Exception, e:
+        logging.error(str(type(e)) + "," + str(e))
 
   def convertAll(self):
     
@@ -104,7 +122,11 @@ class DateDecoder(object):
     self.processed_unix_hex_32 = 'N/A'
     self.processed_unix_hex_32le = 'N/A'
     self.processed_cookie = 'N/A'
+    self.processed_ole_be = 'N/A'
+    self.processed_ole_le = 'N/A'
+
     print '\nGuessing Timestamp Format\n'
+
     self.convertUnixSeconds()
     self.convertUnixMilli()
     self.convertWindowsLittleEndian_64()
@@ -114,8 +136,11 @@ class DateDecoder(object):
     self.convertUnixHex32BE()
     self.convertUnixHex32LE()
     self.convertCookieDate()
+    self.convertOleBE()
+    self.convertOleLE()
     self.output()
     print '\r' 
+
   def convertUnixSeconds(self):
     try:
       self.processed_unix_seconds = datetime.datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S %Z')
@@ -251,6 +276,26 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.processed_cookie = 'N/A'
 
+  def convertOleBE(self):
+    try:
+      delta = struct.unpack('>d',struct.pack('>Q', int(sys.argv[2], 16)))[0]
+      datetime_obj = self.epoch_1899 + datetime.timedelta(days=delta)
+      self.processed_ole_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_ole_be = 'N/A'
+
+  def convertOleLE(self):
+    try:
+      from_be = sys.argv[2].decode('hex')
+      to_le = from_be[::-1].encode('hex')
+      delta = struct.unpack('>d',struct.pack('>Q', int(to_le, 16)))[0]
+      datetime_obj = self.epoch_1899 + datetime.timedelta(days=delta)
+      self.processed_ole_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_ole_le = 'N/A'
+
   def output(self):
     if isinstance(self.processed_unix_seconds, str):
       print "Unix Seconds: "  + self.processed_unix_seconds
@@ -279,18 +324,26 @@ class DateDecoder(object):
     if isinstance(self.processed_cookie, str):
       print "Windows Cookie Date: " + self.processed_cookie
 
+    if isinstance(self.processed_ole_be, str):
+      print "Windows OLE 64 Bit double Big Endian: " + self.processed_ole_be
+
+    if isinstance(self.processed_ole_le, str):
+      print "Windows OLE 64 Bit double Little Endian: " + self.processed_ole_le
+
 if __name__ == '__main__':
   argparse = argparse.ArgumentParser(description="Date Decode Time Converter")
-  argparse.add_argument('--unix', metavar='<number>', help='convert from Unix Seconds', required=False)
+  argparse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds', required=False)
   argparse.add_argument('--umil', metavar='<value>', help='convert from Unix Milliseconds', required=False)
-  argparse.add_argument('--ft', metavar='<number>', help='convert from Windows FILETIME 64', required=False)
-  argparse.add_argument('--fle', metavar='<number>', help='convert from Windows FILETIME 64 Little Endian', required=False)
-  argparse.add_argument('--goog', metavar='<number>', help='convert from Google Chrome time', required=False)
-  argparse.add_argument('--active', metavar='<number>', help='convert from Active Directory DateTime', required=False)
-  argparse.add_argument('--uhbe', metavar='<number>', help='convert from Unix Hex 32 Bit Big Endian', required=False)
-  argparse.add_argument('--uhle', metavar='<number>', help='convert from Unix Hex 32 Bit Little Endian', required=False)
+  argparse.add_argument('--ft', metavar='<value>', help='convert from Windows FILETIME 64', required=False)
+  argparse.add_argument('--fle', metavar='<value>', help='convert from Windows FILETIME 64 Little Endian', required=False)
+  argparse.add_argument('--goog', metavar='<value>', help='convert from Google Chrome time', required=False)
+  argparse.add_argument('--active', metavar='<value>', help='convert from Active Directory DateTime', required=False)
+  argparse.add_argument('--uhbe', metavar='<value>', help='convert from Unix Hex 32 Bit Big Endian', required=False)
+  argparse.add_argument('--uhle', metavar='<value>', help='convert from Unix Hex 32 Bit Little Endian', required=False)
   argparse.add_argument('--cookie', metavar='<value>', help='convert from Windows Cookie Date (Low Value, High Value)', required=False)
-  argparse.add_argument('--guess', metavar='<number>', help='guess format and output possibilities', required=False)
+  argparse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64 bit Big Endian - remove 0x and spaces!\n Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb', required=False)
+  argparse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64 bit Little Endian', required=False)
+  argparse.add_argument('--guess', metavar='<value>', help='guess format and output possibilities', required=False)
   argparse.add_argument('--version', '-v', action='version', version='%(prog)s' +str( __version__))
   args = argparse.parse_args()
 
