@@ -9,7 +9,7 @@ import sys
 
 __author__='Corey Forman'
 __date__='25 May 17'
-__version__='0.07'
+__version__='0.08'
 __description__='Python CLI Date Time Conversion Tool'
 
 class DateDecoder(object):
@@ -25,11 +25,16 @@ class DateDecoder(object):
     self.processed_cookie = None
     self.processed_ole_be = None
     self.processed_ole_le = None
+    self.processed_mac = None
+    self.processed_hfs_be = None
+    self.processed_hfs_le = None
     self.epoch_1601 = 11644473600000000
     self.epoch_1970 = datetime.datetime(1970,1,1)
+    self.epoch_2001 = datetime.datetime(2001,1,1)
     self.hundreds_nano = 10000000
     self.epoch_as_filetime = 116444736000000000
     self.epoch_1899 = datetime.datetime(1899,12,30,0,0,0)
+    self.epoch_1904 = datetime.datetime(1904,1,1)
 
   def run(self):
     if len(sys.argv[1:])==0:
@@ -110,6 +115,24 @@ class DateDecoder(object):
         print "Windows OLE 64 bit double Little Endian: " + self.processed_ole_le
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
+    elif args.mac:
+      try:
+        self.convertMac()
+	print "Mac Absolute Time: " + self.processed_mac
+      except Exception, e:
+	logging.error(str(type(e)) + "," + str(e))
+    elif args.hfsbe:
+      try:
+        self.convertHfsBE()
+	print "HFS/HFS+ 32 bit Hex Big Endian: " + self.processed_hfs_be
+      except Exception, e:
+	logging.error(str(type(e)) + "," + str(e))
+    elif args.hfsle:
+      try:
+	self.convertHfsLE()
+	print "HFS/HFS+ 32 big Hex Little Endian: " + self.processed_hfs_le
+      except Exception, e:
+	logging.error(str(type(e)) + "," + str(e))
 
   def convertAll(self):
     
@@ -124,6 +147,9 @@ class DateDecoder(object):
     self.processed_cookie = 'N/A'
     self.processed_ole_be = 'N/A'
     self.processed_ole_le = 'N/A'
+    self.processed_mac = 'N/A'
+    self.processed_hfs_be = 'N/A'
+    self.processed_hfs_le = 'N/A'
 
     print '\nGuessing Timestamp Format\n'
 
@@ -138,6 +164,9 @@ class DateDecoder(object):
     self.convertCookieDate()
     self.convertOleBE()
     self.convertOleLE()
+    self.convertMac()
+    self.convertHfsBE()
+    self.convertHfsLE()
     self.output()
     print '\r' 
 
@@ -296,6 +325,31 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.processed_ole_le = 'N/A'
 
+  def convertMac(self):
+    try:
+      datetime_obj = self.epoch_2001 + datetime.timedelta(seconds = int(sys.argv[2]))
+      self.processed_mac = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_mac = 'N/A'
+
+  def convertHfsBE(self):
+    try:
+      datetime_obj = self.epoch_1904 + datetime.timedelta(seconds=int(sys.argv[2],16))
+      self.processed_hfs_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_hfs_be = 'N/A'
+
+  def convertHfsLE(self):
+    try:
+      to_le = struct.unpack('>I',struct.pack('<I', int(sys.argv[2], 16)))[0]
+      datetime_obj = self.epoch_1904 + datetime.timedelta(seconds=to_le)
+      self.processed_hfs_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_hfs_le = 'N/A'
+
   def output(self):
     if isinstance(self.processed_unix_seconds, str):
       print "Unix Seconds: "  + self.processed_unix_seconds
@@ -330,6 +384,15 @@ class DateDecoder(object):
     if isinstance(self.processed_ole_le, str):
       print "Windows OLE 64 Bit double Little Endian: " + self.processed_ole_le
 
+    if isinstance(self.processed_mac, str):
+      print "Mac Absolute Time: " + self.processed_mac
+
+    if isinstance(self.processed_hfs_be, str):
+      print "HFS/HFS+ 32 bit Hex Big Endian: " + self.processed_hfs_be
+
+    if isinstance(self.processed_hfs_le, str):
+      print "HFS/HFS+ 32 bit Hex Little Endian: " + self.processed_hfs_le
+
 if __name__ == '__main__':
   argparse = argparse.ArgumentParser(description="Date Decode Time Converter")
   argparse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds', required=False)
@@ -343,6 +406,9 @@ if __name__ == '__main__':
   argparse.add_argument('--cookie', metavar='<value>', help='convert from Windows Cookie Date (Low Value, High Value)', required=False)
   argparse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64 bit Big Endian - remove 0x and spaces!\n Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb', required=False)
   argparse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64 bit Little Endian', required=False)
+  argparse.add_argument('--mac', metavar='<value>', help='convert from Mac Absolute Time', required=False)
+  argparse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS/HFS+ Big Endian times (HFS times are in Local, HFS+ in UTC)', required=False)
+  argparse.add_argument('--hfsle', metavar='<value>', help='convert from HFS/HFS+ Little Endian times (HFS times are in Local, HFS+ in UTC)', required=False)
   argparse.add_argument('--guess', metavar='<value>', help='guess format and output possibilities', required=False)
   argparse.add_argument('--version', '-v', action='version', version='%(prog)s' +str( __version__))
   args = argparse.parse_args()
