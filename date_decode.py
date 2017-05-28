@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from dateutil import parser as duparser
-import datetime
+from datetime import datetime, timedelta
 import logging
 import struct
 from binascii import hexlify, unhexlify
@@ -16,8 +16,8 @@ class DateDecoder(object):
   def __init__(self):
     self.processed_unix_seconds = None
     self.processed_unix_milli = None
-    self.processed_windows_filetime_64 = None
-    self.processed_windows_little_endian_64 = None
+    self.processed_windows_hex_64 = None
+    self.processed_windows_hex_le = None
     self.processed_chrome_time = None
     self.processed_active_directory_time = None
     self.processed_unix_hex_32 = None
@@ -30,15 +30,16 @@ class DateDecoder(object):
     self.processed_hfs_le = None
     self.processed_msdos = None
     self.processed_systemtime = None
+    self.processed_filetime = None
     self.processed_prtime = None
     self.processed_ole_auto = None
     self.epoch_1601 = 11644473600000000
-    self.epoch_1970 = datetime.datetime(1970,1,1)
-    self.epoch_2001 = datetime.datetime(2001,1,1)
+    self.epoch_1970 = datetime(1970,1,1)
+    self.epoch_2001 = datetime(2001,1,1)
     self.hundreds_nano = 10000000
     self.epoch_as_filetime = 116444736000000000
-    self.epoch_1899 = datetime.datetime(1899,12,30,0,0,0)
-    self.epoch_1904 = datetime.datetime(1904,1,1)
+    self.epoch_1899 = datetime(1899,12,30,0,0,0)
+    self.epoch_1904 = datetime(1904,1,1)
 
   def run(self):
     if len(sys.argv[1:])==0:
@@ -60,16 +61,16 @@ class DateDecoder(object):
         print "Unix Milliseconds: " + self.processed_unix_milli + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
-    elif args.ft:
+    elif args.wh:
       try:
-        self.convertWindowsFiletime_64()
-	print "Windows Filetime 64 bit: " + self.processed_windows_filetime_64 + " UTC"
+        self.convertWindows64Hex()
+	print "Windows 64 bit Hex BE: " + self.processed_windows_hex_64 + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
-    elif args.fle:
+    elif args.whle:
       try:
-	self.convertWindowsLittleEndian_64()
-        print "Windows Filetime 64 Little Endian: " + self.processed_windows_little_endian_64 + " UTC"
+	self.convertWindows64HexLE()
+        print "Windows 64 bit Hex LE: " + self.processed_windows_hex_le + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))   
     elif args.goog:
@@ -87,13 +88,13 @@ class DateDecoder(object):
     elif args.uhbe:
       try: 
 	self.convertUnixHex32BE()
-	print "Unix Hex 32 bit Big Endian: " + self.processed_unix_hex_32 + " UTC"
+	print "Unix Hex 32 bit BE: " + self.processed_unix_hex_32 + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
     elif args.uhle:
       try:
         self.convertUnixHex32LE()
-	print "Unix Hex 32 bit Little Endian: " + self.processed_unix_hex_32le + " UTC"
+	print "Unix Hex 32 bit LE: " + self.processed_unix_hex_32le + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
     elif args.guess:
@@ -110,13 +111,13 @@ class DateDecoder(object):
     elif args.oleb:
       try:
 	self.convertOleBE()
-        print "Windows OLE 64 bit double Big Endian: " + self.processed_ole_be + " UTC"
+        print "Windows OLE 64 bit double BE: " + self.processed_ole_be + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
     elif args.olel:
       try:
         self.convertOleLE()
-        print "Windows OLE 64 bit double Little Endian: " + self.processed_ole_le + " UTC"
+        print "Windows OLE 64 bit double LE: " + self.processed_ole_le + " UTC"
       except Exception, e:
         logging.error(str(type(e)) + "," + str(e))
     elif args.mac:
@@ -128,13 +129,13 @@ class DateDecoder(object):
     elif args.hfsbe:
       try:
         self.convertHfsBE()
-	print "HFS/HFS+ 32 bit Hex Big Endian: " + self.processed_hfs_be + " HFS Local / HFS+ UTC"
+	print "HFS/HFS+ 32 bit Hex BE: " + self.processed_hfs_be + " HFS Local / HFS+ UTC"
       except Exception, e:
 	logging.error(str(type(e)) + "," + str(e))
     elif args.hfsle:
       try:
 	self.convertHfsLE()
-	print "HFS/HFS+ 32 big Hex Little Endian: " + self.processed_hfs_le + " HFS Local / HFS+ UTC"
+	print "HFS/HFS+ 32 big Hex LE: " + self.processed_hfs_le + " HFS Local / HFS+ UTC"
       except Exception, e:
 	logging.error(str(type(e)) + "," + str(e))
     elif args.msdos:
@@ -149,6 +150,12 @@ class DateDecoder(object):
 	print "Microsoft 128 bit SYSTEMTIME: " + self.processed_systemtime + " UTC"
       except Exception, e:
 	logging.error(str(type(e)) + "," + str(e))
+    elif args.ft:
+      try:
+	self.convertFiletime()
+	print "Microsoft FILETIME/LDAP time: " + self.processed_filetime + " UTC"
+      except Exception, e:
+	logging.error(str(type(e)) + "," + str(e))    
     elif args.pr:
       try:
 	self.convertPrtime()
@@ -166,8 +173,8 @@ class DateDecoder(object):
     
     self.processed_unix_seconds = 'N/A'
     self.processed_unix_milli = 'N/A'
-    self.processed_windows_little_endian_64 = 'N/A'
-    self.processed_windows_filetime_64 = 'N/A'
+    self.processed_windows_hex_64 = 'N/A'
+    self.processed_windows_hex_le = 'N/A'
     self.processed_chrome_time = 'N/A'
     self.processed_active_directory_time = 'N/A'
     self.processed_unix_hex_32 = 'N/A'
@@ -180,6 +187,7 @@ class DateDecoder(object):
     self.processed_hfs_le = 'N/A'
     self.processed_msdos = 'N/A'
     self.processed_systemtime = 'N/A'
+    self.processed_filetime = 'N/A'
     self.processed_prtime = 'N/A'
     self.processed_ole_auto = 'N/A'
 
@@ -187,8 +195,8 @@ class DateDecoder(object):
 
     self.convertUnixSeconds()
     self.convertUnixMilli()
-    self.convertWindowsLittleEndian_64()
-    self.convertWindowsFiletime_64()
+    self.convertWindows64Hex()
+    self.convertWindows64HexLE()
     self.convertChromeTimestamps()
     self.convertActiveDirectory_DateTime()
     self.convertUnixHex32BE()
@@ -201,6 +209,7 @@ class DateDecoder(object):
     self.convertHfsLE()
     self.convertMsdos()
     self.convertSystime()
+    self.convertFiletime()
     self.convertPrtime()
     self.convertOleAutomation()
     self.output()
@@ -208,14 +217,14 @@ class DateDecoder(object):
 
   def convertUnixSeconds(self):
     try:
-      self.processed_unix_seconds = datetime.datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_seconds = datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_seconds = 'N/A' #str(type(e).__name__)
 
   def convertUnixMilli(self):
     try:
-      self.processed_unix_milli = datetime.datetime.utcfromtimestamp(float(sys.argv[2]) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_unix_milli = datetime.utcfromtimestamp(float(sys.argv[2]) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_milli = 'N/A'
@@ -228,49 +237,49 @@ class DateDecoder(object):
 #        logging.error(str(type(e)) + "," + str(e))
 #        self.processed_unix_seconds = str(type(e).__name__)
 
-  def convertWindowsFiletime_64(self):
+  def convertWindows64Hex(self):
     try:
       base10_microseconds = int(sys.argv[2], 16) / 10
-      datetime_obj = datetime.datetime(1601,1,1) + datetime.timedelta(microseconds=base10_microseconds)
-      self.processed_windows_filetime_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      datetime_obj = datetime(1601,1,1) + timedelta(microseconds=base10_microseconds)
+      self.processed_windows_hex_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_windows_filetime_64 = 'N/A' #str(type(e).__name__)
+      self.processed_windows_hex_64 = 'N/A' #str(type(e).__name__)
 
 #    elif args.ft == 'formatted':
 #      try:
 #        converted_time = duparser.parse(args.ft)
-#        minus_epoch = converted_time - datetime.datetime(1601,1,1)
+#        minus_epoch = converted_time - datetime(1601,1,1)
 #        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-#        self.processed_windows_filetime_64 = str(hex(int(calculated_time)*10))
-#        print self.processed_windows_filetime_64
+#        self.processed_windows_hex_64 = str(hex(int(calculated_time)*10))
+#        print self.processed_windows_hex_64
 #      except Exception, e:
 #        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_filetime_64 = str(type(e).__name__)
+#        self.processed_windows_hex_64 = str(type(e).__name__)
 
-  def convertWindowsLittleEndian_64(self):
+  def convertWindows64HexLE(self):
     try:
       converted_time = struct.unpack("<Q", unhexlify(sys.argv[2]))[0]
-      datetime_obj = datetime.datetime(1601,1,1,0,0,0) + datetime.timedelta(microseconds=converted_time /10)
-      self.processed_windows_little_endian_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+      datetime_obj = datetime(1601,1,1,0,0,0) + timedelta(microseconds=converted_time /10)
+      self.processed_windows_hex_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_windows_little_endian_64 = 'N/A' #str(type(e).__name__)
+      self.processed_windows_hex_le = 'N/A' #str(type(e).__name__)
 
 #    elif args.fle == 'formatted':
 #      try:
 #        converted_time = duparser.parse(args.fle)
-#        minus_epoch = converted_time - datetime.datetime(1601,1,1,0,0,0)
+#        minus_epoch = converted_time - datetime(1601,1,1,0,0,0)
 #        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-#        self.processed_windows_little_endian_64 = str(hexlify(struct.pack("<Q",int(calculated_time*10))))
+#        self.processed_windows_hex_le = str(hexlify(struct.pack("<Q",int(calculated_time*10))))
 #      except Exception, e:
 #        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_little_endian_64 = str(type(e).__name__)
+#        self.processed_windows_hex_le = str(type(e).__name__)
 
 
   def convertChromeTimestamps(self):
     try:
-      converted_time = datetime.datetime.utcfromtimestamp((float(sys.argv[2])-self.epoch_1601)/1000000)
+      converted_time = datetime.utcfromtimestamp((float(sys.argv[2])-self.epoch_1601)/1000000)
       self.processed_chrome_time = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -290,7 +299,7 @@ class DateDecoder(object):
     try:
       part2, part1 = [int(h, base=16) for h in sys.argv[2].split(':')]
       converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
-      datetime_obj = datetime.datetime.utcfromtimestamp((converted_time - self.epoch_as_filetime) / self.hundreds_nano)
+      datetime_obj = datetime.utcfromtimestamp((converted_time - self.epoch_as_filetime) / self.hundreds_nano)
       self.processed_active_directory_time = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -299,18 +308,18 @@ class DateDecoder(object):
 #    elif args.active == 'formatted':
 #      try:
 #        converted_time = duparser.parse(args.active)
-#        minus_epoch = converted_time - datetime.datetime(1601,1,1,0,0,0)
+#        minus_epoch = converted_time - datetime(1601,1,1,0,0,0)
 #        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
 #        self.processed_active_directory_time = str(hexlify(struct.pack("<Q",int(calculated_time*10))))
 #	print self.processed_active_directory_time
 #      except Exception, e:
 #        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_little_endian_64 = str(type(e).__name__)
+#        self.processed_windows_hex_le = str(type(e).__name__)
 
   def convertUnixHex32BE(self):
     try:
       to_dec = int(sys.argv[2], 16)
-      self.processed_unix_hex_32 = datetime.datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_hex_32 = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_hex_32 = 'N/A' #str(type(e).__name__)
@@ -326,7 +335,7 @@ class DateDecoder(object):
   def convertUnixHex32LE(self):
     try:
       to_dec = struct.unpack("<L", unhexlify(sys.argv[2]))[0]
-      self.processed_unix_hex_32le = datetime.datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_hex_32le = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_hex_32le = 'N/A' #str(type(e).__name__)
@@ -335,7 +344,7 @@ class DateDecoder(object):
     try:
       low, high = [int(h, base=10) for h in sys.argv[2].split(',')]
       calc = 10**-7 * (high * 2**32 + low) - 11644473600
-      datetime_obj = datetime.datetime.utcfromtimestamp(calc)
+      datetime_obj = datetime.utcfromtimestamp(calc)
       self.processed_cookie = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -344,7 +353,7 @@ class DateDecoder(object):
   def convertOleBE(self):
     try:
       delta = struct.unpack('>d',struct.pack('>Q', int(sys.argv[2], 16)))[0]
-      datetime_obj = self.epoch_1899 + datetime.timedelta(days=delta)
+      datetime_obj = self.epoch_1899 + timedelta(days=delta)
       self.processed_ole_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -355,7 +364,7 @@ class DateDecoder(object):
       from_be = sys.argv[2].decode('hex')
       to_le = from_be[::-1].encode('hex')
       delta = struct.unpack('>d',struct.pack('>Q', int(to_le, 16)))[0]
-      datetime_obj = self.epoch_1899 + datetime.timedelta(days=delta)
+      datetime_obj = self.epoch_1899 + timedelta(days=delta)
       self.processed_ole_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -363,7 +372,7 @@ class DateDecoder(object):
 
   def convertMac(self):
     try:
-      datetime_obj = self.epoch_2001 + datetime.timedelta(seconds=int(sys.argv[2]))
+      datetime_obj = self.epoch_2001 + timedelta(seconds=int(sys.argv[2]))
       self.processed_mac = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -371,7 +380,7 @@ class DateDecoder(object):
 
   def convertHfsBE(self):
     try:
-      datetime_obj = self.epoch_1904 + datetime.timedelta(seconds=int(sys.argv[2],16))
+      datetime_obj = self.epoch_1904 + timedelta(seconds=int(sys.argv[2],16))
       self.processed_hfs_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -380,7 +389,7 @@ class DateDecoder(object):
   def convertHfsLE(self):
     try:
       to_le = struct.unpack('>I',struct.pack('<I', int(sys.argv[2], 16)))[0]
-      datetime_obj = self.epoch_1904 + datetime.timedelta(seconds=to_le)
+      datetime_obj = self.epoch_1904 + timedelta(seconds=to_le)
       self.processed_hfs_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -397,7 +406,7 @@ class DateDecoder(object):
         ts.append(dec)
       ts[0] = ts[0] + 1980
       ts[5] = ts[5] / 2
-      datetime_obj = datetime.datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
+      datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
       self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -412,15 +421,23 @@ class DateDecoder(object):
       for i in t:
         dec = int(i, 16)
         ts.append(dec)
-      datetime_obj = datetime.datetime(ts[0], ts[1], ts[3], ts[4], ts[5], ts[6], ts[7]*1000)
+      datetime_obj = datetime(ts[0], ts[1], ts[3], ts[4], ts[5], ts[6], ts[7]*1000)
       self.processed_systemtime = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_systemtime = 'N/A'
 
+  def convertFiletime(self):
+    try:
+      datetime_obj = datetime.utcfromtimestamp((float(sys.argv[2]) - self.epoch_as_filetime) / self.hundreds_nano)
+      self.processed_filetime = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_filetime = 'N/A'
+
   def convertPrtime(self):
     try:
-      datetime_obj = self.epoch_1970 + datetime.timedelta(microseconds=int(sys.argv[2]))
+      datetime_obj = self.epoch_1970 + timedelta(microseconds=int(sys.argv[2]))
       self.processed_prtime = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -428,7 +445,7 @@ class DateDecoder(object):
 
   def convertOleAutomation(self):
     try:
-      datetime_obj = self.epoch_1899 + datetime.timedelta(days=float(sys.argv[2]))
+      datetime_obj = self.epoch_1899 + timedelta(days=float(sys.argv[2]))
       self.processed_ole_auto = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
@@ -441,11 +458,11 @@ class DateDecoder(object):
     if isinstance(self.processed_unix_milli, str):
       print "Unix Milliseconds: " + self.processed_unix_milli
 
-    if isinstance(self.processed_windows_little_endian_64, str):
-      print "Windows FILETIME 64 LE: " + self.processed_windows_little_endian_64
- 
-    if isinstance(self.processed_windows_filetime_64, str):
-      print "Windows FILETIME 64: " + self.processed_windows_filetime_64
+    if isinstance(self.processed_windows_hex_64, str):
+      print "Windows 64 bit Hex BE: " + self.processed_windows_hex_64
+
+    if isinstance(self.processed_windows_hex_le, str):
+      print "Windows 64 bit Hex LE: " + self.processed_windows_hex_le
 
     if isinstance(self.processed_chrome_time, str):
       print "Google Chrome: " + self.processed_chrome_time
@@ -463,25 +480,28 @@ class DateDecoder(object):
       print "Windows Cookie Date: " + self.processed_cookie
 
     if isinstance(self.processed_ole_be, str):
-      print "Windows OLE 64 bit double Big Endian: " + self.processed_ole_be
+      print "Windows OLE 64 bit double BE: " + self.processed_ole_be
 
     if isinstance(self.processed_ole_le, str):
-      print "Windows OLE 64 bit double Little Endian: " + self.processed_ole_le
+      print "Windows OLE 64 bit double LE: " + self.processed_ole_le
 
     if isinstance(self.processed_mac, str):
       print "Mac Absolute Time: " + self.processed_mac
 
     if isinstance(self.processed_hfs_be, str):
-      print "HFS/HFS+ 32 bit Hex Big Endian: " + self.processed_hfs_be
+      print "HFS/HFS+ 32 bit Hex BE: " + self.processed_hfs_be
 
     if isinstance(self.processed_hfs_le, str):
-      print "HFS/HFS+ 32 bit Hex Little Endian: " + self.processed_hfs_le
+      print "HFS/HFS+ 32 bit Hex LE: " + self.processed_hfs_le
 
     if isinstance(self.processed_msdos, str):
       print "MS-DOS 32 bit Hex Value: " + self.processed_msdos
 
     if isinstance(self.processed_systemtime, str):
       print "Microsoft 128 bit SYSTEMTIME: " + self.processed_systemtime
+
+    if isinstance(self.processed_filetime, str):
+      print "Microsoft FILETIME/LDAP time: " + self.processed_filetime
 
     if isinstance(self.processed_prtime, str):
       print "Mozilla PRTime: " + self.processed_prtime
@@ -493,22 +513,23 @@ if __name__ == '__main__':
   argparse = argparse.ArgumentParser(description="Date Decode Time Converter", epilog="For errors and logging, see decoder.log")
   argparse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds', required=False)
   argparse.add_argument('--umil', metavar='<value>', help='convert from Unix Milliseconds', required=False)
-  argparse.add_argument('--ft', metavar='<value>', help='convert from Windows FILETIME 64', required=False)
-  argparse.add_argument('--fle', metavar='<value>', help='convert from Windows FILETIME 64 Little Endian', required=False)
+  argparse.add_argument('--wh', metavar='<value>', help='convert from Windows 64 bit Hex BE', required=False)
+  argparse.add_argument('--whle', metavar='<value>', help='convert from Windows 64 bit Hex LE', required=False)
   argparse.add_argument('--goog', metavar='<value>', help='convert from Google Chrome time', required=False)
   argparse.add_argument('--active', metavar='<value>', help='convert from Active Directory DateTime', required=False)
-  argparse.add_argument('--uhbe', metavar='<value>', help='convert from Unix Hex 32 bit Big Endian', required=False)
-  argparse.add_argument('--uhle', metavar='<value>', help='convert from Unix Hex 32 bit Little Endian', required=False)
-  argparse.add_argument('--cookie', metavar='<value>', help='convert from Windows Cookie Date (Low Value, High Value)', required=False)
-  argparse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64 bit Big Endian - remove 0x and spaces!\n Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb', required=False)
-  argparse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64 bit Little Endian', required=False)
+  argparse.add_argument('--uhbe', metavar='<value>', help='convert from Unix Hex 32 bit BE', required=False)
+  argparse.add_argument('--uhle', metavar='<value>', help='convert from Unix Hex 32 bit LE', required=False)
+  argparse.add_argument('--cookie', metavar='<value>', help='convert from Windows Cookie Date (Low Value,High Value)', required=False)
+  argparse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64 bit BE - remove 0x and spaces!\n Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb', required=False)
+  argparse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64 bit LE', required=False)
   argparse.add_argument('--mac', metavar='<value>', help='convert from Mac Absolute Time', required=False)
-  argparse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS/HFS+ Big Endian times (HFS times are in Local, HFS+ in UTC)', required=False)
-  argparse.add_argument('--hfsle', metavar='<value>', help='convert from HFS/HFS+ Little Endian times (HFS times are in Local, HFS+ in UTC)', required=False)
+  argparse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS/HFS+ BE times (HFS times are in Local, HFS+ in UTC)', required=False)
+  argparse.add_argument('--hfsle', metavar='<value>', help='convert from HFS/HFS+ LE times (HFS times are in Local, HFS+ in UTC)', required=False)
   argparse.add_argument('--msdos', metavar='<value>', help='convert from 32 bit MS-DOS time - result is Local Time', required=False)
   argparse.add_argument('--sys', metavar='<value>', help='convert from 128 bit SYSTEMTIME', required=False)
+  argparse.add_argument('--ft', metavar='<value>', help='convert from FILETIME/LDAP timestamp', required=False)
   argparse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
-  argparse.add_argument('--auto', metavar='<value>', help='conver from OLE Automation Date format', required=False)
+  argparse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
   argparse.add_argument('--guess', metavar='<value>', help='guess format and output all possibilities', required=False)
   argparse.add_argument('--version', '-v', action='version', version='%(prog)s' +str( __version__))
   args = argparse.parse_args()
