@@ -282,15 +282,15 @@ class DateDecoder(object):
       datetime_obj = duparser.parse(sys.argv[2])
       minus_epoch = datetime_obj - datetime(1601,1,0,0,0)
       calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-      self.output_windows_hex_le = str.hexlify(struct.pack("<Q",int(calculated_time*10))))
+      self.output_windows_hex_le = str.hexlify(struct.pack("<Q",int(calculated_time*10)))
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.output_windows_hex_le = 'N/A'
 
   def convertChromeTimestamps(self):
     try:
-      converted_time = datetime.utcfromtimestamp((float(sys.argv[2])-self.epoch_1601)/1000000)
-      self.processed_chrome_time = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      converted_time = datetime.fromtimestamp((float(sys.argv[2])-self.epoch_1601)/1000000)
+      self.processed_chrome_time = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_chrome_time = 'N/A'
