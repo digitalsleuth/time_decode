@@ -13,8 +13,8 @@ This python script provides the following conversions from existing timestamps:
 
 - Unix Seconds
 - Unix Milliseconds
-- Windows Filetime 64 bit (in Big Endian)
-- Windows Filetime 64 bit (in Little Endian)
+- Windows 64 bit Hex (in Big Endian)
+- Windows 64 bit Hex (in Little Endian)
 - Google Chrome Time
 - Active Directory time
 - Unix Hex 32 bit (in Big Endian)
@@ -27,6 +27,7 @@ This python script provides the following conversions from existing timestamps:
 - HFS/HFS+ Time (in Little Endian)
 - MS-DOS 32 bit Hex
 - Microsoft 128 bit SYSTEMTIME
+- Microsoft FILETIME/LDAP
 - Mozilla PRTime
 - OLE Automation Date/Time
 
