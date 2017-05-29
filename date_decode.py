@@ -33,6 +33,10 @@ class DateDecoder(object):
     self.processed_filetime = None
     self.processed_prtime = None
     self.processed_ole_auto = None
+
+    self.output_unix_seconds = None
+    self.output_unix_milli = None
+
     self.epoch_1601 = 11644473600000000
     self.epoch_1970 = datetime(1970,1,1)
     self.epoch_2001 = datetime(2001,1,1)
@@ -220,7 +224,15 @@ class DateDecoder(object):
       self.processed_unix_seconds = datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_unix_seconds = 'N/A' #str(type(e).__name__)
+      self.processed_unix_seconds = 'N/A'
+
+  def toUnixSeconds(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.output_unix_seconds = int((datetime_obj - self.epoch_1970).total_seconds())
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_unix_seconds = 'N/A'
 
   def convertUnixMilli(self):
     try:
@@ -229,13 +241,13 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_milli = 'N/A'
 
-#    elif args.unix == 'formatted':
-#      try:
-#        converted_time = duparser.parse(args.unix)
-#        self.processed_unix_seconds = str((converted_time - self.epoch_1970).total_seconds())
-#      except Exception, e:
-#        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_unix_seconds = str(type(e).__name__)
+  def toUnixMilli(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.output_unix_milli = int((datetime_obj - self.epoch_1970).total_seconds()*1000)
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_unix_milli = 'N/A'
 
   def convertWindows64Hex(self):
     try:
@@ -244,18 +256,17 @@ class DateDecoder(object):
       self.processed_windows_hex_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_windows_hex_64 = 'N/A' #str(type(e).__name__)
+      self.processed_windows_hex_64 = 'N/A'
 
-#    elif args.ft == 'formatted':
-#      try:
-#        converted_time = duparser.parse(args.ft)
-#        minus_epoch = converted_time - datetime(1601,1,1)
-#        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-#        self.processed_windows_hex_64 = str(hex(int(calculated_time)*10))
-#        print self.processed_windows_hex_64
-#      except Exception, e:
-#        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_hex_64 = str(type(e).__name__)
+  def toWindows64Hex(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      minus_epoch = datetime_obj - datetime(1601,1,1,0,0,0)
+      calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
+      self.output_windows_hex_64 = str(hex(int(calculated_time)*10))[2:].zfill(16)
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_windows_hex_64 = 'N/A'
 
   def convertWindows64HexLE(self):
     try:
@@ -264,18 +275,17 @@ class DateDecoder(object):
       self.processed_windows_hex_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_windows_hex_le = 'N/A' #str(type(e).__name__)
+      self.processed_windows_hex_le = 'N/A'
 
-#    elif args.fle == 'formatted':
-#      try:
-#        converted_time = duparser.parse(args.fle)
-#        minus_epoch = converted_time - datetime(1601,1,1,0,0,0)
-#        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-#        self.processed_windows_hex_le = str(hexlify(struct.pack("<Q",int(calculated_time*10))))
-#      except Exception, e:
-#        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_hex_le = str(type(e).__name__)
-
+  def toWindows64HexLE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      minus_epoch = datetime_obj - datetime(1601,1,0,0,0)
+      calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
+      self.output_windows_hex_le = str.hexlify(struct.pack("<Q",int(calculated_time*10))))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_windows_hex_le = 'N/A'
 
   def convertChromeTimestamps(self):
     try:
@@ -283,17 +293,16 @@ class DateDecoder(object):
       self.processed_chrome_time = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_chrome_time = 'N/A' #str(type(e).__name__)
+      self.processed_chrome_time = 'N/A'
 
-#    elif args.goog == 'formatted':
-#      try:
-#        converted_time = duparser.parse(args.goog)
-#        chrome_time = (converted_time - self.epoch_1970).total_seconds()*1000000 + self.epoch_1601
-#        self.processed_chrome_time = str(int(chrome_time))
-#	print self.processed_chrome_time
-#      except Exception, e:
-#        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_chrome_time = str(type(e).__name__)
+  def toChromeTimestamps(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      chrome_time = (datetime_obj - self.epoch_1970).total_seconds()*1000000 + self.epoch_1601
+      self.output_chrome_time = str(int(chrome_time))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_chrome_time = 'N/A'
 
   def convertActiveDirectory_DateTime(self):
     try:
