@@ -312,18 +312,18 @@ class DateDecoder(object):
       self.processed_active_directory_time = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_active_directory_time = 'N/A' #str(type(e).__name__)
+      self.processed_active_directory_time = 'N/A'
 
-#    elif args.active == 'formatted':
-#      try:
-#        converted_time = duparser.parse(args.active)
-#        minus_epoch = converted_time - datetime(1601,1,1,0,0,0)
-#        calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-#        self.processed_active_directory_time = str(hexlify(struct.pack("<Q",int(calculated_time*10))))
-#	print self.processed_active_directory_time
-#      except Exception, e:
-#        logging.error(str(type(e)) + "," + str(e))
-#        self.processed_windows_hex_le = str(type(e).__name__)
+  def toActiveDirectory_DateTime(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      minus_epoch = datetime_obj - datetime(1601,1,1,0,0,0)
+      calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
+      output = str(hexlify(struct.pack("<Q", int(calculated_time*10))))
+      self.output_active_directory_time = '{0}:{1}'.format(output[:8], output[8:].decode('hex')[::-1].encode('hex'))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_active_directory_time = 'N/A'
 
   def convertUnixHex32BE(self):
     try:
@@ -331,15 +331,15 @@ class DateDecoder(object):
       self.processed_unix_hex_32 = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_unix_hex_32 = 'N/A' #str(type(e).__name__)
+      self.processed_unix_hex_32 = 'N/A'
 
-#   elif args.uhbe == 'formatted':
-#     try:
-#       converted_time = duparser.parse(args.uhbe)
-#       self.processed_unix_hex_32 = str((converted_time - self.epoch_1970).total_seconds())
-#     except Exception, e:
-#       logging.error(str(type(e)) + "," + str(e))
-#       self.processed_unix_hex_32 = str(type(e).__name__)
+  def toUnixHex32BE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.to_unix_hex_32 = str(hexlify(struct.pack(">L", int((datetime_obj - self.epoch_1970).total_seconds()))))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_unix_hex_32 = 'N/A'
 
   def convertUnixHex32LE(self):
     try:
@@ -347,7 +347,15 @@ class DateDecoder(object):
       self.processed_unix_hex_32le = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.processed_unix_hex_32le = 'N/A' #str(type(e).__name__)
+      self.processed_unix_hex_32le = 'N/A'
+
+  def toUnixHex32LE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.output_unix_hex_32le = str(hexlify(struct.pack("<L", int((datetime_obj - epoch_1970).total_seconds()))))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_unix_hex_32le = 'N/A'
 
   def convertCookieDate(self):
     try:
@@ -358,6 +366,17 @@ class DateDecoder(object):
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_cookie = 'N/A'
+
+  def toCookieDate(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      unix = int((datetime_obj - self.epoch_1970).total_seconds())
+      high = int((unix + 11644473600) / 10**-7 / 2**32)
+      low = int((unix + 11644473600) * 10**7) - (high * 2**32)
+      self.output_cookie = str(low) + ',' + str(high)
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_cookie = 'N/A'
 
   def convertOleBE(self):
     try:
