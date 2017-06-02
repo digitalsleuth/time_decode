@@ -29,6 +29,7 @@ class DateDecoder(object):
     self.processed_hfs_be = None
     self.processed_hfs_le = None
     self.processed_msdos = None
+    self.processed_fat_dt = None
     self.processed_systemtime = None
     self.processed_filetime = None
     self.processed_prtime = None
@@ -148,6 +149,12 @@ class DateDecoder(object):
 	print "MS-DOS 32 bit Hex Value: " + self.processed_msdos + " Local"
       except Exception, e:
 	logging.error(str(type(e)) + "," + str(e))
+    elif args.fat:
+      try:
+	self.convertFatDateTime()
+	print "FAT Date + Time: " + self.processed_fat_dt + " Local"
+      except Exception, e:
+	logging.error(str(type(e)) + "," + str(e))
     elif args.sys:
       try:
 	self.convertSystime()
@@ -190,6 +197,7 @@ class DateDecoder(object):
     self.processed_hfs_be = 'N/A'
     self.processed_hfs_le = 'N/A'
     self.processed_msdos = 'N/A'
+    self.processed_fat_dt = 'N/A'
     self.processed_systemtime = 'N/A'
     self.processed_filetime = 'N/A'
     self.processed_prtime = 'N/A'
@@ -212,6 +220,7 @@ class DateDecoder(object):
     self.convertHfsBE()
     self.convertHfsLE()
     self.convertMsdos()
+    self.convertFatDateTime()
     self.convertSystime()
     self.convertFiletime()
     self.convertPrtime()
@@ -371,7 +380,7 @@ class DateDecoder(object):
     try:
       datetime_obj = duparser.parse(sys.argv[2])
       unix = int((datetime_obj - self.epoch_1970).total_seconds())
-      high = int((unix + 11644473600) / 10**-7 / 2**32)
+      high = int(((unix + 11644473600) * 10**7) / 2**32)
       low = int((unix + 11644473600) * 10**7) - (high * 2**32)
       self.output_cookie = str(low) + ',' + str(high)
     except Exception, e:
@@ -387,16 +396,35 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.processed_ole_be = 'N/A'
 
+  def toOleBE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      delta = (datetime_obj - self.epoch_1899).total_seconds() / 86400
+      conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
+      self.output_ole_be = hexlify(struct.pack('>Q', conv))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_ole_be = 'N/A'
+
   def convertOleLE(self):
     try:
-      from_be = sys.argv[2].decode('hex')
-      to_le = from_be[::-1].encode('hex')
+      to_le = hexlify(struct.pack('<Q', int(sys.argv[2],16)))
       delta = struct.unpack('>d',struct.pack('>Q', int(to_le, 16)))[0]
       datetime_obj = self.epoch_1899 + timedelta(days=delta)
       self.processed_ole_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_ole_le = 'N/A'
+
+  def toOleLE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      delta = (datetime_obj - self.epoch_1899).total_seconds() / 86400
+      conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
+      self.output_ole_le = hexlify(struct.pack('<Q', conv))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_ole_le = 'N/A'
 
   def convertMac(self):
     try:
@@ -406,6 +434,14 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.processed_mac = 'N/A'
 
+  def toMac(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.output_mac = int((datetime_obj - epoch_2001).total_seconds())
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_mac = 'N/A'
+
   def convertHfsBE(self):
     try:
       datetime_obj = self.epoch_1904 + timedelta(seconds=int(sys.argv[2],16))
@@ -413,6 +449,15 @@ class DateDecoder(object):
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_hfs_be = 'N/A'
+
+  def toHfsBE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      conv = int((datetime_obj - self.epoch_1904).total_seconds())
+      self.output_hfs_be = '{0:08x}'.format(conv)
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_hfs_be = 'N/A'
 
   def convertHfsLE(self):
     try:
@@ -422,6 +467,15 @@ class DateDecoder(object):
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_hfs_le = 'N/A'
+
+  def toHfsLE(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      conv = int((datetime_obj - self.epoch_1904).total_seconds())
+      self.output_hfs_le = hexlify(struct.pack('<I', conv))
+    except Exeption, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_hfs_le = 'N/A'
 
   def convertMsdos(self):
     try:
@@ -433,12 +487,60 @@ class DateDecoder(object):
         ts.remove(bin)
         ts.append(dec)
       ts[0] = ts[0] + 1980
-      ts[5] = ts[5] / 2
+      ts[5] = ts[5] * 2
       datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
       self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_msdos = 'N/A'
+
+  def toMsdos(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      year = '{0:07b}'.format(datetime_obj.year - 1980)
+      month = '{0:04b}'.format(datetime_obj.month)
+      day = '{0:05b}'.format(datetime_obj.day)
+      hour = '{0:05b}'.format(datetime_obj.hour)
+      minute = '{0:06b}'.format(datetime_obj.minute)
+      seconds = '{0:05b}'.format(datetime_obj.second / 2)
+      self.output_msdos = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_msdos = 'N/A'  
+
+  def convertFatDateTime(self):
+    try:
+      swap = [sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)][::-1]
+      hexed = ''.join(swap)
+      bin_conv = int(hexed, 16)
+      bin = '{0:032b}'.format(bin_conv)
+      ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
+      for val in ts[:]:
+        dec = int(val, 2)
+        ts.remove(val)
+        ts.append(dec)
+      ts[0] = ts[0] + 1980
+      ts[5] = ts[5] * 2
+      datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
+      self.processed_fat_dt = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_fat_dt = 'N/A'
+
+  def toFatDateTime(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      year = '{0:07b}'.format(datetime_obj.year - 1980)
+      month = '{0:04b}'.format(datetime_obj.month)
+      day = '{0:05b}'.format(datetime_obj.day)
+      hour = '{0:05b}'.format(datetime_obj.hour)
+      minute = '{0:06b}'.format(datetime_obj.minute)
+      seconds = '{0:05b}'.format(datetime_obj.second / 2)
+      hexval = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
+      self.output_fat_dt = ''.join([hexval[i:i+2] for i in range(0, len(hexval),2)][::-1]
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_fat_dt = 'N/A'
 
   def convertSystime(self):
     try:
@@ -454,6 +556,18 @@ class DateDecoder(object):
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_systemtime = 'N/A'
+
+  def toSystime(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      full_date = datetime_obj.strftime('%Y, %m, %w, %d, %H, %M, %S, %f')
+      ts = []
+      for value in full_date.split(','):
+        ts.append(hexlify(struct.pack('<H', int(i))))
+      self.output_systemtime = ''.join(ts)
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_systemtime = 'N/A'
 
   def convertFiletime(self):
     try:
@@ -525,6 +639,9 @@ class DateDecoder(object):
     if isinstance(self.processed_msdos, str):
       print "MS-DOS 32 bit Hex Value: " + self.processed_msdos
 
+    if isinstance(self.processed_fat_dt, str):
+      print "FAT Date + Time: " + self.processed_fat_dt
+
     if isinstance(self.processed_systemtime, str):
       print "Microsoft 128 bit SYSTEMTIME: " + self.processed_systemtime
 
@@ -554,6 +671,7 @@ if __name__ == '__main__':
   argparse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS/HFS+ BE times (HFS times are in Local, HFS+ in UTC)', required=False)
   argparse.add_argument('--hfsle', metavar='<value>', help='convert from HFS/HFS+ LE times (HFS times are in Local, HFS+ in UTC)', required=False)
   argparse.add_argument('--msdos', metavar='<value>', help='convert from 32 bit MS-DOS time - result is Local Time', required=False)
+  argparse.add_argument('--fat', metavar='<value>', help='convert from FAT Date + Time (wFat)', required=False)
   argparse.add_argument('--sys', metavar='<value>', help='convert from 128 bit SYSTEMTIME', required=False)
   argparse.add_argument('--ft', metavar='<value>', help='convert from FILETIME/LDAP timestamp', required=False)
   argparse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
