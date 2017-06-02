@@ -537,7 +537,7 @@ class DateDecoder(object):
       minute = '{0:06b}'.format(datetime_obj.minute)
       seconds = '{0:05b}'.format(datetime_obj.second / 2)
       hexval = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
-      self.output_fat_dt = ''.join([hexval[i:i+2] for i in range(0, len(hexval),2)][::-1]
+      self.output_fat_dt = ''.join([hexval[i:i+2] for i in range(0, len(hexval),2)][::-1])
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.output_fat_dt = 'N/A'
