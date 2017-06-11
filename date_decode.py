@@ -8,8 +8,8 @@ import argparse
 import sys
 
 __author__='Corey Forman'
-__date__='04 Jun 17'
-__version__='0.2'
+__date__='11 Jun 17'
+__version__='0.21'
 __description__='Python CLI Date Time Conversion Tool'
 
 class DateDecoder(object):
@@ -549,47 +549,16 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.output_hfs_le = 'N/A'
 
-  def convertMsdos(self):
+  def convertFatDateTime(self):
     try:
-      bin_conv = int(sys.argv[2], 16)
+      byte_swap = ''.join([sys.argv[2][i:i+4] for i in range(0, len(sys.argv[2]), 4)][::-1])
+      to_le = ''.join([byte_swap[i:i+2] for i in range(0, len(byte_swap), 2)][::-1])
+      bin_conv = int(to_le, 16)
       bin = '{0:032b}'.format(bin_conv)
       ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
       for bin in ts[:]:
         dec = int(bin, 2)
         ts.remove(bin)
-        ts.append(dec)
-      ts[0] = ts[0] + 1980
-      ts[5] = ts[5] * 2
-      datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
-      self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
-    except Exception, e:
-      logging.error(str(type(e)) + "," + str(e))
-      self.processed_msdos = 'N/A'
-
-  def toMsdos(self):
-    try:
-      datetime_obj = duparser.parse(sys.argv[2])
-      year = '{0:07b}'.format(datetime_obj.year - 1980)
-      month = '{0:04b}'.format(datetime_obj.month)
-      day = '{0:05b}'.format(datetime_obj.day)
-      hour = '{0:05b}'.format(datetime_obj.hour)
-      minute = '{0:06b}'.format(datetime_obj.minute)
-      seconds = '{0:05b}'.format(datetime_obj.second / 2)
-      self.output_msdos = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
-    except Exception, e:
-      logging.error(str(type(e)) + "," + str(e))
-      self.output_msdos = 'N/A'  
-
-  def convertFatDateTime(self):
-    try:
-      swap = [sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)][::-1]
-      hexed = ''.join(swap)
-      bin_conv = int(hexed, 16)
-      bin = '{0:032b}'.format(bin_conv)
-      ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
-      for val in ts[:]:
-        dec = int(val, 2)
-        ts.remove(val)
         ts.append(dec)
       ts[0] = ts[0] + 1980
       ts[5] = ts[5] * 2
@@ -608,11 +577,46 @@ class DateDecoder(object):
       hour = '{0:05b}'.format(datetime_obj.hour)
       minute = '{0:06b}'.format(datetime_obj.minute)
       seconds = '{0:05b}'.format(datetime_obj.second / 2)
-      hexval = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
-      self.output_fat_dt = ''.join([hexval[i:i+2] for i in range(0, len(hexval),2)][::-1])
+      to_hex = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
+      byte_swap = ''.join([to_hex[i:i+2] for i in range(0, len(to_hex), 2)][::-1])
+      self.output_fat_dt = ''.join([byte_swap[i:i+4] for i in range(0, len(byte_swap), 4)][::-1])
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
-      self.output_fat_dt = 'N/A'
+      self.output_fat_dt = 'N/A'  
+
+  def convertMsdos(self):
+    try:
+      swap = [sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)][::-1]
+      hexed = ''.join(swap)
+      bin_conv = int(hexed, 16)
+      bin = '{0:032b}'.format(bin_conv)
+      ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
+      for val in ts[:]:
+        dec = int(val, 2)
+        ts.remove(val)
+        ts.append(dec)
+      ts[0] = ts[0] + 1980
+      ts[5] = ts[5] * 2
+      datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
+      self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_msdos = 'N/A'
+
+  def toMsdos(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      year = '{0:07b}'.format(datetime_obj.year - 1980)
+      month = '{0:04b}'.format(datetime_obj.month)
+      day = '{0:05b}'.format(datetime_obj.day)
+      hour = '{0:05b}'.format(datetime_obj.hour)
+      minute = '{0:06b}'.format(datetime_obj.minute)
+      seconds = '{0:05b}'.format(datetime_obj.second / 2)
+      hexval = hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))
+      self.output_msdos = ''.join([hexval[i:i+2] for i in range(0, len(hexval),2)][::-1])
+    except Exception, e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_msdos = 'N/A'
 
   def convertSystime(self):
     try:
