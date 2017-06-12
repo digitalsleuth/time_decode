@@ -14,48 +14,6 @@ __description__='Python CLI Date Time Conversion Tool'
 
 class DateDecoder(object):
   def __init__(self):
-    self.processed_unix_seconds = None
-    self.processed_unix_milli = None
-    self.processed_windows_hex_64 = None
-    self.processed_windows_hex_le = None
-    self.processed_chrome_time = None
-    self.processed_active_directory_time = None
-    self.processed_unix_hex_32 = None
-    self.processed_unix_hex_32le = None
-    self.processed_cookie = None
-    self.processed_ole_be = None
-    self.processed_ole_le = None
-    self.processed_mac = None
-    self.processed_hfs_be = None
-    self.processed_hfs_le = None
-    self.processed_msdos = None
-    self.processed_fat_dt = None
-    self.processed_systemtime = None
-    self.processed_filetime = None
-    self.processed_prtime = None
-    self.processed_ole_auto = None
-
-    self.output_unix_seconds = None
-    self.output_unix_milli = None
-    self.output_windows_hex_64 = None
-    self.output_windows_hex_le = None
-    self.output_chrome_time = None
-    self.output_active_directory_time = None
-    self.output_unix_hex_32 = None
-    self.output_unix_hex_32le = None
-    self.output_cookie = None
-    self.output_ole_be = None
-    self.output_ole_le = None
-    self.output_mac = None
-    self.output_hfs_be = None
-    self.output_hfs_le = None
-    self.output_msdos = None
-    self.output_fat_dt = None
-    self.output_systemtime = None
-    self.output_filetime = None
-    self.output_prtime = None
-    self.output_ole_auto = None
-
     self.epoch_1601 = 11644473600000000
     self.epoch_1970 = datetime(1970,1,1)
     self.epoch_2001 = datetime(2001,1,1)
@@ -205,28 +163,6 @@ class DateDecoder(object):
 
 
   def convertAll(self):
-    
-    self.processed_unix_seconds = 'N/A'
-    self.processed_unix_milli = 'N/A'
-    self.processed_windows_hex_64 = 'N/A'
-    self.processed_windows_hex_le = 'N/A'
-    self.processed_chrome_time = 'N/A'
-    self.processed_active_directory_time = 'N/A'
-    self.processed_unix_hex_32 = 'N/A'
-    self.processed_unix_hex_32le = 'N/A'
-    self.processed_cookie = 'N/A'
-    self.processed_ole_be = 'N/A'
-    self.processed_ole_le = 'N/A'
-    self.processed_mac = 'N/A'
-    self.processed_hfs_be = 'N/A'
-    self.processed_hfs_le = 'N/A'
-    self.processed_msdos = 'N/A'
-    self.processed_fat_dt = 'N/A'
-    self.processed_systemtime = 'N/A'
-    self.processed_filetime = 'N/A'
-    self.processed_prtime = 'N/A'
-    self.processed_ole_auto = 'N/A'
-
     print '\nGuessing Date from Timestamp\n'
 
     self.convertUnixSeconds()
@@ -253,28 +189,6 @@ class DateDecoder(object):
     print '\r' 
 
   def toTimestamps(self):
-
-    self.output_unix_seconds = 'N/A'
-    self.output_unix_milli = 'N/A'
-    self.output_windows_hex_64 = 'N/A'
-    self.output_windows_hex_le = 'N/A'
-    self.output_chrome_time = 'N/A'
-    self.output_active_directory_time = 'N/A'
-    self.output_unix_hex_32 = 'N/A'
-    self.output_unix_hex_32le = 'N/A'
-    self.output_cookie = 'N/A'
-    self.output_ole_be = 'N/A'
-    self.output_ole_le = 'N/A'
-    self.output_mac = 'N/A'
-    self.output_hfs_be = 'N/A'
-    self.output_hfs_le = 'N/A'
-    self.output_msdos = 'N/A'
-    self.output_fat_dt = 'N/A'
-    self.output_systemtime = 'N/A'
-    self.output_filetime = 'N/A'
-    self.output_prtime = 'N/A'
-    self.output_ole_auto = 'N/A'
-
     print '\nGuessing Timestamp From Date\n'
  
     self.toUnixSeconds()
@@ -302,7 +216,7 @@ class DateDecoder(object):
 
   def convertUnixSeconds(self):
     try:
-      self.processed_unix_seconds = datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_seconds = datetime.utcfromtimestamp(float(sys.argv[2])).strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_seconds = 'N/A'
@@ -317,7 +231,7 @@ class DateDecoder(object):
 
   def convertUnixMilli(self):
     try:
-      self.processed_unix_milli = datetime.utcfromtimestamp(float(sys.argv[2]) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_unix_milli = datetime.utcfromtimestamp(float(sys.argv[2]) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_milli = 'N/A'
@@ -334,7 +248,7 @@ class DateDecoder(object):
     try:
       base10_microseconds = int(sys.argv[2], 16) / 10
       datetime_obj = datetime(1601,1,1) + timedelta(microseconds=base10_microseconds)
-      self.processed_windows_hex_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_windows_hex_64 = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_windows_hex_64 = 'N/A'
@@ -390,7 +304,7 @@ class DateDecoder(object):
       part2, part1 = [int(h, base=16) for h in sys.argv[2].split(':')]
       converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
       datetime_obj = datetime.utcfromtimestamp((converted_time - self.epoch_as_filetime) / self.hundreds_nano)
-      self.processed_active_directory_time = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_active_directory_time = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_active_directory_time = 'N/A'
@@ -409,7 +323,7 @@ class DateDecoder(object):
   def convertUnixHex32BE(self):
     try:
       to_dec = int(sys.argv[2], 16)
-      self.processed_unix_hex_32 = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_hex_32 = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_hex_32 = 'N/A'
@@ -425,7 +339,7 @@ class DateDecoder(object):
   def convertUnixHex32LE(self):
     try:
       to_dec = struct.unpack("<L", unhexlify(sys.argv[2]))[0]
-      self.processed_unix_hex_32le = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S %Z')
+      self.processed_unix_hex_32le = datetime.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_unix_hex_32le = 'N/A'
@@ -443,7 +357,7 @@ class DateDecoder(object):
       low, high = [int(h, base=10) for h in sys.argv[2].split(',')]
       calc = 10**-7 * (high * 2**32 + low) - 11644473600
       datetime_obj = datetime.utcfromtimestamp(calc)
-      self.processed_cookie = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_cookie = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_cookie = 'N/A'
@@ -463,7 +377,7 @@ class DateDecoder(object):
     try:
       delta = struct.unpack('>d',struct.pack('>Q', int(sys.argv[2], 16)))[0]
       datetime_obj = self.epoch_1899 + timedelta(days=delta)
-      self.processed_ole_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_ole_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_ole_be = 'N/A'
@@ -483,7 +397,7 @@ class DateDecoder(object):
       to_le = hexlify(struct.pack('<Q', int(sys.argv[2],16)))
       delta = struct.unpack('>d',struct.pack('>Q', int(to_le, 16)))[0]
       datetime_obj = self.epoch_1899 + timedelta(days=delta)
-      self.processed_ole_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_ole_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_ole_le = 'N/A'
@@ -501,7 +415,7 @@ class DateDecoder(object):
   def convertMac(self):
     try:
       datetime_obj = self.epoch_2001 + timedelta(seconds=int(sys.argv[2]))
-      self.processed_mac = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_mac = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_mac = 'N/A'
@@ -517,7 +431,7 @@ class DateDecoder(object):
   def convertHfsBE(self):
     try:
       datetime_obj = self.epoch_1904 + timedelta(seconds=int(sys.argv[2],16))
-      self.processed_hfs_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_hfs_be = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_hfs_be = 'N/A'
@@ -535,7 +449,7 @@ class DateDecoder(object):
     try:
       to_le = struct.unpack('>I',struct.pack('<I', int(sys.argv[2], 16)))[0]
       datetime_obj = self.epoch_1904 + timedelta(seconds=to_le)
-      self.processed_hfs_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
+      self.processed_hfs_le = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_hfs_le = 'N/A'
@@ -551,8 +465,8 @@ class DateDecoder(object):
 
   def convertFatDateTime(self):
     try:
-      byte_swap = ''.join([sys.argv[2][i:i+4] for i in range(0, len(sys.argv[2]), 4)][::-1])
-      to_le = ''.join([byte_swap[i:i+2] for i in range(0, len(byte_swap), 2)][::-1])
+      byte_swap = [sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)]
+      to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
       bin_conv = int(to_le, 16)
       bin = '{0:032b}'.format(bin_conv)
       ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
@@ -563,7 +477,7 @@ class DateDecoder(object):
       ts[0] = ts[0] + 1980
       ts[5] = ts[5] * 2
       datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
-      self.processed_fat_dt = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+      self.processed_fat_dt = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_fat_dt = 'N/A'
@@ -586,9 +500,8 @@ class DateDecoder(object):
 
   def convertMsdos(self):
     try:
-      swap = [sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)][::-1]
-      hexed = ''.join(swap)
-      bin_conv = int(hexed, 16)
+      swap = ''.join([sys.argv[2][i:i+2] for i in range(0, len(sys.argv[2]), 2)][::-1])
+      bin_conv = int(swap, 16)
       bin = '{0:032b}'.format(bin_conv)
       ts = [bin[:7], bin[7:11], bin[11:16], bin[16:21], bin[21:27], bin[27:32]]
       for val in ts[:]:
@@ -598,7 +511,7 @@ class DateDecoder(object):
       ts[0] = ts[0] + 1980
       ts[5] = ts[5] * 2
       datetime_obj = datetime(ts[0], ts[1], ts[2], ts[3], ts[4], ts[5])
-      self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S')
+      self.processed_msdos = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception, e:
       logging.error(str(type(e)) + "," + str(e))
       self.processed_msdos = 'N/A'
