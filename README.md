@@ -1,5 +1,6 @@
 # Date Decode
-A timestamp and date decoder written in python 2.x
+A timestamp and date decoder. 
+Compatible with Python 2.x and 3.x.
 
 I noticed a lack of timestamp conversion utilities in a number of different linux systems. Since I happen to use linux in my day-to-day work I thought this would help.
 
