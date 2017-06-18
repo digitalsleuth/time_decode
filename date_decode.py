@@ -302,7 +302,7 @@ class DateDecoder(object):
     try:
       part2, part1 = [int(h, base=16) for h in sys.argv[2].split(':')]
       converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
-      datetime_obj = datetime.utcfromtimestamp((converted_time - self.epoch_as_filetime) / self.hundreds_nano)
+      datetime_obj = datetime.utcfromtimestamp(float(converted_time - self.epoch_as_filetime) / self.hundreds_nano)
       self.processed_active_directory_time = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
     except Exception as e:
       logging.error(str(type(e)) + "," + str(e))
