@@ -532,8 +532,7 @@ class DateDecoder(object):
 
   def convertSystime(self):
     try:
-      from_be = sys.argv[2].decode('hex')
-      to_le = from_be[::-1].encode('hex')
+      to_le = str(hexlify(unhexlify(sys.argv[2])[::-1])).strip("b'").strip("'")
       t = [to_le[i:i + 4] for i in range(0, len(to_le), 4)][::-1]
       ts = []
       for i in t:
