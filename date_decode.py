@@ -18,6 +18,7 @@ class DateDecoder(object):
     self.epoch_1970 = datetime(1970,1,1)
     self.epoch_2001 = datetime(2001,1,1)
     self.hundreds_nano = 10000000
+    self.nano_2001 = 1000000000
     self.epoch_as_filetime = 116444736000000000
     self.epoch_1899 = datetime(1899,12,30,0,0,0)
     self.epoch_1904 = datetime(1904,1,1)
@@ -150,6 +151,12 @@ class DateDecoder(object):
         print ("OLE Automation Date: " + self.processed_ole_auto + " UTC")
       except Exception as e:
         logging.error(str(type(e)) + "," + str(e))
+    elif args.ios:
+      try:
+        self.convertiOSTime()
+        print ("iOS 11 beta Date: " + self.processed_iostime)
+      except Exception as e:
+        logging.error(str(type(e)) + "," + str(e))
     elif args.timestamp:
       try:
         self.toTimestamps()
@@ -184,6 +191,7 @@ class DateDecoder(object):
     self.convertFiletime()
     self.convertPrtime()
     self.convertOleAutomation()
+    self.convertiOSTime()
     self.output()
     print ('\r')
 
@@ -210,6 +218,7 @@ class DateDecoder(object):
     self.toFiletime()
     self.toPrtime()
     self.toOleAutomation()
+    self.toiOSTime()
     self.dateOutput()
     print ('\r')
 
@@ -609,6 +618,22 @@ class DateDecoder(object):
       logging.error(str(type(e)) + "," + str(e))
       self.output_ole_auto = 'N/A'
 
+  def convertiOSTime(self):
+    try:
+      datetime_obj = (int(sys.argv[2]) / int(self.nano_2001)) + 978307200
+      self.processed_iostime = datetime.utcfromtimestamp(datetime_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
+    except Exception as e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.processed_iostime = 'N/A'
+
+  def toiOSTime(self):
+    try:
+      datetime_obj = duparser.parse(sys.argv[2])
+      self.output_iostime = str(int(((datetime_obj - self.epoch_2001).total_seconds()) * self.nano_2001))
+    except Exception as e:
+      logging.error(str(type(e)) + "," + str(e))
+      self.output_iostime = 'N/A'
+
   def output(self):
     if isinstance(self.processed_unix_seconds, str):
       print ("Unix Seconds: "  + self.processed_unix_seconds)
@@ -669,6 +694,9 @@ class DateDecoder(object):
 
     if isinstance(self.processed_ole_auto, str):
       print ("OLE Automation Date: " + self.processed_ole_auto)
+
+    if isinstance(self.processed_iostime, str):
+      print ("iOS 11 beta Date: " + self.processed_iostime)
 
   def dateOutput(self):
     if isinstance(self.output_unix_seconds, str):
@@ -731,6 +759,8 @@ class DateDecoder(object):
     if isinstance(self.output_ole_auto, str):
       print ("OLE Automation Date: " + self.output_ole_auto)
 
+    if isinstance(self.output_iostime, str):
+      print ("iOS 11 beta Date: " + self.output_iostime)
 
 if __name__ == '__main__':
   argparse = argparse.ArgumentParser(description="Date Decode Time Converter", epilog="For errors and logging, see decoder.log")
@@ -754,6 +784,7 @@ if __name__ == '__main__':
   argparse.add_argument('--ft', metavar='<value>', help='convert from FILETIME/LDAP timestamp', required=False)
   argparse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
   argparse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
+  argparse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 beta Timestamp', required=False)
   argparse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all possibilities', required=False)
   argparse.add_argument('--timestamp', metavar='<date>', help='convert date to all timestamps. enter date as \'Y-M-D HH:MM:SS.m\' in 24h fmt', required=False)
   argparse.add_argument('--version', '-v', action='version', version='%(prog)s' +str( __version__))
