@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
 This application is designed to decode timestamps into human-readable date/times and vice-versa
+Additional information regarding the source of the timestamp formats and associated equations
+will be provided inline with the docstrings for each module.
 """
 from datetime import datetime, timedelta
 import logging
@@ -19,16 +21,16 @@ class DateDecoder(object):
     """Run the decoding class"""
     def __init__(self):
         self.epoch_1601 = datetime(1601, 1, 1)
+        self.epoch_1899 = datetime(1899, 12, 30, 0, 0, 0)
+        self.epoch_1904 = datetime(1904, 1, 1)
         self.epoch_1970 = datetime(1970, 1, 1)
         self.epoch_2001 = datetime(2001, 1, 1)
         self.hundreds_nano = 10000000
         self.nano_2001 = 1000000000
         self.epoch_as_filetime = 116444736000000000
-        self.epoch_1899 = datetime(1899, 12, 30, 0, 0, 0)
-        self.epoch_1904 = datetime(1904, 1, 1)
 
     def run(self):
-        """Process arguments, logging errors to decoder.log"""
+        """Process arguments and log errors"""
         if len(sys.argv[1:]) == 0:
             arg_parse.print_help()
             arg_parse.exit()
@@ -451,7 +453,7 @@ class DateDecoder(object):
             self.out_ole_le = 'N/A'
 
     def convert_mac(self):
-        """Convert a Mac Absolute timestamp to a date"""
+        """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
         try:
             datetime_obj = self.epoch_2001 + timedelta(seconds=int(sys.argv[2]))
             self.proc_mac = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -687,64 +689,64 @@ class DateDecoder(object):
     def output(self):
         """Output all processed timestamp values"""
         if isinstance(self.proc_unix_sec, str):
-            print ("Unix Seconds: "  + self.proc_unix_sec)
+            print ("Unix Seconds: "  + self.proc_unix_sec + " UTC")
 
         if isinstance(self.proc_unix_milli, str):
-            print ("Unix Milliseconds: " + self.proc_unix_milli)
+            print ("Unix Milliseconds: " + self.proc_unix_milli + " UTC")
 
         if isinstance(self.proc_windows_hex_64, str):
-            print ("Windows 64 bit Hex BE: " + self.proc_windows_hex_64)
+            print ("Windows 64 bit Hex BE: " + self.proc_windows_hex_64 + " UTC")
 
         if isinstance(self.proc_windows_hex_le, str):
-            print ("Windows 64 bit Hex LE: " + self.proc_windows_hex_le)
+            print ("Windows 64 bit Hex LE: " + self.proc_windows_hex_le + " UTC")
 
         if isinstance(self.proc_chrome_time, str):
-            print ("Google Chrome: " + self.proc_chrome_time)
+            print ("Google Chrome: " + self.proc_chrome_time + " UTC")
 
         if isinstance(self.proc_ad_time, str):
-            print ("Active Directory DateTime: " + self.proc_ad_time)
+            print ("Active Directory DateTime: " + self.proc_ad_time + " UTC")
 
         if isinstance(self.proc_unix_hex_32, str):
-            print ("Unix Hex 32 bit BE: " + self.proc_unix_hex_32)
+            print ("Unix Hex 32 bit BE: " + self.proc_unix_hex_32 + " UTC")
 
         if isinstance(self.proc_unix_hex_32le, str):
-            print ("Unix Hex 32 bit LE: " + self.proc_unix_hex_32le)
+            print ("Unix Hex 32 bit LE: " + self.proc_unix_hex_32le + " UTC")
 
         if isinstance(self.proc_cookie, str):
-            print ("Windows Cookie Date: " + self.proc_cookie)
+            print ("Windows Cookie Date: " + self.proc_cookie + " UTC")
 
         if isinstance(self.proc_ole_be, str):
-            print ("Windows OLE 64 bit double BE: " + self.proc_ole_be)
+            print ("Windows OLE 64 bit double BE: " + self.proc_ole_be + " UTC")
 
         if isinstance(self.proc_ole_le, str):
-            print ("Windows OLE 64 bit double LE: " + self.proc_ole_le)
+            print ("Windows OLE 64 bit double LE: " + self.proc_ole_le + " UTC")
 
         if isinstance(self.proc_mac, str):
-            print ("Mac Absolute Time: " + self.proc_mac)
+            print ("Mac Absolute Time: " + self.proc_mac + " UTC")
 
         if isinstance(self.proc_hfs_be, str):
-            print ("HFS/HFS+ 32 bit Hex BE: " + self.proc_hfs_be)
+            print ("HFS/HFS+ 32 bit Hex BE: " + self.proc_hfs_be + " HFS Local / HFS+ UTC")
 
         if isinstance(self.proc_hfs_le, str):
-            print ("HFS/HFS+ 32 bit Hex LE: " + self.proc_hfs_le)
+            print ("HFS/HFS+ 32 bit Hex LE: " + self.proc_hfs_le + " HFS Local / HFS+ UTC")
 
         if isinstance(self.proc_msdos, str):
-            print ("MS-DOS 32 bit Hex Value: " + self.proc_msdos)
+            print ("MS-DOS 32 bit Hex Value: " + self.proc_msdos + " Local")
 
         if isinstance(self.proc_fat_dt, str):
-            print ("FAT Date + Time: " + self.proc_fat_dt)
+            print ("FAT Date + Time: " + self.proc_fat_dt + " Local")
 
         if isinstance(self.proc_systemtime, str):
-            print ("Microsoft 128 bit SYSTEMTIME: " + self.proc_systemtime)
+            print ("Microsoft 128 bit SYSTEMTIME: " + self.proc_systemtime + " UTC")
 
         if isinstance(self.proc_filetime, str):
-            print ("Microsoft FILETIME/LDAP time: " + self.proc_filetime)
+            print ("Microsoft FILETIME/LDAP time: " + self.proc_filetime + " UTC")
 
         if isinstance(self.proc_prtime, str):
-            print ("Mozilla PRTime: " + self.proc_prtime)
+            print ("Mozilla PRTime: " + self.proc_prtime + " UTC")
 
         if isinstance(self.proc_ole_auto, str):
-            print ("OLE Automation Date: " + self.proc_ole_auto)
+            print ("OLE Automation Date: " + self.proc_ole_auto + " UTC")
 
         if isinstance(self.proc_iostime, str):
             print ("iOS 11 beta Date: " + self.proc_iostime)
