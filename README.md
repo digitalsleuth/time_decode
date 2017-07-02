@@ -38,6 +38,6 @@ There is also the ability to convert a date-time to all of the aforementioned ti
 
 python date_decode.py --timestamp "2017-06-02 13:14:15.678"
 
-The date/time you enter should be in the 'Y m d HH:MM:SS.sss' format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
+The date/time you enter should be in the 'Y-m-d HH:MM:SS.sss' format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
 
