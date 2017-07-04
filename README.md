@@ -30,6 +30,7 @@ This python script provides the following conversions from existing timestamps:
 - Mozilla PRTime
 - OLE Automation Date/Time
 - iOS 11 (beta) Date/Time
+- Symantec AV timestamp
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values are also in Local time. All other times, unless expressly mentioned, are in UTC.
 
