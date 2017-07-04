@@ -164,6 +164,12 @@ class DateDecoder(object):
                 print ("iOS 11 beta Date: " + self.proc_iostime)
             except Exception as e:
                 logging.error(str(type(e)) + "," + str(e))
+        elif args.sym:
+            try:
+                self.convert_sym_time()
+                print ("Symantec AV Timestamp: " + self.proc_symtime)
+            except Exception as e:
+                logging.error(str(type(e)) + "," + str(e))
         elif args.timestamp:
             try:
                 self.to_timestamps()
@@ -200,6 +206,7 @@ class DateDecoder(object):
         self.convert_prtime()
         self.convert_ole_auto()
         self.convert_ios_time()
+        self.convert_sym_time()
         self.output()
         print ('\r')
 
@@ -228,6 +235,7 @@ class DateDecoder(object):
         self.to_prtime()
         self.to_ole_auto()
         self.to_ios_time()
+        self.to_sym_time()
         self.date_output()
         print ('\r')
 
@@ -686,6 +694,33 @@ class DateDecoder(object):
             logging.error(str(type(e)) + "," + str(e))
             self.out_iostime = 'N/A'
 
+    def convert_sym_time(self):
+        """Convert a Symantec 12-byte hex timestamp to a date"""
+        try:
+            hex_to_dec = [int(sys.argv[2][i:i+2], 16) for i in range(0, len(sys.argv[2]), 2)]
+            hex_to_dec[0] = hex_to_dec[0] + 1970
+            hex_to_dec[1] = hex_to_dec[1] + 1
+            datetime_obj = datetime(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
+            self.proc_symtime = datetime_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+            logging.error(str(type(e)) + "," + str(e))
+            self.proc_symtime = 'N/A'
+
+    def to_sym_time(self):
+        """Convert a date to Symantec's 12-byte hex timestamp"""
+        try:
+            datetime_obj = duparser.parse(sys.argv[2])
+            sym_year = '{0:x}'.format(datetime_obj.year - 1970).zfill(2)
+            sym_month = '{0:x}'.format(datetime_obj.month - 1).zfill(2)
+            sym_day = '{0:x}'.format(datetime_obj.day).zfill(2)
+            sym_hour = '{0:x}'.format(datetime_obj.hour).zfill(2)
+            sym_minute = '{0:x}'.format(datetime_obj.minute).zfill(2)
+            sym_second = '{0:x}'.format(datetime_obj.second).zfill(2)
+            self.out_symtime = sym_year + sym_month + sym_day + sym_hour + sym_minute + sym_second
+        except Exception as e:
+            logging.error(str(type(e)) + "," + str(e))
+            self.out_symtime = 'N/A'
+
     def output(self):
         """Output all processed timestamp values"""
         if isinstance(self.proc_unix_sec, str):
@@ -751,6 +786,9 @@ class DateDecoder(object):
         if isinstance(self.proc_iostime, str):
             print ("iOS 11 beta Date: " + self.proc_iostime)
 
+        if isinstance(self.proc_symtime, str):
+            print ("Symantec AV timestamp: " + self.proc_symtime + " UTC")
+        
     def date_output(self):
         """Output all processed dates from timestamp values"""
         if isinstance(self.out_unix_sec, str):
@@ -816,6 +854,9 @@ class DateDecoder(object):
         if isinstance(self.out_iostime, str):
             print ("iOS 11 beta Date: " + self.out_iostime)
 
+        if isinstance(self.out_symtime, str):
+            print ("Symantec AV time: " + self.out_symtime)
+
 if __name__ == '__main__':
     arg_parse = argparse.ArgumentParser(description="Date Decode Time Converter", epilog="For errors and logging, see decoder.log")
     arg_parse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds', required=False)
@@ -839,6 +880,7 @@ if __name__ == '__main__':
     arg_parse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
     arg_parse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
     arg_parse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 beta Timestamp', required=False)
+    arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp', required=False)
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='<date>', help='convert date to all timestamps. enter date as \'Y-M-D HH:MM:SS.m\' in 24h fmt', required=False)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
