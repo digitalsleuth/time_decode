@@ -29,7 +29,7 @@ This python script provides the following conversions from existing timestamps:
 - Microsoft FILETIME/LDAP
 - Mozilla PRTime
 - OLE Automation Date/Time
-- iOS 11 (beta) Date/Time
+- iOS 11 Date/Time
 - Symantec AV timestamp
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values are also in Local time. All other times, unless expressly mentioned, are in UTC.
@@ -43,3 +43,4 @@ The date/time you enter should be in the 'Y-m-d HH:MM:SS.sss' format with the do
 If anyone has any other timestamps they think should be added to this tool, please let me know.
 
 Error/Debug logging will save directly in the current user HOME directory as identified by env as time_decoder.log
+Logging is now optional, disabled by default. Use --log to create the log file if required.
