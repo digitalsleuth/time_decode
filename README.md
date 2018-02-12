@@ -26,6 +26,7 @@ This python script provides the following conversions from existing timestamps:
 - Windows OLE 64 bit double (in Big Endian)
 - Windows OLE 64 bit double (in Little Endian)
 - Mac Absolute Time
+- Mac OS/HFS+ Decimal Time
 - HFS/HFS+ Time (in Big Endian)
 - HFS/HFS+ Time (in Little Endian)
 - MS-DOS 32 bit Hex
