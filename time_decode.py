@@ -30,6 +30,7 @@ class TimeDecoder(object):
         self.hundreds_nano = 10000000
         self.nano_2001 = 1000000000
         self.epoch_as_filetime = 116444736000000000
+        self.hfs_dec_subtract = 2082844800
 
         self.in_unix_sec = None
         self.in_unix_milli = None
@@ -43,6 +44,7 @@ class TimeDecoder(object):
         self.in_ole_be = None
         self.in_ole_le = None
         self.in_mac = None
+        self.in_hfs_dec = None
         self.in_hfs_be = None
         self.in_hfs_le = None
         self.in_msdos = None
@@ -97,6 +99,9 @@ class TimeDecoder(object):
             elif args.mac:
                 self.from_mac()
                 print ("Mac Absolute Time: " + self.in_mac + " UTC")
+            elif args.hfsdec:
+                self.from_hfs_dec()
+                print ("Mac OS/HFS+ Decimal Date: " + self.in_hfs_dec + " UTC")
             elif args.hfsbe:
                 self.from_hfs_be()
                 print ("HFS/HFS+ 32 bit Hex BE: " + self.in_hfs_be + " HFS Local / HFS+ UTC")
@@ -150,6 +155,7 @@ class TimeDecoder(object):
         self.from_ole_be()
         self.from_ole_le()
         self.from_mac()
+        self.from_hfs_dec()
         self.from_hfs_be()
         self.from_hfs_le()
         self.from_msdos()
@@ -178,6 +184,7 @@ class TimeDecoder(object):
         self.to_ole_be()
         self.to_ole_le()
         self.to_mac()
+        self.to_hfs_dec()
         self.to_hfs_be()
         self.to_hfs_le()
         self.to_msdos()
@@ -199,7 +206,7 @@ class TimeDecoder(object):
             if not args.log:
                 pass
             else:
-		logging.error(str(type(e)) + "," + str(e))
+                logging.error(str(type(e)) + "," + str(e))
             self.in_unix_sec = False
 
     def to_unix_sec(self):
@@ -501,6 +508,29 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_mac = False
+
+    def from_hfs_dec(self):
+        """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
+        try:
+            self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.in_hfs_dec = False
+
+    def to_hfs_dec(self):
+        """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
+        try:
+            dt_obj = duparser.parse(timestamp)
+            self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds()))
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.out_hfs_dec = False
 
     def from_hfs_be(self):
         """Convert an HFS/HFS+ Big Endian timestamp to a date (HFS+ is in UTC)"""
@@ -843,6 +873,9 @@ class TimeDecoder(object):
         if isinstance(self.in_mac, str):
             print ("Mac Absolute Time: " + self.in_mac + " UTC")
 
+        if isinstance(self.in_hfs_dec, str):
+            print ("Mac OS/HFS+ Decimal Time: " + self.in_hfs_dec + " UTC")
+
         if isinstance(self.in_hfs_be, str):
             print ("HFS/HFS+ 32 bit Hex BE: " + self.in_hfs_be + " HFS Local / HFS+ UTC")
 
@@ -873,9 +906,9 @@ class TimeDecoder(object):
         if isinstance(self.in_symtime, str):
             print ("Symantec AV timestamp: " + self.in_symtime + " UTC")
 
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
         if all([ values == False for values in inputs ]) :
-            print 'No valid dates found. Check your input and try again.'
+            print ('No valid dates found. Check your input and try again.')
 
     def timestamp_output(self):
         """Output all processed dates from timestamp values"""
@@ -914,6 +947,9 @@ class TimeDecoder(object):
 
         if isinstance(self.out_mac, str):
             print ("Mac Absolute Time: " + self.out_mac)
+
+        if isinstance(self.out_hfs_dec, str):
+            print ("Mac OS/HFS+ Time: " + self.out_hfs_dec)
 
         if isinstance(self.out_hfs_be, str):
             print ("HFS/HFS+ 32 bit Hex BE: " + self.out_hfs_be)
@@ -960,6 +996,7 @@ if __name__ == '__main__':
     arg_parse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64 bit BE - remove 0x and spaces! Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb', required=False)
     arg_parse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64 bit LE', required=False)
     arg_parse.add_argument('--mac', metavar='<value>', help='convert from Mac Absolute Time', required=False)
+    arg_parse.add_argument('--hfsdec', metavar='<value>', help='convert from Mac OS/HFS+ Decimal Time', required=False)
     arg_parse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)', required=False)
     arg_parse.add_argument('--hfsle', metavar='<value>', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)', required=False)
     arg_parse.add_argument('--msdos', metavar='<value>', help='convert from 32 bit MS-DOS time - result is Local Time', required=False)
@@ -975,9 +1012,9 @@ if __name__ == '__main__':
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     arg_parse.add_argument('--log', '-l', help='enable logging', required=False, action='store_true')
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; timestamp = args.timestamp
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; timestamp = args.timestamp
     if args.guess:
-        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess
+        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess
 
     if args.log:
         logger_output = environ['HOME'] + '/time_decoder.log'
