@@ -15,8 +15,8 @@ from os import environ
 from dateutil import parser as duparser
 
 __author__ = 'Corey Forman'
-__date__ = '10 Feb 18'
-__version__ = '0.41'
+__date__ = '17 Feb 18'
+__version__ = '0.45'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -142,7 +142,8 @@ class TimeDecoder(object):
     def from_all(self):
         """Find date from provided timestamp"""
         print ('\nGuessing Date from Timestamp: ' + sys.argv[2] + '\r')
-        print ('Outputs which do not result in a date/time value are not displayed.\n')
+        print ('Outputs which do not result in a date/time value are not displayed.\r')
+        print ('\033[1;31mMost likely results (results within +/- 5 years) are highlighted.\n\033[1;m'.format())
         self.from_unix_sec()
         self.from_unix_milli()
         self.from_win_64_hex()
@@ -208,6 +209,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_unix_sec = False
+        return self.in_unix_sec
 
     def to_unix_sec(self):
         "Convert date to a Unix Seconds value"""
@@ -220,6 +222,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_unix_sec = False
+        return self.out_unix_sec
 
     def from_unix_milli(self):
         """Convert Unix Millisecond value to a date"""
@@ -231,6 +234,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_unix_milli = False
+        return self.in_unix_milli
 
     def to_unix_milli(self):
         """Convert date to a Unix Millisecond value"""
@@ -243,6 +247,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_unix_milli = False
+        return self.out_unix_milli
 
     def from_win_64_hex(self):
         """Convert a Windows 64 Hex Big-Endian value to a date"""
@@ -256,6 +261,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_windows_hex_64 = False
+        return self.in_windows_hex_64
 
     def to_win_64_hex(self):
         """Convert a date to a Windows 64 Hex Big-Endian value"""
@@ -270,6 +276,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_windows_hex_64 = False
+        return self.out_windows_hex_64
 
     def from_win_64_hexle(self):
         """Convert a Windows 64 Hex Little-Endian value to a date"""
@@ -283,6 +290,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_windows_hex_le = False
+        return self.in_windows_hex_le
 
     def to_win_64_hexle(self):
         """Convert a date to a Windows 64 Hex Little-Endian value"""
@@ -297,6 +305,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_windows_hex_le = False
+        return self.out_windows_hex_le
 
     def from_chrome(self):
         """Convert a Chrome Timestamp/Webkit Value to a date"""
@@ -310,6 +319,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_chrome = False
+        return self.in_chrome
 
     def to_chrome(self):
         """Convert a date to a Chrome Timestamp/Webkit value"""
@@ -323,6 +333,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_chrome = False
+        return self.out_chrome
 
     def from_ad(self):
         """Convert an Active Directory timestamp to a date"""
@@ -337,6 +348,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_ad = False
+        return self.in_ad
 
     def to_ad(self):
         """Convert a date to an Active Directory timestamp"""
@@ -352,6 +364,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_active_directory_time = False
+        return self.out_active_directory_time
 
     def from_unix_hex_32be(self):
         """Convert a Unix Hex 32 bit Big-Endian timestamp to a date"""
@@ -364,6 +377,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_unix_hex_32 = False
+        return self.in_unix_hex_32
 
     def to_unix_hex_32be(self):
         """Convert a date to a Unix Hex 32 bit Big-Endian timestamp"""
@@ -376,6 +390,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_unix_hex_32 = False
+        return self.out_unix_hex_32
 
     def from_unix_hex_32le(self):
         """Convert a Unix Hex 32 bit Little-Endian timestamp to a date"""
@@ -388,6 +403,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_unix_hex_32le = False
+        return self.in_unix_hex_32le
 
     def to_unix_hex_32le(self):
         """Convert a date to a Unix Hex 32 bit Little-Endian timestamp"""
@@ -400,6 +416,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_unix_hex_32le = False
+        return self.out_unix_hex_32le
 
     def from_cookie(self):
         """Convert an Internet Explorer timestamp to a date"""
@@ -414,6 +431,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_cookie = False
+        return self.in_cookie
 
     def to_cookie(self):
         """Convert a date to Internet Explorer timestamp values"""
@@ -429,6 +447,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_cookie = False
+        return self.out_cookie
 
     def from_ole_be(self):
         """Convert an OLE Big Endian dimestamp to a date"""
@@ -442,6 +461,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_ole_be = False
+        return self.in_ole_be
 
     def to_ole_be(self):
         """Convert a date to an OLE Big Endian timestamp"""
@@ -456,6 +476,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_ole_be = False
+        return self.out_ole_be
 
     def from_ole_le(self):
         """Convert an OLE Little Endian timestamp to a date"""
@@ -470,6 +491,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_ole_le = False
+        return self.in_ole_le
 
     def to_ole_le(self):
         """Convert a date to an OLE Little Endian timestamp"""
@@ -484,6 +506,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_ole_le = False
+        return self.out_ole_le
 
     def from_mac(self):
         """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
@@ -496,6 +519,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_mac = False
+        return self.in_mac
 
     def to_mac(self):
         """Convert a date to a Mac Absolute timestamp"""
@@ -508,6 +532,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_mac = False
+        return self.out_mac
 
     def from_hfs_dec(self):
         """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
@@ -519,6 +544,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_hfs_dec = False
+        return self.in_hfs_dec
 
     def to_hfs_dec(self):
         """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
@@ -531,6 +557,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_hfs_dec = False
+        return self.out_hfs_dec
 
     def from_hfs_be(self):
         """Convert an HFS/HFS+ Big Endian timestamp to a date (HFS+ is in UTC)"""
@@ -543,6 +570,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_hfs_be = False
+        return self.in_hfs_be
 
     def to_hfs_be(self):
         """Convert a date to an HFS/HFS+ Big Endian timestamp"""
@@ -556,6 +584,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_hfs_be = False
+        return self.out_hfs_be
 
     def from_hfs_le(self):
         """Convert an HFS/HFS+ Little Endian timestamp to a date (HFS+ is in UTC)"""
@@ -569,6 +598,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_hfs_le = False
+        return self.in_hfs_le
 
     def to_hfs_le(self):
         """Convert a date to an HFS/HFS+ Little Endian timestamp"""
@@ -582,6 +612,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_hfs_le = False
+        return self.out_hfs_le
 
     def from_fat(self):
         """Convert an MS-DOS wFatDate wFatTime timestamp to a date"""
@@ -605,6 +636,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_fat = False
+        return self.in_fat
 
     def to_fat(self):
         """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
@@ -625,6 +657,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_fat = False
+        return self.out_fat
 
     def from_msdos(self):
         """Convert an MS-DOS timestamp to a date"""
@@ -647,6 +680,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_msdos = False
+        return self.in_msdos
 
     def to_msdos(self):
         """Convert a date to an MS-DOS timestamp"""
@@ -666,6 +700,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_msdos = False
+        return self.out_msdos
 
     def from_systime(self):
         """Convert a Microsoft 128 bit SYSTEMTIME timestamp to a date"""
@@ -684,6 +719,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_systemtime = False
+        return self.in_systemtime
 
     def to_systime(self):
         """Convert a date to a Microsoft 128 bit SYSTEMTIME timestamp"""
@@ -705,6 +741,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_systemtime = False
+        return self.out_systemtime
 
     def from_filetime(self):
         """Convert a Microsoft FILETIME/LDAP timestamp to a date"""
@@ -717,6 +754,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_filetime = False
+        return self.in_filetime
 
     def to_filetime(self):
         """Convert a date to a Microsoft FILETIME/LDAP timestamp"""
@@ -729,6 +767,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_filetime = False
+        return self.out_filetime
 
     def from_prtime(self):
         """Convert a Mozilla PRTime timestamp to a date"""
@@ -741,6 +780,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_prtime = False
+        return self.in_prtime
 
     def to_prtime(self):
         """Convert a date to Mozilla's PRTime timestamp"""
@@ -753,6 +793,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_prtime = False
+        return self.out_prtime
 
     def from_ole_auto(self):
         """Convert an OLE Automation timestamp to a date"""
@@ -765,6 +806,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_ole_auto = False
+        return self.in_ole_auto
 
     def to_ole_auto(self):
         """Convert a date to an OLE Automation timestamp"""
@@ -777,6 +819,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_ole_auto = False
+        return self.out_ole_auto
 
     def from_ios_time(self):
         """Convert an iOS 11 timestamp to a date"""
@@ -789,6 +832,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_iostime = False
+        return self.in_iostime
 
     def to_ios_time(self):
         """Convert a date to an iOS 11 timestamp"""
@@ -801,6 +845,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_iostime = False
+        return self.out_iostime
 
     def from_sym_time(self):
         """Convert a Symantec 12-byte hex timestamp to a date"""
@@ -816,6 +861,7 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.in_symtime = False
+        return self.in_symtime
 
     def to_sym_time(self):
         """Convert a date to Symantec's 12-byte hex timestamp"""
@@ -834,152 +880,223 @@ class TimeDecoder(object):
             else:
                 logging.error(str(type(e)) + "," + str(e))
             self.out_symtime = False
+        return self.out_symtime
 
     def date_output(self):
         """Output all processed timestamp values"""
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
+        this_year = int(dt.now().strftime('%Y'))
         if isinstance(self.in_unix_sec, str):
-            print ("Unix Seconds: "  + self.in_unix_sec + " UTC")
+            if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mUnix Seconds:\t\t\t"  + self.in_unix_sec + " UTC\033[1;m".format())
+            else:
+                print ("Unix Seconds:\t\t\t"  + self.in_unix_sec + " UTC")
 
         if isinstance(self.in_unix_milli, str):
-            print ("Unix Milliseconds: " + self.in_unix_milli + " UTC")
+            if int(duparser.parse(self.in_unix_milli).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mUnix Milliseconds:\t\t"  + self.in_unix_milli + " UTC\033[1;m".format())
+            else:
+                print ("Unix Milliseconds:\t\t" + self.in_unix_milli + " UTC")
 
         if isinstance(self.in_windows_hex_64, str):
-            print ("Windows 64 bit Hex BE: " + self.in_windows_hex_64 + " UTC")
+            if int(duparser.parse(self.in_windows_hex_64).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mWindows 64 bit Hex BE:\t\t"  + self.in_windows_hex_64 + " UTC\033[1;m".format())
+            else:
+                print ("Windows 64 bit Hex BE:\t\t" + self.in_windows_hex_64 + " UTC")
 
         if isinstance(self.in_windows_hex_le, str):
-            print ("Windows 64 bit Hex LE: " + self.in_windows_hex_le + " UTC")
+            if int(duparser.parse(self.in_windows_hex_le).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mWindows 64 bit Hex LE:\t\t"  + self.in_windows_hex_le + " UTC\033[1;m".format())
+            else:
+                print ("Windows 64 bit Hex LE:\t\t" + self.in_windows_hex_le + " UTC")
 
         if isinstance(self.in_chrome, str):
-            print ("Google Chrome: " + self.in_chrome + " UTC")
+            if int(duparser.parse(self.in_chrome).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mGoogle Chrome:\t\t\t"  + self.in_chrome + " UTC\033[1;m".format())
+            else:
+                print ("Google Chrome:\t\t\t" + self.in_chrome + " UTC")
 
         if isinstance(self.in_ad, str):
-            print ("Active Directory dt: " + self.in_ad + " UTC")
+            if int(duparser.parse(self.in_ad).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mActive Directory dt:\t\t"  + self.in_ad + " UTC\033[1;m".format())
+            else:
+                print ("Active Directory dt:\t\t" + self.in_ad + " UTC")
 
         if isinstance(self.in_unix_hex_32, str):
-            print ("Unix Hex 32 bit BE: " + self.in_unix_hex_32 + " UTC")
+            if int(duparser.parse(self.in_unix_hex_32).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mUnix Hex 32 bit BE:\t\t" + self.in_unix_hex_32 + " UTC\033[1;m".format())
+            else:
+                print ("Unix Hex 32 bit BE:\t\t" + self.in_unix_hex_32 + " UTC")
 
         if isinstance(self.in_unix_hex_32le, str):
-            print ("Unix Hex 32 bit LE: " + self.in_unix_hex_32le + " UTC")
+            if int(duparser.parse(self.in_unix_hex_32le).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mUnix Hex 32 bit LE:\t\t"  + self.in_unix_hex_32le + " UTC\033[1;m".format())
+            else:
+                print ("Unix Hex 32 bit LE:\t\t" + self.in_unix_hex_32le + " UTC")
 
         if isinstance(self.in_cookie, str):
-            print ("Windows Cookie Date: " + self.in_cookie + " UTC")
+            if int(duparser.parse(self.in_cookie).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mWindows Cookie Date:\t\t"  + self.in_cookie + " UTC\033[1;m".format())
+            else:
+                print ("Windows Cookie Date:\t\t" + self.in_cookie + " UTC")
 
         if isinstance(self.in_ole_be, str):
-            print ("Windows OLE 64 bit double BE: " + self.in_ole_be + " UTC")
+            if int(duparser.parse(self.in_ole_be).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mWindows OLE 64 bit double BE:\t"  + self.in_ole_be + " UTC\033[1;m".format())
+            else:
+                print ("Windows OLE 64 bit double BE:\t" + self.in_ole_be + " UTC")
 
         if isinstance(self.in_ole_le, str):
-            print ("Windows OLE 64 bit double LE: " + self.in_ole_le + " UTC")
+            if int(duparser.parse(self.in_ole_le).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mWindows OLE 64 bit double LE:\t"  + self.in_ole_le + " UTC\033[1;m".format())
+            else:
+                print ("Windows OLE 64 bit double LE:\t" + self.in_ole_le + " UTC")
 
         if isinstance(self.in_mac, str):
-            print ("Mac Absolute Time: " + self.in_mac + " UTC")
+            if int(duparser.parse(self.in_mac).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMac Absolute Time:\t\t"  + self.in_mac + " UTC\033[1;m".format())
+            else:
+                print ("Mac Absolute Time:\t\t" + self.in_mac + " UTC")
 
         if isinstance(self.in_hfs_dec, str):
-            print ("Mac OS/HFS+ Decimal Time: " + self.in_hfs_dec + " UTC")
+            if int(duparser.parse(self.in_hfs_dec).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMac OS/HFS+ Decimal Time:\t"  + self.in_hfs_dec + " UTC\033[1;m".format())
+            else:
+                print ("Mac OS/HFS+ Decimal Time:\t" + self.in_hfs_dec + " UTC")
 
         if isinstance(self.in_hfs_be, str):
-            print ("HFS/HFS+ 32 bit Hex BE: " + self.in_hfs_be + " HFS Local / HFS+ UTC")
+            if int(duparser.parse(self.in_hfs_be).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mHFS/HFS+ 32 bit Hex BE:\t\t"  + self.in_hfs_be + " HFS Local / HFS+ UTC\033[1;m".format())
+            else:
+                print ("HFS/HFS+ 32 bit Hex BE:\t\t" + self.in_hfs_be + " HFS Local / HFS+ UTC")
 
         if isinstance(self.in_hfs_le, str):
-            print ("HFS/HFS+ 32 bit Hex LE: " + self.in_hfs_le + " HFS Local / HFS+ UTC")
+            if int(duparser.parse(self.in_hfs_le).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mHFS/HFS+ 32 bit Hex LE:\t\t"  + self.in_hfs_le + " HFS Local / HFS+ UTC\033[1;m".format())
+            else:
+                print ("HFS/HFS+ 32 bit Hex LE:\t\t" + self.in_hfs_le + " HFS Local / HFS+ UTC")
 
         if isinstance(self.in_msdos, str):
-            print ("MS-DOS 32 bit Hex Value: " + self.in_msdos + " Local")
+            if int(duparser.parse(self.in_msdos).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMS-DOS 32 bit Hex Value:\t"  + self.in_msdos + " Local\033[1;m".format())
+            else:
+                print ("MS-DOS 32 bit Hex Value:\t" + self.in_msdos + " Local")
 
         if isinstance(self.in_fat, str):
-            print ("FAT Date + Time: " + self.in_fat + " Local")
+            if int(duparser.parse(self.in_fat).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mFAT Date + Time:\t\t"  + self.in_fat + " Local\033[1;m".format())
+            else:
+                print ("FAT Date + Time:\t\t" + self.in_fat + " Local")
 
         if isinstance(self.in_systemtime, str):
-            print ("Microsoft 128 bit SYSTEMTIME: " + self.in_systemtime + " UTC")
+            if int(duparser.parse(self.in_systemtime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMicrosoft 128 bit SYSTEMTIME:\t"  + self.in_systemtime + " UTC\033[1;m".format())
+            else:
+                print ("Microsoft 128 bit SYSTEMTIME:\t" + self.in_systemtime + " UTC")
 
         if isinstance(self.in_filetime, str):
-            print ("Microsoft FILETIME/LDAP time: " + self.in_filetime + " UTC")
+            if int(duparser.parse(self.in_filetime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMicrosoft FILETIME/LDAP time:\t"  + self.in_filetime + " UTC\033[1;m".format())
+            else:
+                print ("Microsoft FILETIME/LDAP time:\t" + self.in_filetime + " UTC")
 
         if isinstance(self.in_prtime, str):
-            print ("Mozilla PRTime: " + self.in_prtime + " UTC")
+            if int(duparser.parse(self.in_prtime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMozilla PRTime:\t\t\t"  + self.in_prtime + " UTC\033[1;m".format())
+            else:
+                print ("Mozilla PRTime:\t\t\t" + self.in_prtime + " UTC")
 
         if isinstance(self.in_ole_auto, str):
-            print ("OLE Automation Date: " + self.in_ole_auto + " UTC")
+            if int(duparser.parse(self.in_ole_auto).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mOLE Automation Date:\t\t"  + self.in_ole_auto + " UTC\033[1;m".format())
+            else:
+                print ("OLE Automation Date:\t\t" + self.in_ole_auto + " UTC")
 
         if isinstance(self.in_iostime, str):
-            print ("iOS 11 Date: " + self.in_iostime)
+            if int(duparser.parse(self.in_iostime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31miOS 11 Date:\t\t\t"  + self.in_iostime + " \033[1;m".format())
+            else:
+                print ("iOS 11 Date:\t\t\t" + self.in_iostime)
 
         if isinstance(self.in_symtime, str):
-            print ("Symantec AV timestamp: " + self.in_symtime + " UTC")
+            if int(duparser.parse(self.in_symtime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mSymantec AV timestamp:\t\t"  + self.in_symtime + " UTC\033[1;m".format())
+            else:
+                print ("Symantec AV timestamp:\t\t" + self.in_symtime + " UTC")
 
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
 
     def timestamp_output(self):
         """Output all processed dates from timestamp values"""
         if isinstance(self.out_unix_sec, str):
-            print ("Unix Seconds: " + self.out_unix_sec)
+            print ("Unix Seconds:\t\t\t" + self.out_unix_sec)
 
         if isinstance(self.out_unix_milli, str):
-            print ("Unix Milliseconds: " + self.out_unix_milli)
+            print ("Unix Milliseconds:\t\t" + self.out_unix_milli)
 
         if isinstance(self.out_windows_hex_64, str):
-            print ("Windows 64 bit Hex BE: " + self.out_windows_hex_64)
+            print ("Windows 64 bit Hex BE:\t\t" + self.out_windows_hex_64)
 
         if isinstance(self.out_windows_hex_le, str):
-            print ("Windows 64 bit Hex LE: " + self.out_windows_hex_le)
+            print ("Windows 64 bit Hex LE:\t\t" + self.out_windows_hex_le)
 
         if isinstance(self.out_chrome, str):
-            print ("Google Chrome: " + self.out_chrome)
+            print ("Google Chrome:\t\t\t" + self.out_chrome)
 
         if isinstance(self.out_active_directory_time, str):
-            print ("Active Directory dt: " + self.out_active_directory_time)
+            print ("Active Directory dt:\t\t" + self.out_active_directory_time)
 
         if isinstance(self.out_unix_hex_32, str):
-            print ("Unix Hex 32 bit BE: " + self.out_unix_hex_32)
+            print ("Unix Hex 32 bit BE:\t\t" + self.out_unix_hex_32)
 
         if isinstance(self.out_unix_hex_32le, str):
-            print ("Unix Hex 32 bit LE: " + self.out_unix_hex_32le)
+            print ("Unix Hex 32 bit LE:\t\t" + self.out_unix_hex_32le)
 
         if isinstance(self.out_cookie, str):
-            print ("Windows Cookie Date: " + self.out_cookie)
+            print ("Windows Cookie Date:\t\t" + self.out_cookie)
 
         if isinstance(self.out_ole_be, str):
-            print ("Windows OLE 64 bit double BE: " + self.out_ole_be)
+            print ("Windows OLE 64 bit double BE:\t" + self.out_ole_be)
 
         if isinstance(self.out_ole_le, str):
-            print ("Windows OLE 64 bit double LE: " + self.out_ole_le)
+            print ("Windows OLE 64 bit double LE:\t" + self.out_ole_le)
 
         if isinstance(self.out_mac, str):
-            print ("Mac Absolute Time: " + self.out_mac)
+            print ("Mac Absolute Time:\t\t" + self.out_mac)
 
         if isinstance(self.out_hfs_dec, str):
-            print ("Mac OS/HFS+ Time: " + self.out_hfs_dec)
+            print ("Mac OS/HFS+ Decimal Time:\t" + self.out_hfs_dec)
 
         if isinstance(self.out_hfs_be, str):
-            print ("HFS/HFS+ 32 bit Hex BE: " + self.out_hfs_be)
+            print ("HFS/HFS+ 32 bit Hex BE:\t\t" + self.out_hfs_be)
 
         if isinstance(self.out_hfs_le, str):
-            print ("HFS/HFS+ 32 bit Hex LE: " + self.out_hfs_le)
+            print ("HFS/HFS+ 32 bit Hex LE:\t\t" + self.out_hfs_le)
 
         if isinstance(self.out_msdos, str):
-            print ("MS-DOS 32 bit Hex Value: " + self.out_msdos)
+            print ("MS-DOS 32 bit Hex Value:\t" + self.out_msdos)
 
         if isinstance(self.out_fat, str):
-            print ("FAT Date + Time: " + self.out_fat)
+            print ("FAT Date + Time:\t\t" + self.out_fat)
 
         if isinstance(self.out_systemtime, str):
-            print ("Microsoft 128 bit SYSTEMTIME: " + self.out_systemtime)
+            print ("Microsoft 128 bit SYSTEMTIME:\t" + self.out_systemtime)
 
         if isinstance(self.out_filetime, str):
-            print ("Microsoft FILETIME/LDAP time: " + self.out_filetime)
+            print ("Microsoft FILETIME/LDAP time:\t" + self.out_filetime)
 
         if isinstance(self.out_prtime, str):
-            print ("Mozilla PRTime: " + self.out_prtime)
+            print ("Mozilla PRTime:\t\t\t" + self.out_prtime)
 
         if isinstance(self.out_ole_auto, str):
-            print ("OLE Automation Date: " + self.out_ole_auto)
+            print ("OLE Automation Date:\t\t" + self.out_ole_auto)
 
         if isinstance(self.out_iostime, str):
-            print ("iOS 11 Date: " + self.out_iostime)
+            print ("iOS 11 Date:\t\t\t" + self.out_iostime)
 
         if isinstance(self.out_symtime, str):
-            print ("Symantec AV time: " + self.out_symtime)
+            print ("Symantec AV time:\t\t" + self.out_symtime)
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
