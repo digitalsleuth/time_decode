@@ -13,10 +13,11 @@ import argparse
 import sys
 from os import environ
 from dateutil import parser as duparser
+from gwpy.time import tconvert
 
 __author__ = 'Corey Forman'
-__date__ = '17 Feb 18'
-__version__ = '0.45'
+__date__ = '27 Apr 18'
+__version__ = '0.5'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -55,6 +56,7 @@ class TimeDecoder(object):
         self.in_ole_auto = None
         self.in_iostime = None
         self.in_symtime = None
+        self.in_gpstime = None
 
     def run(self):
         """Process arguments and log errors"""
@@ -132,6 +134,9 @@ class TimeDecoder(object):
             elif args.sym:
                 self.from_sym_time()
                 print ("Symantec AV Timestamp: " + self.in_symtime)
+            elif args.gps:
+                self.from_gps_time()
+                print ("GPS Timestamp: " + self.in_gpstime)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
@@ -167,6 +172,7 @@ class TimeDecoder(object):
         self.from_ole_auto()
         self.from_ios_time()
         self.from_sym_time()
+        self.from_gps_time()
         self.date_output()
         print ('\r')
 
@@ -196,6 +202,7 @@ class TimeDecoder(object):
         self.to_ole_auto()
         self.to_ios_time()
         self.to_sym_time()
+        self.to_gps_time()
         self.timestamp_output()
         print ('\r')
 
@@ -881,7 +888,31 @@ class TimeDecoder(object):
                 logging.error(str(type(e)) + "," + str(e))
             self.out_symtime = False
         return self.out_symtime
-
+    
+    def from_gps_time(self):
+        """Convert a GPS timestamp to a date (involves leap seconds)"""
+        try:
+            self.in_gpstime = tconvert(gps).strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.in_gpstime = False
+        return self.in_gpstime
+            
+    def to_gps_time(self):
+        """Convert a date to a GPS timestamp (involves leap seconds)"""
+        try:
+            self.out_gpstime = str(tconvert(timestamp))
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.out_gpstime = False
+        return self.out_gpstime
+    
     def date_output(self):
         """Output all processed timestamp values"""
         inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
@@ -1023,6 +1054,12 @@ class TimeDecoder(object):
                 print ("\033[1;31mSymantec AV timestamp:\t\t"  + self.in_symtime + " UTC\033[1;m".format())
             else:
                 print ("Symantec AV timestamp:\t\t" + self.in_symtime + " UTC")
+        
+        if isinstance(self.in_gpstime, str):
+            if int(duparser.parse(self.in_gpstime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mGPS timestamp:\t\t\t"  + self.in_gpstime + " UTC\033[1;m".format())
+            else:
+                print ("GPS timestamp:\t\t\t" + self.in_gpstime + " UTC")
 
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
@@ -1097,6 +1134,9 @@ class TimeDecoder(object):
 
         if isinstance(self.out_symtime, str):
             print ("Symantec AV time:\t\t" + self.out_symtime)
+            
+        if isinstance(self.out_gpstime, str):
+            print ("GPS time:\t\t\t" + self.out_gpstime)
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -1124,14 +1164,15 @@ if __name__ == '__main__':
     arg_parse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
     arg_parse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 Timestamp', required=False)
     arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp', required=False)
+    arg_parse.add_argument('--gps', metavar='<value>', help='convert from a GPS Timestamp', required=False)
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     arg_parse.add_argument('--log', '-l', help='enable logging', required=False, action='store_true')
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; timestamp = args.timestamp
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp
     if args.guess:
-        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess
+        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess
 
     if args.log:
         logger_output = environ['HOME'] + '/time_decoder.log'
