@@ -12,6 +12,10 @@ For python3, dateutil does not come pre-installed as a module. It will need to b
 
 `sudo apt-get install python3-dateutil` or `pip install python-dateutil`
 
+Also, conversion for GPS timestamps requires the gwpy module:
+
+`sudo pip install gwpy`
+
 This python script provides the following conversions from existing timestamps:
 
 - Unix Seconds
@@ -37,6 +41,7 @@ This python script provides the following conversions from existing timestamps:
 - OLE Automation Date/Time
 - iOS 11 Date/Time
 - Symantec AV timestamp
+- GPS timestamps
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values are also in Local time. All other times, unless expressly mentioned, are in UTC.
 
@@ -45,7 +50,7 @@ There is also the ability to convert a date-time to all of the aforementioned ti
 
 `python time_decode.py --timestamp "2017-06-02 13:14:15.678"`
 
-The date/time you enter should be in the 'Y-m-d HH:MM:SS.sss' format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
+The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
 
 Error/Debug logging will save directly in the current user HOME directory as identified by env as time_decoder.log
