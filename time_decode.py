@@ -13,11 +13,13 @@ import argparse
 import sys
 from os import environ
 from dateutil import parser as duparser
-from gwpy.time import tconvert
+from astropy.time import Time
+from colorama import init
+init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '27 Apr 18'
-__version__ = '0.5'
+__date__ = '13 May 18'
+__version__ = '0.6'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -892,7 +894,9 @@ class TimeDecoder(object):
     def from_gps_time(self):
         """Convert a GPS timestamp to a date (involves leap seconds)"""
         try:
-            self.in_gpstime = tconvert(gps).strftime('%Y-%m-%d %H:%M:%S.%f')
+            gps_stamp = Time(int(gps), format='gps', scale='utc')
+            gps_stamp.format='iso'
+            self.in_gpstime = (duparser.parse(str(gps_stamp)).strftime('%Y-%m-%d %H:%M:%S.%f'))
         except Exception as e:
             if not args.log:
                 pass
@@ -904,7 +908,9 @@ class TimeDecoder(object):
     def to_gps_time(self):
         """Convert a date to a GPS timestamp (involves leap seconds)"""
         try:
-            self.out_gpstime = str(tconvert(timestamp))
+            iso_time = Time(timestamp, format='iso', scale='utc')
+            iso_time.format='gps'
+            self.out_gpstime = str(iso_time)
         except Exception as e:
             if not args.log:
                 pass
@@ -915,7 +921,7 @@ class TimeDecoder(object):
     
     def date_output(self):
         """Output all processed timestamp values"""
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime)
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime)
         this_year = int(dt.now().strftime('%Y'))
         if isinstance(self.in_unix_sec, str):
             if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
