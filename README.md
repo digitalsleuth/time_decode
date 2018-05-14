@@ -14,7 +14,7 @@ For python3, dateutil does not come pre-installed as a module. It will need to b
 
 Also, conversion for GPS timestamps requires the gwpy module:
 
-`sudo pip install gwpy`
+`sudo pip install astropy colorama`
 
 This python script provides the following conversions from existing timestamps:
 
