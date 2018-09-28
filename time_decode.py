@@ -13,13 +13,14 @@ import argparse
 import sys
 from os import environ
 from dateutil import parser as duparser
+import base64
 from astropy.time import Time
 from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '13 May 18'
-__version__ = '0.6'
+__date__ = '28 Sep 18'
+__version__ = '0.61'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -59,6 +60,7 @@ class TimeDecoder(object):
         self.in_iostime = None
         self.in_symtime = None
         self.in_gpstime = None
+        self.in_eitime = None
 
     def run(self):
         """Process arguments and log errors"""
@@ -139,6 +141,9 @@ class TimeDecoder(object):
             elif args.gps:
                 self.from_gps_time()
                 print ("GPS Timestamp: " + self.in_gpstime)
+            elif args.eitime:
+                self.from_eitime()
+                print ("Google URL EI Timestamp: " + self.in_eitime)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
@@ -175,6 +180,7 @@ class TimeDecoder(object):
         self.from_ios_time()
         self.from_sym_time()
         self.from_gps_time()
+        self.from_eitime()
         self.date_output()
         print ('\r')
 
@@ -918,10 +924,30 @@ class TimeDecoder(object):
                 logging.error(str(type(e)) + "," + str(e))
             self.out_gpstime = False
         return self.out_gpstime
-    
+
+    def from_eitime(self):
+        """Convert a Google ei URL timestamp"""
+        try:
+           padding_check = (len(eitime)%4)
+           if padding_check != 0:
+               padding_reqd = (4 - padding_check)
+               result_eitime = eitime + (padding_reqd * '=')
+           else:
+               result_eitime = eitime
+           decoded_eitime = base64.urlsafe_b64decode(result_eitime)
+           unix_timestamp = ord(decoded_eitime[0]) + ord(decoded_eitime[1])*256 + ord(decoded_eitime[2])*(256**2) + ord(decoded_eitime[3])*(256**3)
+           self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+           if not args.log:
+               pass
+           else:
+               logging.error(str(type(e)) + "," + str(e))
+           self.in_eitime = False
+        return self.in_eitime
+
     def date_output(self):
         """Output all processed timestamp values"""
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime)
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime)
         this_year = int(dt.now().strftime('%Y'))
         if isinstance(self.in_unix_sec, str):
             if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1067,6 +1093,12 @@ class TimeDecoder(object):
             else:
                 print ("GPS timestamp:\t\t\t" + self.in_gpstime + " UTC")
 
+        if isinstance(self.in_eitime, str):
+            if int(duparser.parse(self.in_eitime).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mGoogle EI URL timestamp:\t\t" + self.in_eitime + " UTC\033[1;m".format())
+            else:
+                print ("Google EI URL timestamp:\t\t" + self.in_eitime + " UTC")
+
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
 
@@ -1171,14 +1203,15 @@ if __name__ == '__main__':
     arg_parse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 Timestamp', required=False)
     arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp', required=False)
     arg_parse.add_argument('--gps', metavar='<value>', help='convert from a GPS Timestamp', required=False)
+    arg_parse.add_argument('--eitime', metavar='<value>', help='convert from a Google EI URL Timestamp', required=False)
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     arg_parse.add_argument('--log', '-l', help='enable logging', required=False, action='store_true')
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime
     if args.guess:
-        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess
+        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess; eitime = guess
 
     if args.log:
         logger_output = environ['HOME'] + '/time_decoder.log'
