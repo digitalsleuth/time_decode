@@ -1086,7 +1086,7 @@ class TimeDecoder(object):
                 print ("\033[1;31mSymantec AV timestamp:\t\t"  + self.in_symtime + " UTC\033[1;m".format())
             else:
                 print ("Symantec AV timestamp:\t\t" + self.in_symtime + " UTC")
-        
+
         if isinstance(self.in_gpstime, str):
             if int(duparser.parse(self.in_gpstime).strftime('%Y')) in range(this_year -5, this_year +5):
                 print ("\033[1;31mGPS timestamp:\t\t\t"  + self.in_gpstime + " UTC\033[1;m".format())
@@ -1095,9 +1095,9 @@ class TimeDecoder(object):
 
         if isinstance(self.in_eitime, str):
             if int(duparser.parse(self.in_eitime).strftime('%Y')) in range(this_year -5, this_year +5):
-                print ("\033[1;31mGoogle EI URL timestamp:\t\t" + self.in_eitime + " UTC\033[1;m".format())
+                print ("\033[1;31mGoogle EI URL timestamp:\t" + self.in_eitime + " UTC\033[1;m".format())
             else:
-                print ("Google EI URL timestamp:\t\t" + self.in_eitime + " UTC")
+                print ("Google EI URL timestamp:\t" + self.in_eitime + " UTC")
 
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
@@ -1172,7 +1172,7 @@ class TimeDecoder(object):
 
         if isinstance(self.out_symtime, str):
             print ("Symantec AV time:\t\t" + self.out_symtime)
-            
+
         if isinstance(self.out_gpstime, str):
             print ("GPS time:\t\t\t" + self.out_gpstime)
 
