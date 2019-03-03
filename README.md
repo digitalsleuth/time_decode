@@ -43,6 +43,7 @@ This python script provides the following conversions from existing timestamps:
 - Symantec AV timestamp
 - GPS timestamps
 - Google EI URL timestamp (thanks to http://cheeky4n6monkey.blogspot.com/2014/10/google-eid.html)
+- iOS Binary Plist (Mac Absolute + milli/nano seconds)
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values are also in Local time. All other times, unless expressly mentioned, are in UTC.
 
