@@ -146,8 +146,8 @@ class TimeDecoder(object):
                 self.from_eitime()
                 print ("Google URL EI Timestamp: " + self.in_eitime)
             elif args.bplist:
-				self.from_bplist()
-				print ("iOS Binary Plist Timestamp: " + self.in_bplist)
+                self.from_bplist()
+                print ("iOS Binary Plist Timestamp: " + self.in_bplist)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
