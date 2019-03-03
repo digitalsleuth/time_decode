@@ -1215,7 +1215,7 @@ class TimeDecoder(object):
             print ("GPS time:\t\t\t" + self.out_gpstime)
 
         if isinstance(self.out_bplist, str):
-            print ("iOS Binary Plist time:\t\t\t" + self.out_bplist)
+            print ("iOS Binary Plist time:\t\t" + self.out_bplist)
 			
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
