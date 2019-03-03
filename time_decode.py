@@ -19,8 +19,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '28 Sep 18'
-__version__ = '0.61'
+__date__ = '2 Mar 19'
+__version__ = '0.7'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -61,6 +61,7 @@ class TimeDecoder(object):
         self.in_symtime = None
         self.in_gpstime = None
         self.in_eitime = None
+        self.in_bplist = None
 
     def run(self):
         """Process arguments and log errors"""
@@ -144,6 +145,9 @@ class TimeDecoder(object):
             elif args.eitime:
                 self.from_eitime()
                 print ("Google URL EI Timestamp: " + self.in_eitime)
+            elif args.bplist:
+				self.from_bplist()
+				print ("iOS Binary Plist Timestamp: " + self.in_bplist)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
@@ -181,6 +185,7 @@ class TimeDecoder(object):
         self.from_sym_time()
         self.from_gps_time()
         self.from_eitime()
+        self.from_bplist()
         self.date_output()
         print ('\r')
 
@@ -211,6 +216,7 @@ class TimeDecoder(object):
         self.to_ios_time()
         self.to_sym_time()
         self.to_gps_time()
+        self.to_bplist()
         self.timestamp_output()
         print ('\r')
 
@@ -945,9 +951,35 @@ class TimeDecoder(object):
            self.in_eitime = False
         return self.in_eitime
 
+    def from_bplist(self):
+        """Convert a Binary Plist timestamp to a date"""
+        try:
+            dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
+            self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.in_bplist = False
+        return self.in_bplist
+
+    def to_bplist(self):
+        """Convert a date to a Binary Plist timestamp"""
+        try:
+            dt_obj = duparser.parse(timestamp)
+            self.out_bplist = str((dt_obj - self.epoch_2001).total_seconds())
+        except Exception as e:
+            if not args.log:
+                pass
+            else:
+                logging.error(str(type(e)) + "," + str(e))
+            self.out_bplist = False
+        return self.out_bplist
+		
     def date_output(self):
         """Output all processed timestamp values"""
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime)
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist)
         this_year = int(dt.now().strftime('%Y'))
         if isinstance(self.in_unix_sec, str):
             if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1099,6 +1131,12 @@ class TimeDecoder(object):
             else:
                 print ("Google EI URL timestamp:\t" + self.in_eitime + " UTC")
 
+        if isinstance(self.in_bplist, str):
+            if int(duparser.parse(self.in_bplist).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31miOS Binary Plist timestamp:\t" + self.in_bplist + " UTC\033[1;m".format())
+            else:
+                print ("iOS Binary Plist timestamp:\t" + self.in_bplist + " UTC")
+
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
 
@@ -1176,6 +1214,9 @@ class TimeDecoder(object):
         if isinstance(self.out_gpstime, str):
             print ("GPS time:\t\t\t" + self.out_gpstime)
 
+        if isinstance(self.out_bplist, str):
+            print ("iOS Binary Plist time:\t\t\t" + self.out_bplist)
+			
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter', epilog='If logging is enabled, see time_decoder.log in current users home dir.')
@@ -1204,14 +1245,15 @@ if __name__ == '__main__':
     arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp', required=False)
     arg_parse.add_argument('--gps', metavar='<value>', help='convert from a GPS Timestamp', required=False)
     arg_parse.add_argument('--eitime', metavar='<value>', help='convert from a Google EI URL Timestamp', required=False)
+    arg_parse.add_argument('--bplist', metavar='<value>', help='convert from an iOS Binary Plist Timestamp', required=False)
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     arg_parse.add_argument('--log', '-l', help='enable logging', required=False, action='store_true')
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist
     if args.guess:
-        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess; eitime = guess
+        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess; eitime = guess; bplist = guess
 
     if args.log:
         logger_output = environ['HOME'] + '/time_decoder.log'
