@@ -941,7 +941,7 @@ class TimeDecoder(object):
            else:
                result_eitime = eitime
            decoded_eitime = base64.urlsafe_b64decode(result_eitime)
-           unix_timestamp = ord(decoded_eitime[0]) + ord(decoded_eitime[1])*256 + ord(decoded_eitime[2])*(256**2) + ord(decoded_eitime[3])*(256**3)
+           unix_timestamp = decoded_eitime[0] + (decoded_eitime[1]*256) + (decoded_eitime[2]*(256**2)) + (decoded_eitime[3]*(256**3))
            self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
            if not args.log:
