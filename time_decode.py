@@ -4,9 +4,7 @@ This application is designed to decode timestamps into human-readable date/times
 Additional information regarding the source of the timestamp formats and associated equations
 will be provided inline with the docstrings for each module.
 """
-from datetime import datetime as dt
-from datetime import timedelta
-import logging
+from datetime import datetime as dt, timedelta
 import struct
 from binascii import hexlify, unhexlify
 import argparse
@@ -14,57 +12,65 @@ import sys
 from os import environ
 from dateutil import parser as duparser
 import base64
-from astropy.time import Time
+#from astropy.time import Time
 from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '2 Mar 19'
-__version__ = '0.7'
+__date__ = '9 Jan 2020'
+__version__ = '1.1'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
     """Run the decoding class"""
     def __init__(self):
         self.epoch_1601 = dt(1601, 1, 1)
-        self.epoch_1899 = dt(1899, 12, 30, 0, 0, 0)
+        self.epoch_1899 = dt(1899, 12, 30)
         self.epoch_1904 = dt(1904, 1, 1)
         self.epoch_1970 = dt(1970, 1, 1)
+        self.epoch_tai = dt(1970, 1, 1, 0, 0, 10) #GPS TAI Offset by 10 seconds
+        self.epoch_1980 = dt(1980, 1, 6) #GPS Epoch
+        self.epoch_2000 = dt(2000, 1, 1)
         self.epoch_2001 = dt(2001, 1, 1)
         self.hundreds_nano = 10000000
         self.nano_2001 = 1000000000
         self.epoch_as_filetime = 116444736000000000
         self.hfs_dec_subtract = 2082844800
 
-        self.in_unix_sec = None
-        self.in_unix_milli = None
-        self.in_windows_hex_64 = None
-        self.in_windows_hex_le = None
-        self.in_chrome = None
-        self.in_ad = None
-        self.in_unix_hex_32 = None
-        self.in_unix_hex_32le = None
-        self.in_cookie = None
-        self.in_ole_be = None
-        self.in_ole_le = None
-        self.in_mac = None
-        self.in_hfs_dec = None
-        self.in_hfs_be = None
-        self.in_hfs_le = None
-        self.in_msdos = None
-        self.in_fat = None
-        self.in_systemtime = None
-        self.in_filetime = None
-        self.in_prtime = None
-        self.in_ole_auto = None
-        self.in_iostime = None
-        self.in_symtime = None
-        self.in_gpstime = None
-        self.in_eitime = None
-        self.in_bplist = None
+        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_msdos = self.in_fat = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = None
+        self.leapseconds = {
+        10:[dt(1972,1,1), dt(1972,7,1)],
+        11:[dt(1972,7,1), dt(1973,1,1)],
+        12:[dt(1973,1,1), dt(1974,1,1)],
+        13:[dt(1974,1,1), dt(1975,1,1)],
+        14:[dt(1975,1,1), dt(1976,1,1)],
+        15:[dt(1976,1,1), dt(1977,1,1)],
+        16:[dt(1977,1,1), dt(1978,1,1)],
+        17:[dt(1978,1,1), dt(1979,1,1)],
+        18:[dt(1979,1,1), dt(1980,1,1)],
+        19:[dt(1980,1,1), dt(1981,7,1)],
+        20:[dt(1981,7,1), dt(1982,7,1)],
+        21:[dt(1982,7,1), dt(1983,7,1)],
+        22:[dt(1983,7,1), dt(1985,7,1)],
+        23:[dt(1985,7,1), dt(1988,1,1)],
+        24:[dt(1988,1,1), dt(1990,1,1)],
+        25:[dt(1990,1,1), dt(1991,1,1)],
+        26:[dt(1991,1,1), dt(1992,7,1)],
+        27:[dt(1992,7,1), dt(1993,7,1)],
+        28:[dt(1993,7,1), dt(1994,7,1)],
+        29:[dt(1994,7,1), dt(1996,1,1)],
+        30:[dt(1996,1,1), dt(1997,7,1)],
+        31:[dt(1997,7,1), dt(1999,1,1)],
+        32:[dt(1999,1,1), dt(2006,1,1)],
+        33:[dt(2006,1,1), dt(2009,1,1)],
+        34:[dt(2009,1,1), dt(2012,7,1)],
+        35:[dt(2012,7,1), dt(2015,7,1)],
+        36:[dt(2015,7,1), dt(2017,1,1)],
+        37:[dt(2017,1,1), dt.now()]
+        }         
 
     def run(self):
-        """Process arguments and log errors"""
+        """Process arguments and errors"""
         if len(sys.argv[1:]) == 0:
             arg_parse.print_help()
             arg_parse.exit()
@@ -153,7 +159,7 @@ class TimeDecoder(object):
             elif args.guess:
                 self.from_all()
         except Exception as e:
-            logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
 
     def from_all(self):
         """Find date from provided timestamp"""
@@ -225,10 +231,7 @@ class TimeDecoder(object):
         try:
             self.in_unix_sec = dt.utcfromtimestamp(float(unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_unix_sec = False
         return self.in_unix_sec
 
@@ -238,10 +241,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_unix_sec = False
         return self.out_unix_sec
 
@@ -250,10 +250,7 @@ class TimeDecoder(object):
         try:
             self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_unix_milli = False
         return self.in_unix_milli
 
@@ -263,10 +260,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_unix_milli = str(int((dt_obj - self.epoch_1970).total_seconds()*1000))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_unix_milli = False
         return self.out_unix_milli
 
@@ -277,10 +271,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1601 + timedelta(microseconds=base10_microseconds)
             self.in_windows_hex_64 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_windows_hex_64 = False
         return self.in_windows_hex_64
 
@@ -292,10 +283,7 @@ class TimeDecoder(object):
             calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_64 = str(hex(int(calculated_time)*10))[2:].zfill(16)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_windows_hex_64 = False
         return self.out_windows_hex_64
 
@@ -306,10 +294,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
             self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_windows_hex_le = False
         return self.in_windows_hex_le
 
@@ -321,10 +306,7 @@ class TimeDecoder(object):
             calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_le = str(hexlify(struct.pack("<Q", int(calculated_time*10))))[2:].zfill(16).strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_windows_hex_le = False
         return self.out_windows_hex_le
 
@@ -335,10 +317,7 @@ class TimeDecoder(object):
             converted_time = self.epoch_1601 + delta
             self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_chrome = False
         return self.in_chrome
 
@@ -349,10 +328,7 @@ class TimeDecoder(object):
             chrome_time = (dt_obj - self.epoch_1601).total_seconds() * 1000000
             self.out_chrome = str(int(chrome_time))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_chrome = False
         return self.out_chrome
 
@@ -364,10 +340,7 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp(float(converted_time - self.epoch_as_filetime) / self.hundreds_nano)
             self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_ad = False
         return self.in_ad
 
@@ -380,10 +353,7 @@ class TimeDecoder(object):
             output = hexlify(struct.pack(">Q", int(calculated_time*10)))
             self.out_active_directory_time = str(output[8:]).strip("'b").strip("'") + ":" + str(output[:8]).strip("'b").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_active_directory_time = False
         return self.out_active_directory_time
 
@@ -393,10 +363,7 @@ class TimeDecoder(object):
             to_dec = int(uhbe, 16)
             self.in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_unix_hex_32 = False
         return self.in_unix_hex_32
 
@@ -406,10 +373,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_unix_hex_32 = str(hexlify(struct.pack(">L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_unix_hex_32 = False
         return self.out_unix_hex_32
 
@@ -419,10 +383,7 @@ class TimeDecoder(object):
             to_dec = struct.unpack("<L", unhexlify(uhle))[0]
             self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_unix_hex_32le = False
         return self.in_unix_hex_32le
 
@@ -432,10 +393,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_unix_hex_32le = str(hexlify(struct.pack("<L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_unix_hex_32le = False
         return self.out_unix_hex_32le
 
@@ -447,10 +405,7 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp(calc)
             self.in_cookie = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_cookie = False
         return self.in_cookie
 
@@ -463,10 +418,7 @@ class TimeDecoder(object):
             low = int((unix + 11644473600) * 10**7) - (high * 2**32)
             self.out_cookie = str(low) + ',' + str(high)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_cookie = False
         return self.out_cookie
 
@@ -477,10 +429,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=delta)
             self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_ole_be = False
         return self.in_ole_be
 
@@ -492,10 +441,7 @@ class TimeDecoder(object):
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_be = str(hexlify(struct.pack('>Q', conv))).strip("b'").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_ole_be = False
         return self.out_ole_be
 
@@ -507,10 +453,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=delta)
             self.in_ole_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_ole_le = False
         return self.in_ole_le
 
@@ -522,10 +465,7 @@ class TimeDecoder(object):
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_le = str(hexlify(struct.pack('<Q', conv))).strip("b'").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_ole_le = False
         return self.out_ole_le
 
@@ -535,10 +475,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_2001 + timedelta(seconds=int(mac))
             self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_mac = False
         return self.in_mac
 
@@ -548,10 +485,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds()))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_mac = False
         return self.out_mac
 
@@ -560,10 +494,7 @@ class TimeDecoder(object):
         try:
             self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_hfs_dec = False
         return self.in_hfs_dec
 
@@ -573,10 +504,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds()))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_hfs_dec = False
         return self.out_hfs_dec
 
@@ -586,10 +514,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1904 + timedelta(seconds=int(hfsbe, 16))
             self.in_hfs_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_hfs_be = False
         return self.in_hfs_be
 
@@ -600,10 +525,7 @@ class TimeDecoder(object):
             conv = int((dt_obj - self.epoch_1904).total_seconds())
             self.out_hfs_be = '{0:08x}'.format(conv)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_hfs_be = False
         return self.out_hfs_be
 
@@ -614,10 +536,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
             self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_hfs_le = False
         return self.in_hfs_le
 
@@ -628,10 +547,7 @@ class TimeDecoder(object):
             conv = int((dt_obj - self.epoch_1904).total_seconds())
             self.out_hfs_le = str(hexlify(struct.pack('<I', conv))).strip("b'").strip("'")
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_hfs_le = False
         return self.out_hfs_le
 
@@ -652,10 +568,7 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
             self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_fat = False
         return self.in_fat
 
@@ -673,10 +586,7 @@ class TimeDecoder(object):
             byte_swap = ''.join([to_hex[i:i+2] for i in range(0, len(to_hex), 2)][::-1])
             self.out_fat = ''.join([byte_swap[i:i+4] for i in range(0, len(byte_swap), 4)][::-1])
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_fat = False
         return self.out_fat
 
@@ -696,10 +606,7 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
             self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_msdos = False
         return self.in_msdos
 
@@ -716,10 +623,7 @@ class TimeDecoder(object):
             hexval = str(hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))).strip("b'").strip("'")
             self.out_msdos = ''.join([hexval[i:i+2] for i in range(0, len(hexval), 2)][::-1])
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_msdos = False
         return self.out_msdos
 
@@ -735,10 +639,7 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[3], stamp[4], stamp[5], stamp[6], stamp[7]*1000)
             self.in_systemtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_systemtime = False
         return self.in_systemtime
 
@@ -757,10 +658,7 @@ class TimeDecoder(object):
                     stamp.append(hexlify(struct.pack('<H', int(value))))
             self.out_systemtime = ''.join(stamp)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_systemtime = False
         return self.out_systemtime
 
@@ -770,10 +668,7 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp((float(ft) - self.epoch_as_filetime) / self.hundreds_nano)
             self.in_filetime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_filetime = False
         return self.in_filetime
 
@@ -783,10 +678,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_filetime = str(int((dt_obj - self.epoch_1970).total_seconds() * self.hundreds_nano + self.epoch_as_filetime))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_filetime = False
         return self.out_filetime
 
@@ -796,10 +688,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1970 + timedelta(microseconds=int(pr))
             self.in_prtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_prtime = False
         return self.in_prtime
 
@@ -809,10 +698,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_prtime = str(int((dt_obj - self.epoch_1970).total_seconds() * 1000000))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_prtime = False
         return self.out_prtime
 
@@ -822,10 +708,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=float(auto))
             self.in_ole_auto = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_ole_auto = False
         return self.in_ole_auto
 
@@ -835,10 +718,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_ole_auto = "{0:.12f}".format((dt_obj - self.epoch_1899).total_seconds() / 86400)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_ole_auto = False
         return self.out_ole_auto
 
@@ -848,10 +728,7 @@ class TimeDecoder(object):
             dt_obj = (int(ios) / int(self.nano_2001)) + 978307200
             self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_iostime = False
         return self.in_iostime
 
@@ -861,10 +738,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds()) * self.nano_2001))
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_iostime = False
         return self.out_iostime
 
@@ -877,10 +751,7 @@ class TimeDecoder(object):
             dt_obj = dt(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
             self.in_symtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_symtime = False
         return self.in_symtime
 
@@ -896,62 +767,71 @@ class TimeDecoder(object):
             sym_second = '{0:x}'.format(dt_obj.second).zfill(2)
             self.out_symtime = sym_year + sym_month + sym_day + sym_hour + sym_minute + sym_second
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_symtime = False
         return self.out_symtime
     
+    def date_range(self, start, end, check_date):
+        """Check if date is in range of start and end, return True if it is"""
+        if start <= end:
+            return start <= check_date <= end
+        else:
+            return start <= check_date or check_date <= end
+            
     def from_gps_time(self):
         """Convert a GPS timestamp to a date (involves leap seconds)"""
         try:
-            gps_stamp = Time(int(gps), format='gps', scale='utc')
-            gps_stamp.format='iso'
-            self.in_gpstime = (duparser.parse(str(gps_stamp)).strftime('%Y-%m-%d %H:%M:%S.%f'))
+            leapseconds = self.leapseconds
+            gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps) + 19))
+            tai_convert = (gps_stamp - self.epoch_1970).total_seconds()
+            check_date = dt.utcfromtimestamp(tai_convert)
+            for entry in leapseconds:
+                check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
+                if check == True:
+                    variance = entry
+            gps_out = check_date - timedelta(seconds=variance)
+            self.in_gpstime = gps_out.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_gpstime = False
         return self.in_gpstime
-            
+    
     def to_gps_time(self):
         """Convert a date to a GPS timestamp (involves leap seconds)"""
         try:
-            iso_time = Time(timestamp, format='iso', scale='utc')
-            iso_time.format='gps'
-            self.out_gpstime = str(iso_time)
+            leapseconds = self.leapseconds
+            check_date = duparser.parse(timestamp)
+            for entry in leapseconds:
+                check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
+                if check == True:
+                    variance = entry
+            leap_correction = check_date + timedelta(seconds=variance)
+            epoch_shift = leap_correction - self.epoch_1970
+            gps_stamp = (dt.utcfromtimestamp(epoch_shift.total_seconds()) - self.epoch_1980).total_seconds() - 19
+            self.out_gpstime = str(gps_stamp)
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_gpstime = False
         return self.out_gpstime
 
     def from_eitime(self):
         """Convert a Google ei URL timestamp"""
         try:
-           padding_check = (len(eitime)%4)
-           if padding_check != 0:
-               padding_reqd = (4 - padding_check)
-               result_eitime = eitime + (padding_reqd * '=')
-           else:
-               result_eitime = eitime
-           decoded_eitime = base64.urlsafe_b64decode(result_eitime)
-           if sys.version_info.major == 2:
-               unix_timestamp = ord(decoded_eitime[0]) + ord(decoded_eitime[1])*256 + ord(decoded_eitime[2])*(256**2) + ord(decoded_eitime[3])*(256**3)
-           elif sys.version_info.major == 3:
-               unix_timestamp = decoded_eitime[0] + decoded_eitime[1]*256 + decoded_eitime[2]*(256**2) + decoded_eitime[3]*(256**3)
-           self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
+            padding_check = (len(eitime)%4)
+            if padding_check != 0:
+                padding_reqd = (4 - padding_check)
+                result_eitime = eitime + (padding_reqd * '=')
+            else:
+                result_eitime = eitime
+            decoded_eitime = base64.urlsafe_b64decode(result_eitime)
+            if sys.version_info.major == 2:
+                unix_timestamp = ord(decoded_eitime[0]) + ord(decoded_eitime[1])*256 + ord(decoded_eitime[2])*(256**2) + ord(decoded_eitime[3])*(256**3)
+            elif sys.version_info.major == 3:
+                unix_timestamp = decoded_eitime[0] + decoded_eitime[1]*256 + decoded_eitime[2]*(256**2) + decoded_eitime[3]*(256**3)
+            self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-           if not args.log:
-               pass
-           else:
-               logging.error(str(type(e)) + "," + str(e))
-           self.in_eitime = False
+            print(str(type(e)) + "," + str(e))
+            self.in_eitime = False
         return self.in_eitime
 
     def from_bplist(self):
@@ -960,10 +840,7 @@ class TimeDecoder(object):
             dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
             self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.in_bplist = False
         return self.in_bplist
 
@@ -973,10 +850,7 @@ class TimeDecoder(object):
             dt_obj = duparser.parse(timestamp)
             self.out_bplist = str((dt_obj - self.epoch_2001).total_seconds())
         except Exception as e:
-            if not args.log:
-                pass
-            else:
-                logging.error(str(type(e)) + "," + str(e))
+            print(str(type(e)) + "," + str(e))
             self.out_bplist = False
         return self.out_bplist
 		
@@ -1252,22 +1126,10 @@ if __name__ == '__main__':
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
-    arg_parse.add_argument('--log', '-l', help='enable logging', required=False, action='store_true')
     args = arg_parse.parse_args()
     guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist
     if args.guess:
-        unix = guess; umil = guess; wh = guess; whle = guess; goog = guess; active = guess; uhbe = guess; uhle = guess; cookie = guess; oleb = guess; olel = guess; mac = guess; hfsdec = guess; hfsbe = guess; hfsle = guess; msdos = guess; fat = guess; systime = guess; ft = guess; pr = guess; auto = guess; ios = guess; sym = guess; gps = guess; eitime = guess; bplist = guess
-
-    if args.log:
-        logger_output = environ['HOME'] + '/time_decoder.log'
-        logging.basicConfig(filename=logger_output, level=logging.DEBUG, format='%(asctime)s | %(levelname)s | %(funcName)s | %(message)s', filemode='a')
-        logging.debug('System ' + sys.platform)
-        logging.debug('Version ' + sys.version)
-        logging.info('Launching Time Decoder')
-        logging.info('Input Format Selected: ' + sys.argv[1])
-        logging.info('Starting Time Decoder v.' +str(__version__))
-    else:
-        logging.disable
+        unix = umil = wh = whle = goog = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = msdos = fat = systime = ft = pr = auto = ios = sym = gps = eitime = bplist = guess
 
     td = TimeDecoder()
     td.run()
