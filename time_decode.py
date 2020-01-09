@@ -233,7 +233,7 @@ class TimeDecoder(object):
         return self.in_unix_sec
 
     def to_unix_sec(self):
-        "Convert date to a Unix Seconds value"""
+        """Convert date to a Unix Seconds value"""
         try:
             dt_obj = duparser.parse(timestamp)
             self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()))
