@@ -920,9 +920,22 @@ class TimeDecoder(object):
     def to_gsm(self):
         try:
             dt_obj = duparser.parse(timestamp)
-            tz = dt_obj.isoformat()[-6:]
-            date_array = [dt_obj.year, dt_obj.month, dt_obj.day, dt_obj.hour, dt_obj.minute, dt_obj.second, tz]
-
+            tz = int(dt_obj.isoformat()[-6:-3])
+            if tz < 0:
+                high_ord_bit = 1
+                tz = abs(tz)
+                
+            date_list = [str(dt_obj.year - 2000), '{:02d}'.format(dt_obj.month), '{:02d}'.format(dt_obj.day), '{:02d}'.format(dt_obj.hour), '{:02d}'.format(dt_obj.minute), '{:02d}'.format(dt_obj.second)]
+            date_value_swap = []
+            for value in date_list[:]:
+                be = value[::-1]
+                date_value_swap.append(be)
+            output = ''.join(date_value_swap)
+            self.out_gsm = 
+        except Exception as e:
+            print(str(type(et)) + "," + str(e))
+            self.out_gsm = False
+        return self.out_gsm
     """
     def date_output(self):
         """Output all processed timestamp values"""
