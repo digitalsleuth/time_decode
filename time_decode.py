@@ -3,6 +3,12 @@
 This application is designed to decode timestamps into human-readable date/times and vice-versa
 Additional information regarding the source of the timestamp formats and associated equations
 will be provided inline with the docstrings for each module.
+
+GPS Ref: http://www.leapsecond.com/java/gpsclock.htm
+Leap Seconds: https://www.nist.gov/pml/time-and-frequency-division/leap-seconds-faqs
+              http://hpiers.obspm.fr/eop-pc/index.php?index=TAI-UTC_tab&lang=en
+Microsoft 1904 Timestamp: https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system
+
 """
 from datetime import datetime as dt, timedelta
 import struct
@@ -12,7 +18,6 @@ import sys
 from os import environ
 from dateutil import parser as duparser
 import base64
-#from astropy.time import Time
 from colorama import init
 init(autoreset=True)
 
@@ -28,8 +33,7 @@ class TimeDecoder(object):
         self.epoch_1899 = dt(1899, 12, 30)
         self.epoch_1904 = dt(1904, 1, 1)
         self.epoch_1970 = dt(1970, 1, 1)
-        self.epoch_tai = dt(1970, 1, 1, 0, 0, 10) #GPS TAI Offset by 10 seconds
-        self.epoch_1980 = dt(1980, 1, 6) #GPS Epoch
+        self.epoch_1980 = dt(1980, 1, 6)
         self.epoch_2000 = dt(2000, 1, 1)
         self.epoch_2001 = dt(2001, 1, 1)
         self.hundreds_nano = 10000000
@@ -37,7 +41,7 @@ class TimeDecoder(object):
         self.epoch_as_filetime = 116444736000000000
         self.hfs_dec_subtract = 2082844800
 
-        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_msdos = self.in_fat = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = None
+        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_msdos = self.in_fat = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = None
         self.leapseconds = {
         10:[dt(1972,1,1), dt(1972,7,1)],
         11:[dt(1972,7,1), dt(1973,1,1)],
@@ -67,7 +71,7 @@ class TimeDecoder(object):
         35:[dt(2012,7,1), dt(2015,7,1)],
         36:[dt(2015,7,1), dt(2017,1,1)],
         37:[dt(2017,1,1), dt.now()]
-        }         
+        }
 
     def run(self):
         """Process arguments and errors"""
@@ -139,6 +143,9 @@ class TimeDecoder(object):
             elif args.auto:
                 self.from_ole_auto()
                 print ("OLE Automation Date: " + self.in_ole_auto + " UTC")
+            elif args.ms1904:
+                self.from_ms1904()
+                print ("MS Excel 1904 Date: " + self.in_ms1904 + " UTC")
             elif args.ios:
                 self.from_ios_time()
                 print ("iOS 11 Date: " + self.in_iostime)
@@ -154,6 +161,9 @@ class TimeDecoder(object):
             elif args.bplist:
                 self.from_bplist()
                 print ("iOS Binary Plist Timestamp: " + self.in_bplist)
+            elif args.gsm:
+                self.from_gsm()
+                print ("GSM Timestamp: " + self.in_gsm)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
@@ -187,11 +197,13 @@ class TimeDecoder(object):
         self.from_filetime()
         self.from_prtime()
         self.from_ole_auto()
+        self.from_ms1904()
         self.from_ios_time()
         self.from_sym_time()
         self.from_gps_time()
         self.from_eitime()
         self.from_bplist()
+        self.from_gsm()
         self.date_output()
         print ('\r')
 
@@ -219,10 +231,12 @@ class TimeDecoder(object):
         self.to_filetime()
         self.to_prtime()
         self.to_ole_auto()
+        self.to_ms1904()
         self.to_ios_time()
         self.to_sym_time()
         self.to_gps_time()
         self.to_bplist()
+        self.to_gsm()
         self.timestamp_output()
         print ('\r')
 
@@ -722,6 +736,27 @@ class TimeDecoder(object):
             self.out_ole_auto = False
         return self.out_ole_auto
 
+    def from_ms1904(self):
+        """Convert a Microsoft Excel 1904 timestamp to a date"""
+        """https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system"""
+        try:
+            dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
+            self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+        except Exception as e:
+            print(str(type(e)) + "," + str(e))
+            self.in_ms1904 = False
+        return self.in_ms1904
+
+    def to_ms1904(self):
+        """Convert a date to a Microsoft Excel 1904 timestamp"""
+        try:
+           dt_obj = duparser.parse(timestamp)
+           self.out_ms1904 = "{0:.12f}".format((dt_obj - self.epoch_1904).total_seconds() / 86400)
+        except Exception as e:
+           print(str(type(e)) + "," + str(e))
+           self.out_ms1904 = False
+        return self.out_ms1904
+
     def from_ios_time(self):
         """Convert an iOS 11 timestamp to a date"""
         try:
@@ -770,21 +805,22 @@ class TimeDecoder(object):
             print(str(type(e)) + "," + str(e))
             self.out_symtime = False
         return self.out_symtime
-    
+
     def date_range(self, start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
         if start <= end:
             return start <= check_date <= end
         else:
             return start <= check_date or check_date <= end
-            
+
     def from_gps_time(self):
         """Convert a GPS timestamp to a date (involves leap seconds)"""
         try:
             leapseconds = self.leapseconds
-            gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps) + 19))
-            tai_convert = (gps_stamp - self.epoch_1970).total_seconds()
-            check_date = dt.utcfromtimestamp(tai_convert)
+            gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps)))
+            tai_convert = gps_stamp + timedelta(seconds=19)
+            epoch_convert = (tai_convert - self.epoch_1970).total_seconds()
+            check_date = dt.utcfromtimestamp(epoch_convert)
             for entry in leapseconds:
                 check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
                 if check == True:
@@ -795,7 +831,7 @@ class TimeDecoder(object):
             print(str(type(e)) + "," + str(e))
             self.in_gpstime = False
         return self.in_gpstime
-    
+
     def to_gps_time(self):
         """Convert a date to a GPS timestamp (involves leap seconds)"""
         try:
@@ -834,6 +870,9 @@ class TimeDecoder(object):
             self.in_eitime = False
         return self.in_eitime
 
+    """
+    def to_eitime(self): A reminder to add this
+    """
     def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
         try:
@@ -853,7 +892,38 @@ class TimeDecoder(object):
             print(str(type(e)) + "," + str(e))
             self.out_bplist = False
         return self.out_bplist
-		
+
+    def from_gsm(self):
+        try:
+            swap = [gsm[i:i+2] for i in range(0, len(gsm), 2)]
+            for value in swap[:]:
+                le = value[::-1]
+                swap.remove(value)
+                swap.append(le)
+            tz = '{0:8b}'.format(int(swap[6], 16))
+            if int(tz[0]) == 1:
+                utc_offset = -int(str(int(tz[1:4], 2)) + str(int(tz[4:8], 2))) * 0.25
+            elif int(tz[0]) == 0:
+                utc_offset = int(str(int(tz[0:4], 2)) + str(int(tz[4:8], 2))) * 0.25
+            swap[6] = utc_offset
+            for string in swap[:]:
+                swap.remove(string)
+                swap.append(int(string))
+            if swap[0] in range(0, 20):
+                swap[0] = swap[0] + 2000
+            self.in_gsm = str(dt(swap[0], swap[1], swap[2], swap[3], swap[4], swap[5]).strftime('%Y-%m-%d %H:%M:%S')) + " UTC" +  str(swap[6])
+        except Exception as e:
+            print(str(type(e)) + "," + str(e))
+            self.in_gsm = False
+        return self.in_gsm
+    """
+    def to_gsm(self):
+        try:
+            dt_obj = duparser.parse(timestamp)
+            tz = dt_obj.isoformat()[-6:]
+            date_array = [dt_obj.year, dt_obj.month, dt_obj.day, dt_obj.hour, dt_obj.minute, dt_obj.second, tz]
+
+    """
     def date_output(self):
         """Output all processed timestamp values"""
         inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist)
@@ -984,6 +1054,12 @@ class TimeDecoder(object):
             else:
                 print ("OLE Automation Date:\t\t" + self.in_ole_auto + " UTC")
 
+        if isinstance(self.in_ms1904, str):
+            if int(duparser.parse(self.in_ms1904).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMS Excel 1904 Date:\t\t" + self.in_ms1904 + " UTC\033[1;m".format())
+            else:
+                print ("MS Excel 1904 Date:\t\t" + self.in_ms1904 + " UTC")
+
         if isinstance(self.in_iostime, str):
             if int(duparser.parse(self.in_iostime).strftime('%Y')) in range(this_year -5, this_year +5):
                 print ("\033[1;31miOS 11 Date:\t\t\t"  + self.in_iostime + " \033[1;m".format())
@@ -1013,6 +1089,12 @@ class TimeDecoder(object):
                 print ("\033[1;31miOS Binary Plist timestamp:\t" + self.in_bplist + " UTC\033[1;m".format())
             else:
                 print ("iOS Binary Plist timestamp:\t" + self.in_bplist + " UTC")
+
+        if isinstance(self.in_gsm, str):
+            if int(duparser.parse(self.in_gsm).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mGSM Timestamp:\t\t\t"  + self.in_gsm + " UTC\033[1;m".format())
+            else:
+                print ("GSM Timestamp:\t\t\t" + self.in_gsm)
 
         if all([ values == False for values in inputs ]) :
             print ('No valid dates found. Check your input and try again.')
@@ -1082,6 +1164,9 @@ class TimeDecoder(object):
         if isinstance(self.out_ole_auto, str):
             print ("OLE Automation Date:\t\t" + self.out_ole_auto)
 
+        if isinstance(self.out_ms1904, str):
+            print ("MS Excel 1904 Date:\t\t" + self.out_ms1904)
+
         if isinstance(self.out_iostime, str):
             print ("iOS 11 Date:\t\t\t" + self.out_iostime)
 
@@ -1093,7 +1178,10 @@ class TimeDecoder(object):
 
         if isinstance(self.out_bplist, str):
             print ("iOS Binary Plist time:\t\t" + self.out_bplist)
-			
+
+        if isinstance(self.out_gsm, str):
+            print ("GSM time:\t\t\t" + self.out_gsm)
+
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter', epilog='If logging is enabled, see time_decoder.log in current users home dir.')
@@ -1118,18 +1206,20 @@ if __name__ == '__main__':
     arg_parse.add_argument('--ft', metavar='<value>', help='convert from FILETIME/LDAP timestamp', required=False)
     arg_parse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
     arg_parse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
+    arg_parse.add_argument('--ms1904', metavar='<value>', help='convert from MS Excel 1904 Date format', required=False)
     arg_parse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 Timestamp', required=False)
     arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp', required=False)
     arg_parse.add_argument('--gps', metavar='<value>', help='convert from a GPS Timestamp', required=False)
     arg_parse.add_argument('--eitime', metavar='<value>', help='convert from a Google EI URL Timestamp', required=False)
     arg_parse.add_argument('--bplist', metavar='<value>', help='convert from an iOS Binary Plist Timestamp', required=False)
+    arg_parse.add_argument('--gsm', metavar='<value>', help='convert from a GSM Timestamp', required=False)
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities', required=False)
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm
     if args.guess:
-        unix = umil = wh = whle = goog = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = msdos = fat = systime = ft = pr = auto = ios = sym = gps = eitime = bplist = guess
+        unix = umil = wh = whle = goog = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = msdos = fat = systime = ft = pr = auto = ms1904 = ios = sym = gps = eitime = bplist = gsm = guess
 
     td = TimeDecoder()
     td.run()
