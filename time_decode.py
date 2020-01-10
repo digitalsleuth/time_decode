@@ -916,27 +916,45 @@ class TimeDecoder(object):
             print(str(type(e)) + "," + str(e))
             self.in_gsm = False
         return self.in_gsm
-    """
+
     def to_gsm(self):
         try:
             dt_obj = duparser.parse(timestamp)
-            tz = int(dt_obj.isoformat()[-6:-3])
+            tz = dt_obj.tzinfo._offset.total_seconds()
+            if tz == 0:
+                hex_tz = '{:02d}'.format(0)
             if tz < 0:
-                high_ord_bit = 1
-                tz = abs(tz)
-                
-            date_list = [str(dt_obj.year - 2000), '{:02d}'.format(dt_obj.month), '{:02d}'.format(dt_obj.day), '{:02d}'.format(dt_obj.hour), '{:02d}'.format(dt_obj.minute), '{:02d}'.format(dt_obj.second)]
+                tz = tz / 3600
+                conversion = str(int(abs(tz)) * 4)
+                conversion_list = []
+                for char in range(len(conversion)):
+                    conversion_list.append(conversion[char])
+                high_order = '{0:04b}'.format(int(conversion_list[0]))
+                low_order = '{0:04b}'.format(int(conversion_list[1]))
+                high_order = '{0:04b}'.format(int(high_order, 2) + 8)
+                hex_tz = hex(int((high_order + low_order),2)).lstrip('0x').upper()
+            else:
+                tz = tz / 3600
+                conversion = str(int(tz) *4)
+                conversion_list = []
+                for char in range(len(conversion)):
+                    conversion_list.append(conversion[char])
+                high_order = '{0:04b}'.format(int(conversion_list[0]))
+                low_order = '{0:04b}'.format(int(conversion_list[1]))
+                hex_tz = hex(int((high_order + low_order),2)).lstrip('0x').upper()
+            date_list = [str(dt_obj.year - 2000), '{:02d}'.format(dt_obj.month), '{:02d}'.format(dt_obj.day), '{:02d}'.format(dt_obj.hour), '{:02d}'.format(dt_obj.minute), '{:02d}'.format(dt_obj.second), hex_tz]
             date_value_swap = []
             for value in date_list[:]:
                 be = value[::-1]
                 date_value_swap.append(be)
-            output = ''.join(date_value_swap)
-            self.out_gsm = 
+            self.out_gsm = ''.join(date_value_swap)
         except Exception as e:
-            print(str(type(et)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(exc_type, exc_tb.tb_lineno)
+            print(str(type(e)) + "," + str(e) + " At line no: " + str(exc_tb.tb_lineno))
             self.out_gsm = False
         return self.out_gsm
-    """
+
     def date_output(self):
         """Output all processed timestamp values"""
         inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist)
