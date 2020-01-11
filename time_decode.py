@@ -8,7 +8,7 @@ GPS Ref: http://www.leapsecond.com/java/gpsclock.htm
 Leap Seconds: https://www.nist.gov/pml/time-and-frequency-division/leap-seconds-faqs
               http://hpiers.obspm.fr/eop-pc/index.php?index=TAI-UTC_tab&lang=en
 Microsoft 1904 Timestamp: https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system
-
+Microsoft OLE Automation Date (OADate): https://docs.microsoft.com/en-us/dotnet/api/system.datetime.tooadate?redirectedfrom=MSDN&view=netframework-4.8#System_DateTime_ToOADate
 """
 from datetime import datetime as dt, timedelta
 import struct
@@ -169,7 +169,8 @@ class TimeDecoder(object):
             elif args.guess:
                 self.from_all()
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
 
     def from_all(self):
         """Find date from provided timestamp"""
@@ -245,7 +246,8 @@ class TimeDecoder(object):
         try:
             self.in_unix_sec = dt.utcfromtimestamp(float(unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_sec = False
         return self.in_unix_sec
 
@@ -253,9 +255,15 @@ class TimeDecoder(object):
         """Convert date to a Unix Seconds value"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()) - int(dt_tz))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_unix_sec = False
         return self.out_unix_sec
 
@@ -264,7 +272,8 @@ class TimeDecoder(object):
         try:
             self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_milli = False
         return self.in_unix_milli
 
@@ -272,9 +281,15 @@ class TimeDecoder(object):
         """Convert date to a Unix Millisecond value"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_unix_milli = str(int((dt_obj - self.epoch_1970).total_seconds()*1000))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_unix_milli = str((int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_unix_milli = False
         return self.out_unix_milli
 
@@ -285,7 +300,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1601 + timedelta(microseconds=base10_microseconds)
             self.in_windows_hex_64 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_windows_hex_64 = False
         return self.in_windows_hex_64
 
@@ -293,11 +309,17 @@ class TimeDecoder(object):
         """Convert a date to a Windows 64 Hex Big-Endian value"""
         try:
             dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
             minus_epoch = dt_obj - self.epoch_1601
-            calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
+            calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_64 = str(hex(int(calculated_time)*10))[2:].zfill(16)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_windows_hex_64 = False
         return self.out_windows_hex_64
 
@@ -308,7 +330,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
             self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_windows_hex_le = False
         return self.in_windows_hex_le
 
@@ -316,11 +339,17 @@ class TimeDecoder(object):
         """Convert a date to a Windows 64 Hex Little-Endian value"""
         try:
             dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
             minus_epoch = dt_obj - self.epoch_1601
-            calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
+            calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_le = str(hexlify(struct.pack("<Q", int(calculated_time*10))))[2:].zfill(16).strip("'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_windows_hex_le = False
         return self.out_windows_hex_le
 
@@ -331,7 +360,8 @@ class TimeDecoder(object):
             converted_time = self.epoch_1601 + delta
             self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_chrome = False
         return self.in_chrome
 
@@ -339,10 +369,16 @@ class TimeDecoder(object):
         """Convert a date to a Chrome Timestamp/Webkit value"""
         try:
             dt_obj = duparser.parse(timestamp)
-            chrome_time = (dt_obj - self.epoch_1601).total_seconds() * 1000000
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            chrome_time = ((dt_obj - self.epoch_1601).total_seconds() - int(dt_tz))* 1000000
             self.out_chrome = str(int(chrome_time))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_chrome = False
         return self.out_chrome
 
@@ -354,7 +390,8 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp(float(converted_time - self.epoch_as_filetime) / self.hundreds_nano)
             self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ad = False
         return self.in_ad
 
@@ -362,12 +399,19 @@ class TimeDecoder(object):
         """Convert a date to an Active Directory timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
             minus_epoch = dt_obj - self.epoch_1601
-            calculated_time = minus_epoch.microseconds + (minus_epoch.seconds * 1000000) + (minus_epoch.days * 86400000000)
-            output = hexlify(struct.pack(">Q", int(calculated_time*10)))
-            self.out_active_directory_time = str(output[8:]).strip("'b").strip("'") + ":" + str(output[:8]).strip("'b").strip("'")
+            calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
+            output = str(hexlify(struct.pack(">Q", int(calculated_time*10)))).strip("b'")
+            self.out_active_directory_time = str(output[8:]) + ":" + str(output[:8])
+            #self.out_active_directory_time = str(output[8:]).strip("'b").strip("'") + ":" + str(output[:8]).strip("'b").strip("'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_active_directory_time = False
         return self.out_active_directory_time
 
@@ -377,7 +421,8 @@ class TimeDecoder(object):
             to_dec = int(uhbe, 16)
             self.in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_hex_32 = False
         return self.in_unix_hex_32
 
@@ -385,9 +430,16 @@ class TimeDecoder(object):
         """Convert a date to a Unix Hex 32 bit Big-Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_unix_hex_32 = str(hexlify(struct.pack(">L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
+            self.out_unix_hex_32 = str(hexlify(struct.pack(">L", unix_time))).strip("b'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_unix_hex_32 = False
         return self.out_unix_hex_32
 
@@ -397,7 +449,8 @@ class TimeDecoder(object):
             to_dec = struct.unpack("<L", unhexlify(uhle))[0]
             self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_hex_32le = False
         return self.in_unix_hex_32le
 
@@ -405,9 +458,17 @@ class TimeDecoder(object):
         """Convert a date to a Unix Hex 32 bit Little-Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_unix_hex_32le = str(hexlify(struct.pack("<L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
+            self.out_unix_hex_32le = str(hexlify(struct.pack("<L", unix_time))).strip("b'")            
+            #self.out_unix_hex_32le = str(hexlify(struct.pack("<L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_unix_hex_32le = False
         return self.out_unix_hex_32le
 
@@ -419,7 +480,8 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp(calc)
             self.in_cookie = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_cookie = False
         return self.in_cookie
 
@@ -427,12 +489,18 @@ class TimeDecoder(object):
         """Convert a date to Internet Explorer timestamp values"""
         try:
             dt_obj = duparser.parse(timestamp)
-            unix = int((dt_obj - self.epoch_1970).total_seconds())
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            unix = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
             high = int(((unix + 11644473600) * 10**7) / 2**32)
             low = int((unix + 11644473600) * 10**7) - (high * 2**32)
             self.out_cookie = str(low) + ',' + str(high)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_cookie = False
         return self.out_cookie
 
@@ -443,7 +511,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=delta)
             self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_be = False
         return self.in_ole_be
 
@@ -451,11 +520,17 @@ class TimeDecoder(object):
         """Convert a date to an OLE Big Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            delta = (dt_obj - self.epoch_1899).total_seconds() / 86400
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
-            self.out_ole_be = str(hexlify(struct.pack('>Q', conv))).strip("b'").strip("'")
+            self.out_ole_be = str(hexlify(struct.pack('>Q', conv))).strip("b'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_ole_be = False
         return self.out_ole_be
 
@@ -467,7 +542,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=delta)
             self.in_ole_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_le = False
         return self.in_ole_le
 
@@ -475,11 +551,17 @@ class TimeDecoder(object):
         """Convert a date to an OLE Little Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            delta = (dt_obj - self.epoch_1899).total_seconds() / 86400
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
-            self.out_ole_le = str(hexlify(struct.pack('<Q', conv))).strip("b'").strip("'")
+            self.out_ole_le = str(hexlify(struct.pack('<Q', conv))).strip("b'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_ole_le = False
         return self.out_ole_le
 
@@ -489,7 +571,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_2001 + timedelta(seconds=int(mac))
             self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_mac = False
         return self.in_mac
 
@@ -497,9 +580,15 @@ class TimeDecoder(object):
         """Convert a date to a Mac Absolute timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds()))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0             
+            self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_mac = False
         return self.out_mac
 
@@ -508,7 +597,8 @@ class TimeDecoder(object):
         try:
             self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_dec = False
         return self.in_hfs_dec
 
@@ -516,9 +606,15 @@ class TimeDecoder(object):
         """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds()))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_hfs_dec = False
         return self.out_hfs_dec
 
@@ -528,7 +624,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1904 + timedelta(seconds=int(hfsbe, 16))
             self.in_hfs_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_be = False
         return self.in_hfs_be
 
@@ -536,10 +633,16 @@ class TimeDecoder(object):
         """Convert a date to an HFS/HFS+ Big Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            conv = int((dt_obj - self.epoch_1904).total_seconds())
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
             self.out_hfs_be = '{0:08x}'.format(conv)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_hfs_be = False
         return self.out_hfs_be
 
@@ -550,7 +653,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
             self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_le = False
         return self.in_hfs_le
 
@@ -558,10 +662,16 @@ class TimeDecoder(object):
         """Convert a date to an HFS/HFS+ Little Endian timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            conv = int((dt_obj - self.epoch_1904).total_seconds())
-            self.out_hfs_le = str(hexlify(struct.pack('<I', conv))).strip("b'").strip("'")
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0             
+            conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
+            self.out_hfs_le = str(hexlify(struct.pack('<I', conv))).strip("b'")
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_hfs_le = False
         return self.out_hfs_le
 
@@ -582,14 +692,15 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
             self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_fat = False
         return self.in_fat
 
     def to_fat(self):
         """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(timestamp)           
             year = '{0:07b}'.format(dt_obj.year - 1980)
             month = '{0:04b}'.format(dt_obj.month)
             day = '{0:05b}'.format(dt_obj.day)
@@ -600,7 +711,8 @@ class TimeDecoder(object):
             byte_swap = ''.join([to_hex[i:i+2] for i in range(0, len(to_hex), 2)][::-1])
             self.out_fat = ''.join([byte_swap[i:i+4] for i in range(0, len(byte_swap), 4)][::-1])
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_fat = False
         return self.out_fat
 
@@ -620,7 +732,8 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
             self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_msdos = False
         return self.in_msdos
 
@@ -637,7 +750,8 @@ class TimeDecoder(object):
             hexval = str(hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))).strip("b'").strip("'")
             self.out_msdos = ''.join([hexval[i:i+2] for i in range(0, len(hexval), 2)][::-1])
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_msdos = False
         return self.out_msdos
 
@@ -653,7 +767,8 @@ class TimeDecoder(object):
             dt_obj = dt(stamp[0], stamp[1], stamp[3], stamp[4], stamp[5], stamp[6], stamp[7]*1000)
             self.in_systemtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_systemtime = False
         return self.in_systemtime
 
@@ -661,9 +776,19 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft 128 bit SYSTEMTIME timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
             micro = int(dt_obj.microsecond / 1000)
-            full_date = dt_obj.strftime('%Y, %m, %w, %d, %H, %M, %S, ' + str(micro))
+            tz_shift = dt_obj.timestamp() - int(dt_tz)
+            add_micro = (tz_shift * 1000) + micro
+            convert_to_seconds = add_micro / 1000
+            new_dt_obj = dt.fromtimestamp(convert_to_seconds)
+            full_date = new_dt_obj.strftime('%Y, %m, %w, %d, %H, %M, %S, ' + str(micro))
             stamp = []
+            """ Will leave the following here for temporary Python 2 compatibility """
             if sys.version_info >= (3, 0):
                 for value in full_date.split(','):
                     stamp.append(hexlify(struct.pack('<H', int(value))).decode('utf8'))
@@ -672,7 +797,8 @@ class TimeDecoder(object):
                     stamp.append(hexlify(struct.pack('<H', int(value))))
             self.out_systemtime = ''.join(stamp)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_systemtime = False
         return self.out_systemtime
 
@@ -682,7 +808,8 @@ class TimeDecoder(object):
             dt_obj = dt.utcfromtimestamp((float(ft) - self.epoch_as_filetime) / self.hundreds_nano)
             self.in_filetime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_filetime = False
         return self.in_filetime
 
@@ -690,9 +817,16 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft FILETIME/LDAP timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_filetime = str(int((dt_obj - self.epoch_1970).total_seconds() * self.hundreds_nano + self.epoch_as_filetime))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            tz_shift = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
+            self.out_filetime = str(int(tz_shift * self.hundreds_nano + self.epoch_as_filetime))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_filetime = False
         return self.out_filetime
 
@@ -702,7 +836,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1970 + timedelta(microseconds=int(pr))
             self.in_prtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_prtime = False
         return self.in_prtime
 
@@ -710,9 +845,15 @@ class TimeDecoder(object):
         """Convert a date to Mozilla's PRTime timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_prtime = str(int((dt_obj - self.epoch_1970).total_seconds() * 1000000))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            self.out_prtime = str(int(((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz)) * 1000000))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_prtime = False
         return self.out_prtime
 
@@ -722,7 +863,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1899 + timedelta(days=float(auto))
             self.in_ole_auto = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_auto = False
         return self.in_ole_auto
 
@@ -730,9 +872,15 @@ class TimeDecoder(object):
         """Convert a date to an OLE Automation timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_ole_auto = "{0:.12f}".format((dt_obj - self.epoch_1899).total_seconds() / 86400)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_ole_auto = "{0:.12f}".format(((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_ole_auto = False
         return self.out_ole_auto
 
@@ -743,18 +891,25 @@ class TimeDecoder(object):
             dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
             self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ms1904 = False
         return self.in_ms1904
 
     def to_ms1904(self):
         """Convert a date to a Microsoft Excel 1904 timestamp"""
         try:
-           dt_obj = duparser.parse(timestamp)
-           self.out_ms1904 = "{0:.12f}".format((dt_obj - self.epoch_1904).total_seconds() / 86400)
+            dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_ms1904 = "{0:.12f}".format(((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)) / 86400)
         except Exception as e:
-           print(str(type(e)) + "," + str(e))
-           self.out_ms1904 = False
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.out_ms1904 = False
         return self.out_ms1904
 
     def from_ios_time(self):
@@ -763,7 +918,8 @@ class TimeDecoder(object):
             dt_obj = (int(ios) / int(self.nano_2001)) + 978307200
             self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_iostime = False
         return self.in_iostime
 
@@ -771,9 +927,15 @@ class TimeDecoder(object):
         """Convert a date to an iOS 11 timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds()) * self.nano_2001))
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)) * self.nano_2001))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_iostime = False
         return self.out_iostime
 
@@ -786,7 +948,8 @@ class TimeDecoder(object):
             dt_obj = dt(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
             self.in_symtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_symtime = False
         return self.in_symtime
 
@@ -802,7 +965,8 @@ class TimeDecoder(object):
             sym_second = '{0:x}'.format(dt_obj.second).zfill(2)
             self.out_symtime = sym_year + sym_month + sym_day + sym_hour + sym_minute + sym_second
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_symtime = False
         return self.out_symtime
 
@@ -828,7 +992,8 @@ class TimeDecoder(object):
             gps_out = check_date - timedelta(seconds=variance)
             self.in_gpstime = gps_out.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_gpstime = False
         return self.in_gpstime
 
@@ -837,6 +1002,11 @@ class TimeDecoder(object):
         try:
             leapseconds = self.leapseconds
             check_date = duparser.parse(timestamp)
+            if hasattr(check_date.tzinfo, '_offset'):
+                dt_tz = check_date.tzinfo._offset.total_seconds()
+                check_date = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
             for entry in leapseconds:
                 check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
                 if check == True:
@@ -844,9 +1014,11 @@ class TimeDecoder(object):
             leap_correction = check_date + timedelta(seconds=variance)
             epoch_shift = leap_correction - self.epoch_1970
             gps_stamp = (dt.utcfromtimestamp(epoch_shift.total_seconds()) - self.epoch_1980).total_seconds() - 19
+            gps_stamp = int(gps_stamp) - int(dt_tz)
             self.out_gpstime = str(gps_stamp)
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_gpstime = False
         return self.out_gpstime
 
@@ -866,7 +1038,8 @@ class TimeDecoder(object):
                 unix_timestamp = decoded_eitime[0] + decoded_eitime[1]*256 + decoded_eitime[2]*(256**2) + decoded_eitime[3]*(256**3)
             self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_eitime = False
         return self.in_eitime
 
@@ -879,7 +1052,8 @@ class TimeDecoder(object):
             dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
             self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_bplist = False
         return self.in_bplist
 
@@ -887,9 +1061,15 @@ class TimeDecoder(object):
         """Convert a date to a Binary Plist timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
-            self.out_bplist = str((dt_obj - self.epoch_2001).total_seconds())
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0            
+            self.out_bplist = str((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz))
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_bplist = False
         return self.out_bplist
 
@@ -913,19 +1093,23 @@ class TimeDecoder(object):
                 swap[0] = swap[0] + 2000
             self.in_gsm = str(dt(swap[0], swap[1], swap[2], swap[3], swap[4], swap[5]).strftime('%Y-%m-%d %H:%M:%S')) + " UTC" +  str(swap[6])
         except Exception as e:
-            print(str(type(e)) + "," + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_gsm = False
         return self.in_gsm
 
     def to_gsm(self):
         try:
             dt_obj = duparser.parse(timestamp)
-            tz = dt_obj.tzinfo._offset.total_seconds()
-            if tz == 0:
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+            else:
+                dt_tz = 0
+            if dt_tz is 0:
                 hex_tz = '{:02d}'.format(0)
-            if tz < 0:
-                tz = tz / 3600
-                conversion = str(int(abs(tz)) * 4)
+            elif dt_tz < 0:
+                dt_tz = dt_tz / 3600
+                conversion = str('{:02d}'.format(int(abs(dt_tz)) * 4))
                 conversion_list = []
                 for char in range(len(conversion)):
                     conversion_list.append(conversion[char])
@@ -934,8 +1118,8 @@ class TimeDecoder(object):
                 high_order = '{0:04b}'.format(int(high_order, 2) + 8)
                 hex_tz = hex(int((high_order + low_order),2)).lstrip('0x').upper()
             else:
-                tz = tz / 3600
-                conversion = str(int(tz) *4)
+                dt_tz = dt_tz / 3600
+                conversion = str(int(dt_tz) *4)
                 conversion_list = []
                 for char in range(len(conversion)):
                     conversion_list.append(conversion[char])
@@ -950,14 +1134,13 @@ class TimeDecoder(object):
             self.out_gsm = ''.join(date_value_swap)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
-            print(exc_type, exc_tb.tb_lineno)
-            print(str(type(e)) + "," + str(e) + " At line no: " + str(exc_tb.tb_lineno))
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_gsm = False
         return self.out_gsm
 
     def date_output(self):
         """Output all processed timestamp values"""
-        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist)
+        inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_ms1904, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist, self.in_gsm)
         this_year = int(dt.now().strftime('%Y'))
         if isinstance(self.in_unix_sec, str):
             if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
