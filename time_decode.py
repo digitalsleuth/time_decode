@@ -3,16 +3,24 @@
 This application is designed to decode timestamps into human-readable date/times and vice-versa
 Additional information regarding the source of the timestamp formats and associated equations
 will be provided inline with the docstrings for each module.
+TODO:
+    MSDOS and FAT timestamps both need method for accepting time offset
 
 GPS Ref: http://www.leapsecond.com/java/gpsclock.htm
 Leap Seconds: https://www.nist.gov/pml/time-and-frequency-division/leap-seconds-faqs
               http://hpiers.obspm.fr/eop-pc/index.php?index=TAI-UTC_tab&lang=en
+Microsoft DateTime: https://docs.microsoft.com/en-us/dotnet/api/system.datetime?view=netframework-4.8
+Microsoft Time: https://docs.microsoft.com/en-ca/windows/win32/sysinfo/time
 Microsoft 1904 Timestamp: https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system
-Microsoft OLE Automation Date (OADate): https://docs.microsoft.com/en-us/dotnet/api/system.datetime.tooadate?redirectedfrom=MSDN&view=netframework-4.8#System_DateTime_ToOADate
+Microsoft OLE Automation Date (OADate): https://docs.microsoft.com/en-us/dotnet/api/system.datetime.tooadate?view=netframework-4.8
+MSDOS wFatDate wFatTime DosDate: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
+Microsoft FILETIME: https://support.microsoft.com/en-ca/help/188768/info-working-with-the-filetime-structure
+Microsoft Active Directory/LDAP Timestamp: https://docs.microsoft.com/en-us/windows/win32/adschema/a-lastlogontimestamp
 """
 from datetime import datetime as dt, timedelta
 import struct
 from binascii import hexlify, unhexlify
+from string import hexdigits
 import argparse
 import sys
 from os import environ
@@ -22,8 +30,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '9 Jan 2020'
-__version__ = '1.1'
+__date__ = '11 Jan 2020'
+__version__ = '1.5'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -38,10 +46,10 @@ class TimeDecoder(object):
         self.epoch_2001 = dt(2001, 1, 1)
         self.hundreds_nano = 10000000
         self.nano_2001 = 1000000000
-        self.epoch_as_filetime = 116444736000000000
+        self.epoch_active = 116444736000000000
         self.hfs_dec_subtract = 2082844800
 
-        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_msdos = self.in_fat = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = None
+        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_fat = self.in_msdos = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = None
         self.leapseconds = {
         10:[dt(1972,1,1), dt(1972,7,1)],
         11:[dt(1972,7,1), dt(1973,1,1)],
@@ -125,18 +133,18 @@ class TimeDecoder(object):
             elif args.hfsle:
                 self.from_hfs_le()
                 print ("HFS/HFS+ 32 big Hex LE: " + self.in_hfs_le + " HFS Local / HFS+ UTC")
+            elif args.fat:
+                self.from_fat()
+                print ("FAT Date + Time: " + self.in_fat + " Local")            
             elif args.msdos:
                 self.from_msdos()
                 print ("MS-DOS 32 bit Hex Value: " + self.in_msdos + " Local")
-            elif args.fat:
-                self.from_fat()
-                print ("FAT Date + Time: " + self.in_fat + " Local")
             elif args.sys:
                 self.from_systime()
                 print ("Microsoft 128 bit SYSTEMTIME: " + self.in_systemtime + " UTC")
             elif args.ft:
                 self.from_filetime()
-                print ("Microsoft FILETIME/LDAP time: " + self.in_filetime + " UTC")
+                print ("Microsoft FILETIME time: " + self.in_filetime + " UTC")
             elif args.pr:
                 self.from_prtime()
                 print ("Mozilla PRTime: " + self.in_prtime + " UTC")
@@ -244,7 +252,11 @@ class TimeDecoder(object):
     def from_unix_sec(self):
         """Convert Unix Seconds value to a date"""
         try:
-            self.in_unix_sec = dt.utcfromtimestamp(float(unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(unix) in range(9,13)) or not (unix.isdigit()):
+                print("Not unix")
+                pass
+            else:
+                self.in_unix_sec = dt.utcfromtimestamp(float(unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -270,7 +282,11 @@ class TimeDecoder(object):
     def from_unix_milli(self):
         """Convert Unix Millisecond value to a date"""
         try:
-            self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(umil) in range(9,14)) or not (umil.isdigit()):
+                print("Not umil")
+                pass            
+            else:
+                self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -296,9 +312,13 @@ class TimeDecoder(object):
     def from_win_64_hex(self):
         """Convert a Windows 64 Hex Big-Endian value to a date"""
         try:
-            base10_microseconds = int(wh, 16) / 10
-            dt_obj = self.epoch_1601 + timedelta(microseconds=base10_microseconds)
-            self.in_windows_hex_64 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(wh) == 16) or not (all(char in hexdigits for char in wh)):
+                print("Not wh")
+                pass
+            else:
+                base10_microseconds = int(wh, 16) / 10
+                dt_obj = self.epoch_1601 + timedelta(microseconds=base10_microseconds)
+                self.in_windows_hex_64 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -326,9 +346,13 @@ class TimeDecoder(object):
     def from_win_64_hexle(self):
         """Convert a Windows 64 Hex Little-Endian value to a date"""
         try:
-            converted_time = struct.unpack("<Q", unhexlify(whle))[0]
-            dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
-            self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(whle) == 16) or not (all(char in hexdigits for char in whle)):
+                print("Not whle")
+                pass            
+            else:
+                converted_time = struct.unpack("<Q", unhexlify(whle))[0]
+                dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
+                self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -346,7 +370,7 @@ class TimeDecoder(object):
                 dt_tz = 0            
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
-            self.out_windows_hex_le = str(hexlify(struct.pack("<Q", int(calculated_time*10))))[2:].zfill(16).strip("'")
+            self.out_windows_hex_le = str(struct.pack("<Q", int(calculated_time*10)).hex())[2:].zfill(16)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -356,9 +380,13 @@ class TimeDecoder(object):
     def from_chrome(self):
         """Convert a Chrome Timestamp/Webkit Value to a date"""
         try:
-            delta = timedelta(microseconds=int(goog))
-            converted_time = self.epoch_1601 + delta
-            self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(goog) in range(9,18)) or not (goog.isdigit()):
+                print("Not goog")
+                pass            
+            else:            
+                delta = timedelta(microseconds=int(goog))
+                converted_time = self.epoch_1601 + delta
+                self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -383,12 +411,14 @@ class TimeDecoder(object):
         return self.out_chrome
 
     def from_ad(self):
-        """Convert an Active Directory timestamp to a date"""
+        """Convert an Active Directory/LDAP timestamp to a date"""
         try:
-            part2, part1 = [int(h, base=16) for h in active.split(':')]
-            converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
-            dt_obj = dt.utcfromtimestamp(float(converted_time - self.epoch_as_filetime) / self.hundreds_nano)
-            self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(active) == 18) or not (active.isdigit()):
+                print("Not active")
+                pass
+            else:
+                dt_obj = dt.utcfromtimestamp((float(active) - self.epoch_active) / self.hundreds_nano)
+                self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -396,30 +426,31 @@ class TimeDecoder(object):
         return self.in_ad
 
     def to_ad(self):
-        """Convert a date to an Active Directory timestamp"""
+        """Convert a date to an Active Directory/LDAP timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
-            minus_epoch = dt_obj - self.epoch_1601
-            calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
-            output = str(hexlify(struct.pack(">Q", int(calculated_time*10)))).strip("b'")
-            self.out_active_directory_time = str(output[8:]) + ":" + str(output[:8])
-            #self.out_active_directory_time = str(output[8:]).strip("'b").strip("'") + ":" + str(output[:8]).strip("'b").strip("'")
+                dt_tz = 0
+            tz_shift = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
+            self.out_adtime = str(int(tz_shift * self.hundreds_nano + self.epoch_active))
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_active_directory_time = False
-        return self.out_active_directory_time
+            self.out_adtime = False
+        return self.out_adtime
 
     def from_unix_hex_32be(self):
         """Convert a Unix Hex 32 bit Big-Endian timestamp to a date"""
         try:
-            to_dec = int(uhbe, 16)
-            self.in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(uhbe) == 8) or not (all(char in hexdigits for char in uhbe)):
+                print("Not uhbe")
+                pass
+            else:
+                to_dec = int(uhbe, 16)
+                self.in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -436,7 +467,7 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
-            self.out_unix_hex_32 = str(hexlify(struct.pack(">L", unix_time))).strip("b'")
+            self.out_unix_hex_32 = str(struct.pack(">L", unix_time).hex())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -446,8 +477,12 @@ class TimeDecoder(object):
     def from_unix_hex_32le(self):
         """Convert a Unix Hex 32 bit Little-Endian timestamp to a date"""
         try:
-            to_dec = struct.unpack("<L", unhexlify(uhle))[0]
-            self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(uhle) == 8) or not (all(char in hexdigits for char in uhle)):
+                print("Not uhle")
+                pass
+            else:            
+                to_dec = struct.unpack("<L", unhexlify(uhle))[0]
+                self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -464,8 +499,7 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
-            self.out_unix_hex_32le = str(hexlify(struct.pack("<L", unix_time))).strip("b'")            
-            #self.out_unix_hex_32le = str(hexlify(struct.pack("<L", int((dt_obj - self.epoch_1970).total_seconds())))).strip("b'").strip("'")
+            self.out_unix_hex_32le = str(struct.pack("<L", unix_time).hex())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -475,10 +509,14 @@ class TimeDecoder(object):
     def from_cookie(self):
         """Convert an Internet Explorer timestamp to a date"""
         try:
-            low, high = [int(h, base=10) for h in cookie.split(',')]
-            calc = 10**-7 * (high * 2**32 + low) - 11644473600
-            dt_obj = dt.utcfromtimestamp(calc)
-            self.in_cookie = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not ("," in cookie) or not (cookie.split(",")[0].isdigit() and cookie.split(",")[1].isdigit()):
+                print("Not cookie")
+                pass
+            else:
+                low, high = [int(h, base=10) for h in cookie.split(',')]
+                calc = 10**-7 * (high * 2**32 + low) - 11644473600
+                dt_obj = dt.utcfromtimestamp(calc)
+                self.in_cookie = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -507,9 +545,13 @@ class TimeDecoder(object):
     def from_ole_be(self):
         """Convert an OLE Big Endian dimestamp to a date"""
         try:
-            delta = struct.unpack('>d', struct.pack('>Q', int(oleb, 16)))[0]
-            dt_obj = self.epoch_1899 + timedelta(days=delta)
-            self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(oleb) == 16) or not (all(char in hexdigits for char in oleb)):
+                print("Not oleb")
+                pass
+            else:            
+                delta = struct.unpack('>d', struct.pack('>Q', int(oleb, 16)))[0]
+                dt_obj = self.epoch_1899 + timedelta(days=delta)
+                self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -527,7 +569,7 @@ class TimeDecoder(object):
                 dt_tz = 0            
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
-            self.out_ole_be = str(hexlify(struct.pack('>Q', conv))).strip("b'")
+            self.out_ole_be = str(struct.pack('>Q', conv).hex())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -537,10 +579,14 @@ class TimeDecoder(object):
     def from_ole_le(self):
         """Convert an OLE Little Endian timestamp to a date"""
         try:
-            to_le = hexlify(struct.pack('<Q', int(olel, 16)))
-            delta = struct.unpack('>d', struct.pack('>Q', int(to_le, 16)))[0]
-            dt_obj = self.epoch_1899 + timedelta(days=delta)
-            self.in_ole_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(olel) == 16) or not (all(char in hexdigits for char in olel)):
+                print("Not olel")
+                pass
+            else:            
+                to_le = hexlify(struct.pack('<Q', int(olel, 16)))
+                delta = struct.unpack('>d', struct.pack('>Q', int(to_le, 16)))[0]
+                dt_obj = self.epoch_1899 + timedelta(days=delta)
+                self.in_ole_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -558,7 +604,7 @@ class TimeDecoder(object):
                 dt_tz = 0            
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
-            self.out_ole_le = str(hexlify(struct.pack('<Q', conv))).strip("b'")
+            self.out_ole_le = str(struct.pack('<Q', conv).hex())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -568,8 +614,12 @@ class TimeDecoder(object):
     def from_mac(self):
         """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
         try:
-            dt_obj = self.epoch_2001 + timedelta(seconds=int(mac))
-            self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(mac) in range(1,10)) or not (mac.isdigit()):
+                print("Not mac")
+                pass
+            else:
+                dt_obj = self.epoch_2001 + timedelta(seconds=int(mac))
+                self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -595,7 +645,11 @@ class TimeDecoder(object):
     def from_hfs_dec(self):
         """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
         try:
-            self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(hfsdec) == 10) or not (hfsdec.isdigit()):
+                print("Not hfsdec")
+                pass
+            else:
+                self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -621,8 +675,12 @@ class TimeDecoder(object):
     def from_hfs_be(self):
         """Convert an HFS/HFS+ Big Endian timestamp to a date (HFS+ is in UTC)"""
         try:
-            dt_obj = self.epoch_1904 + timedelta(seconds=int(hfsbe, 16))
-            self.in_hfs_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(hfsbe) == 8) or not (all(char in hexdigits for char in hfsbe)):
+                print("Not hfsbe")
+                pass
+            else:
+                dt_obj = self.epoch_1904 + timedelta(seconds=int(hfsbe, 16))
+                self.in_hfs_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -649,9 +707,13 @@ class TimeDecoder(object):
     def from_hfs_le(self):
         """Convert an HFS/HFS+ Little Endian timestamp to a date (HFS+ is in UTC)"""
         try:
-            to_le = struct.unpack('>I', struct.pack('<I', int(hfsle, 16)))[0]
-            dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
-            self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(hfsle) == 8) or not (all(char in hexdigits for char in hfsle)):
+                print("Not hfsle")
+                pass
+            else:            
+                to_le = struct.unpack('>I', struct.pack('<I', int(hfsle, 16)))[0]
+                dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
+                self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -668,7 +730,7 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0             
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
-            self.out_hfs_le = str(hexlify(struct.pack('<I', conv))).strip("b'")
+            self.out_hfs_le = str(struct.pack('<I', conv).hex())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -678,19 +740,22 @@ class TimeDecoder(object):
     def from_fat(self):
         """Convert an MS-DOS wFatDate wFatTime timestamp to a date"""
         try:
-            byte_swap = [fat[i:i+2] for i in range(0, len(fat), 2)]
-            to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
-            binary_conv = int(to_le, 16)
-            binary = '{0:032b}'.format(binary_conv)
-            stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
-            for binary in stamp[:]:
-                dec = int(binary, 2)
-                stamp.remove(binary)
-                stamp.append(dec)
-            stamp[0] = stamp[0] + 1980
-            stamp[5] = stamp[5] * 2
-            dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
-            self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(fat) == 8) or not (all(char in hexdigits for char in fat)):
+                print("Not fat")
+                pass
+            else:             
+                byte_swap = [fat[i:i+2] for i in range(0, len(fat), 2)]
+                to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
+                binary = '{0:032b}'.format(int(to_le, 16))
+                stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
+                for binary in stamp[:]:
+                    dec = int(binary, 2)
+                    stamp.remove(binary)
+                    stamp.append(dec)
+                stamp[0] = stamp[0] + 1980
+                stamp[5] = stamp[5] * 2
+                dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
+                self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -707,7 +772,7 @@ class TimeDecoder(object):
             hour = '{0:05b}'.format(dt_obj.hour)
             minute = '{0:06b}'.format(dt_obj.minute)
             seconds = '{0:05b}'.format(int(dt_obj.second / 2))
-            to_hex = str(hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))).strip("b'").strip("'")
+            to_hex = str(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)).hex())
             byte_swap = ''.join([to_hex[i:i+2] for i in range(0, len(to_hex), 2)][::-1])
             self.out_fat = ''.join([byte_swap[i:i+4] for i in range(0, len(byte_swap), 4)][::-1])
         except Exception as e:
@@ -719,18 +784,21 @@ class TimeDecoder(object):
     def from_msdos(self):
         """Convert an MS-DOS timestamp to a date"""
         try:
-            swap = ''.join([msdos[i:i+2] for i in range(0, len(msdos), 2)][::-1])
-            binary_conv = int(swap, 16)
-            binary = '{0:032b}'.format(binary_conv)
-            stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
-            for val in stamp[:]:
-                dec = int(val, 2)
-                stamp.remove(val)
-                stamp.append(dec)
-            stamp[0] = stamp[0] + 1980
-            stamp[5] = stamp[5] * 2
-            dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
-            self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(msdos) == 8) or not (all(char in hexdigits for char in msdos)):
+                print("Not msdos")
+                pass
+            else:            
+                swap = ''.join([msdos[i:i+2] for i in range(0, len(msdos), 2)][::-1])
+                binary = '{0:032b}'.format(int(swap, 16))
+                stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
+                for val in stamp[:]:
+                    dec = int(val, 2)
+                    stamp.remove(val)
+                    stamp.append(dec)
+                stamp[0] = stamp[0] + 1980
+                stamp[5] = stamp[5] * 2
+                dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
+                self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -747,7 +815,7 @@ class TimeDecoder(object):
             hour = '{0:05b}'.format(dt_obj.hour)
             minute = '{0:06b}'.format(dt_obj.minute)
             seconds = '{0:05b}'.format(int(dt_obj.second / 2))
-            hexval = str(hexlify(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)))).strip("b'").strip("'")
+            hexval = str(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)).hex())
             self.out_msdos = ''.join([hexval[i:i+2] for i in range(0, len(hexval), 2)][::-1])
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -758,14 +826,18 @@ class TimeDecoder(object):
     def from_systime(self):
         """Convert a Microsoft 128 bit SYSTEMTIME timestamp to a date"""
         try:
-            to_le = str(hexlify(unhexlify(systime)[::-1])).strip("b'").strip("'")
-            converted = [to_le[i:i + 4] for i in range(0, len(to_le), 4)][::-1]
-            stamp = []
-            for i in converted:
-                dec = int(i, 16)
-                stamp.append(dec)
-            dt_obj = dt(stamp[0], stamp[1], stamp[3], stamp[4], stamp[5], stamp[6], stamp[7]*1000)
-            self.in_systemtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(systime) == 32) or not (all(char in hexdigits for char in systime)):
+                print("Not systime")
+                pass
+            else:
+                to_le = ''.join([systime[i:i+2] for i in range(0, len(systime), 2)][::-1])
+                converted = [to_le[i:i + 4] for i in range(0, len(to_le), 4)][::-1]
+                stamp = []
+                for i in converted:
+                    dec = int(i, 16)
+                    stamp.append(dec)
+                dt_obj = dt(stamp[0], stamp[1], stamp[3], stamp[4], stamp[5], stamp[6], stamp[7]*1000)
+                self.in_systemtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -803,10 +875,16 @@ class TimeDecoder(object):
         return self.out_systemtime
 
     def from_filetime(self):
-        """Convert a Microsoft FILETIME/LDAP timestamp to a date"""
+        """Convert a Microsoft FILETIME timestamp to a date"""
         try:
-            dt_obj = dt.utcfromtimestamp((float(ft) - self.epoch_as_filetime) / self.hundreds_nano)
-            self.in_filetime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (":" in ft) or not (all(char in hexdigits for char in ft[0:8]) and all(char in hexdigits for char in ft[9:])):
+                print("Not ft")
+                pass
+            else:
+                part2, part1 = [int(h, base=16) for h in ft.split(':')]
+                converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
+                dt_obj = dt.utcfromtimestamp(float(converted_time - self.epoch_active) / self.hundreds_nano)
+                self.in_filetime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -814,16 +892,18 @@ class TimeDecoder(object):
         return self.in_filetime
 
     def to_filetime(self):
-        """Convert a date to a Microsoft FILETIME/LDAP timestamp"""
+        """Convert a date to a Microsoft FILETIME timestamp"""
         try:
             dt_obj = duparser.parse(timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0
-            tz_shift = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
-            self.out_filetime = str(int(tz_shift * self.hundreds_nano + self.epoch_as_filetime))
+                dt_tz = 0            
+            minus_epoch = dt_obj - self.epoch_1601
+            calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
+            output = str(struct.pack(">Q", int(calculated_time*10)).hex())
+            self.out_filetime = str(output[8:]) + ":" + str(output[:8])
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -833,8 +913,12 @@ class TimeDecoder(object):
     def from_prtime(self):
         """Convert a Mozilla PRTime timestamp to a date"""
         try:
-            dt_obj = self.epoch_1970 + timedelta(microseconds=int(pr))
-            self.in_prtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(pr) == 16) or not (pr.isdigit()):
+                print("Not pr")
+                pass
+            else:
+                dt_obj = self.epoch_1970 + timedelta(microseconds=int(pr))
+                self.in_prtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -860,8 +944,12 @@ class TimeDecoder(object):
     def from_ole_auto(self):
         """Convert an OLE Automation timestamp to a date"""
         try:
-            dt_obj = self.epoch_1899 + timedelta(days=float(auto))
-            self.in_ole_auto = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not ("." in auto) or not ((len(auto.split(".")[0]) == 5) and (len(auto.split(".")[1]) in range(9,13))) or not (''.join(auto.split(".")).isdigit()):
+                print("Not auto")
+                pass
+            else:
+                dt_obj = self.epoch_1899 + timedelta(days=float(auto))
+                self.in_ole_auto = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -886,10 +974,13 @@ class TimeDecoder(object):
 
     def from_ms1904(self):
         """Convert a Microsoft Excel 1904 timestamp to a date"""
-        """https://docs.microsoft.com/en-us/office/troubleshoot/excel/1900-and-1904-date-system"""
         try:
-            dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
-            self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not ("." in ms1904) or not ((len(ms1904.split(".")[0]) == 5) and (len(ms1904.split(".")[1]) in range(9,13))) or not (''.join(ms1904.split(".")).isdigit()):
+                print("Not ms1904")
+                pass
+            else:            
+                dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
+                self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -915,8 +1006,12 @@ class TimeDecoder(object):
     def from_ios_time(self):
         """Convert an iOS 11 timestamp to a date"""
         try:
-            dt_obj = (int(ios) / int(self.nano_2001)) + 978307200
-            self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(ios) in range(15,19)) or not (ios.isdigit()):
+                print("Not ios")
+                pass
+            else:
+                dt_obj = (int(ios) / int(self.nano_2001)) + 978307200
+                self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -942,11 +1037,15 @@ class TimeDecoder(object):
     def from_sym_time(self):
         """Convert a Symantec 12-byte hex timestamp to a date"""
         try:
-            hex_to_dec = [int(sym[i:i+2], 16) for i in range(0, len(sym), 2)]
-            hex_to_dec[0] = hex_to_dec[0] + 1970
-            hex_to_dec[1] = hex_to_dec[1] + 1
-            dt_obj = dt(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
-            self.in_symtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(sym) == 12) or not (all(char in hexdigits for char in sym)):
+                print("Not sym")
+                pass
+            else:
+                hex_to_dec = [int(sym[i:i+2], 16) for i in range(0, len(sym), 2)]
+                hex_to_dec[0] = hex_to_dec[0] + 1970
+                hex_to_dec[1] = hex_to_dec[1] + 1
+                dt_obj = dt(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
+                self.in_symtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -980,17 +1079,21 @@ class TimeDecoder(object):
     def from_gps_time(self):
         """Convert a GPS timestamp to a date (involves leap seconds)"""
         try:
-            leapseconds = self.leapseconds
-            gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps)))
-            tai_convert = gps_stamp + timedelta(seconds=19)
-            epoch_convert = (tai_convert - self.epoch_1970).total_seconds()
-            check_date = dt.utcfromtimestamp(epoch_convert)
-            for entry in leapseconds:
-                check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
-                if check == True:
-                    variance = entry
-            gps_out = check_date - timedelta(seconds=variance)
-            self.in_gpstime = gps_out.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(gps) == 10) or not (gps.isdigit()):
+                print("Not gps")
+                pass
+            else:
+                leapseconds = self.leapseconds
+                gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps)))
+                tai_convert = gps_stamp + timedelta(seconds=19)
+                epoch_convert = (tai_convert - self.epoch_1970).total_seconds()
+                check_date = dt.utcfromtimestamp(epoch_convert)
+                for entry in leapseconds:
+                    check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
+                    if check == True:
+                        variance = entry
+                gps_out = check_date - timedelta(seconds=variance)
+                self.in_gpstime = gps_out.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -1025,18 +1128,20 @@ class TimeDecoder(object):
     def from_eitime(self):
         """Convert a Google ei URL timestamp"""
         try:
-            padding_check = (len(eitime)%4)
-            if padding_check != 0:
-                padding_reqd = (4 - padding_check)
-                result_eitime = eitime + (padding_reqd * '=')
+            urlsafe_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
+            if not (all(char in urlsafe_chars for char in eitime)):
+                print("Not eitime")
+                pass
             else:
-                result_eitime = eitime
-            decoded_eitime = base64.urlsafe_b64decode(result_eitime)
-            if sys.version_info.major == 2:
-                unix_timestamp = ord(decoded_eitime[0]) + ord(decoded_eitime[1])*256 + ord(decoded_eitime[2])*(256**2) + ord(decoded_eitime[3])*(256**3)
-            elif sys.version_info.major == 3:
-                unix_timestamp = decoded_eitime[0] + decoded_eitime[1]*256 + decoded_eitime[2]*(256**2) + decoded_eitime[3]*(256**3)
-            self.in_eitime = dt.utcfromtimestamp(float(unix_timestamp)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                padding_check = (len(eitime)%4)
+                if padding_check != 0:
+                    padding_reqd = (4 - padding_check)
+                    result_eitime = eitime + (padding_reqd * '=')
+                else:
+                    result_eitime = eitime
+                decoded_eitime = base64.urlsafe_b64decode(result_eitime).hex()[:8]
+                unix_timestamp, = struct.unpack("<L", unhexlify(decoded_eitime))
+                self.in_eitime = dt.utcfromtimestamp(unix_timestamp).strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -1045,6 +1150,21 @@ class TimeDecoder(object):
 
     """
     def to_eitime(self): A reminder to add this
+        try:
+            dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            unix_time = int((dt_obj - self.epoch_1970).total_seconds() + int(dt_tz))
+            unix_hex = struct.pack("<L", unix_time)
+            urlsafe_encode = base64.urlsafe_b64encode(unix_hex)
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.out_eitime = False
+        return self.out_eitime    
     """
     def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
@@ -1174,9 +1294,9 @@ class TimeDecoder(object):
 
         if isinstance(self.in_ad, str):
             if int(duparser.parse(self.in_ad).strftime('%Y')) in range(this_year -5, this_year +5):
-                print ("\033[1;31mActive Directory dt:\t\t"  + self.in_ad + " UTC\033[1;m".format())
+                print ("\033[1;31mActive Directory/LDAP dt:\t"  + self.in_ad + " UTC\033[1;m".format())
             else:
-                print ("Active Directory dt:\t\t" + self.in_ad + " UTC")
+                print ("Active Directory/LDAP dt:\t" + self.in_ad + " UTC")
 
         if isinstance(self.in_unix_hex_32, str):
             if int(duparser.parse(self.in_unix_hex_32).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1232,17 +1352,17 @@ class TimeDecoder(object):
             else:
                 print ("HFS/HFS+ 32 bit Hex LE:\t\t" + self.in_hfs_le + " HFS Local / HFS+ UTC")
 
-        if isinstance(self.in_msdos, str):
-            if int(duparser.parse(self.in_msdos).strftime('%Y')) in range(this_year -5, this_year +5):
-                print ("\033[1;31mMS-DOS 32 bit Hex Value:\t"  + self.in_msdos + " Local\033[1;m".format())
-            else:
-                print ("MS-DOS 32 bit Hex Value:\t" + self.in_msdos + " Local")
-
         if isinstance(self.in_fat, str):
             if int(duparser.parse(self.in_fat).strftime('%Y')) in range(this_year -5, this_year +5):
                 print ("\033[1;31mFAT Date + Time:\t\t"  + self.in_fat + " Local\033[1;m".format())
             else:
                 print ("FAT Date + Time:\t\t" + self.in_fat + " Local")
+
+        if isinstance(self.in_msdos, str):
+            if int(duparser.parse(self.in_msdos).strftime('%Y')) in range(this_year -5, this_year +5):
+                print ("\033[1;31mMS-DOS 32 bit Hex Value:\t"  + self.in_msdos + " Local\033[1;m".format())
+            else:
+                print ("MS-DOS 32 bit Hex Value:\t" + self.in_msdos + " Local")
 
         if isinstance(self.in_systemtime, str):
             if int(duparser.parse(self.in_systemtime).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1252,9 +1372,9 @@ class TimeDecoder(object):
 
         if isinstance(self.in_filetime, str):
             if int(duparser.parse(self.in_filetime).strftime('%Y')) in range(this_year -5, this_year +5):
-                print ("\033[1;31mMicrosoft FILETIME/LDAP time:\t"  + self.in_filetime + " UTC\033[1;m".format())
+                print ("\033[1;31mMicrosoft FILETIME time:\t"  + self.in_filetime + " UTC\033[1;m".format())
             else:
-                print ("Microsoft FILETIME/LDAP time:\t" + self.in_filetime + " UTC")
+                print ("Microsoft FILETIME time:\t" + self.in_filetime + " UTC")
 
         if isinstance(self.in_prtime, str):
             if int(duparser.parse(self.in_prtime).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1330,8 +1450,8 @@ class TimeDecoder(object):
         if isinstance(self.out_chrome, str):
             print ("Google Chrome:\t\t\t" + self.out_chrome)
 
-        if isinstance(self.out_active_directory_time, str):
-            print ("Active Directory dt:\t\t" + self.out_active_directory_time)
+        if isinstance(self.out_adtime, str):
+            print ("Active Directory/LDAP dt:\t" + self.out_adtime)
 
         if isinstance(self.out_unix_hex_32, str):
             print ("Unix Hex 32 bit BE:\t\t" + self.out_unix_hex_32)
@@ -1359,18 +1479,18 @@ class TimeDecoder(object):
 
         if isinstance(self.out_hfs_le, str):
             print ("HFS/HFS+ 32 bit Hex LE:\t\t" + self.out_hfs_le)
-
-        if isinstance(self.out_msdos, str):
-            print ("MS-DOS 32 bit Hex Value:\t" + self.out_msdos)
-
+        
         if isinstance(self.out_fat, str):
             print ("FAT Date + Time:\t\t" + self.out_fat)
+        
+        if isinstance(self.out_msdos, str):
+            print ("MS-DOS 32 bit Hex Value:\t" + self.out_msdos)
 
         if isinstance(self.out_systemtime, str):
             print ("Microsoft 128 bit SYSTEMTIME:\t" + self.out_systemtime)
 
         if isinstance(self.out_filetime, str):
-            print ("Microsoft FILETIME/LDAP time:\t" + self.out_filetime)
+            print ("Microsoft FILETIME time:\t" + self.out_filetime)
 
         if isinstance(self.out_prtime, str):
             print ("Mozilla PRTime:\t\t\t" + self.out_prtime)
@@ -1389,6 +1509,9 @@ class TimeDecoder(object):
 
         if isinstance(self.out_gpstime, str):
             print ("GPS time:\t\t\t" + self.out_gpstime)
+
+        #if isinstance(self.out_eitime, str):
+            #print ("Google EI time:\t\t" + self.out_eitime)
 
         if isinstance(self.out_bplist, str):
             print ("iOS Binary Plist time:\t\t" + self.out_bplist)
@@ -1414,10 +1537,10 @@ if __name__ == '__main__':
     arg_parse.add_argument('--hfsdec', metavar='<value>', help='convert from Mac OS/HFS+ Decimal Time', required=False)
     arg_parse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)', required=False)
     arg_parse.add_argument('--hfsle', metavar='<value>', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)', required=False)
-    arg_parse.add_argument('--msdos', metavar='<value>', help='convert from 32 bit MS-DOS time - result is Local Time', required=False)
     arg_parse.add_argument('--fat', metavar='<value>', help='convert from FAT Date + Time (wFat)', required=False)
+    arg_parse.add_argument('--msdos', metavar='<value>', help='convert from 32 bit MS-DOS time - result is Local Time', required=False)
     arg_parse.add_argument('--sys', metavar='<value>', help='convert from 128 bit SYSTEMTIME', required=False)
-    arg_parse.add_argument('--ft', metavar='<value>', help='convert from FILETIME/LDAP timestamp', required=False)
+    arg_parse.add_argument('--ft', metavar='<value>', help='convert from FILETIME timestamp', required=False)
     arg_parse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime', required=False)
     arg_parse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format', required=False)
     arg_parse.add_argument('--ms1904', metavar='<value>', help='convert from MS Excel 1904 Date format', required=False)
@@ -1431,9 +1554,9 @@ if __name__ == '__main__':
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', required=False, nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; msdos = args.msdos; fat = args.fat; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; goog = args.goog; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; fat = args.fat; msdos = args.msdos; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm
     if args.guess:
-        unix = umil = wh = whle = goog = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = msdos = fat = systime = ft = pr = auto = ms1904 = ios = sym = gps = eitime = bplist = gsm = guess
+        unix = umil = wh = whle = goog = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = fat = msdos = systime = ft = pr = auto = ms1904 = ios = sym = gps = eitime = bplist = gsm = guess
 
     td = TimeDecoder()
     td.run()
