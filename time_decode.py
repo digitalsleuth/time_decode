@@ -16,6 +16,11 @@ Microsoft OLE Automation Date (OADate): https://docs.microsoft.com/en-us/dotnet/
 MSDOS wFatDate wFatTime DosDate: https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
 Microsoft FILETIME: https://support.microsoft.com/en-ca/help/188768/info-working-with-the-filetime-structure
 Microsoft Active Directory/LDAP Timestamp: https://docs.microsoft.com/en-us/windows/win32/adschema/a-lastlogontimestamp
+bplist timestamp: https://developer.apple.com/documentation/corefoundation/cfabsolutetime
+                  https://developer.apple.com/documentation/foundation/nsdate
+GSM Timestamps: https://en.wikipedia.org/wiki/GSM_03.40
+                http://seven-bit-forensics.blogspot.com/2014/02/decoding-gsmsms-timestamps.html
+                
 """
 from datetime import datetime as dt, timedelta
 import struct
@@ -156,7 +161,7 @@ class TimeDecoder(object):
                 print ("MS Excel 1904 Date: " + self.in_ms1904 + " UTC")
             elif args.ios:
                 self.from_ios_time()
-                print ("iOS 11 Date: " + self.in_iostime)
+                print ("iOS 11 Date: " + self.in_iostime + " UTC")
             elif args.sym:
                 self.from_sym_time()
                 print ("Symantec AV Timestamp: " + self.in_symtime)
@@ -244,6 +249,7 @@ class TimeDecoder(object):
         self.to_ios_time()
         self.to_sym_time()
         self.to_gps_time()
+        self.to_eitime()
         self.to_bplist()
         self.to_gsm()
         self.timestamp_output()
@@ -1148,8 +1154,7 @@ class TimeDecoder(object):
             self.in_eitime = False
         return self.in_eitime
 
-    """
-    def to_eitime(self): A reminder to add this
+    def to_eitime(self):
         try:
             dt_obj = duparser.parse(timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
@@ -1160,17 +1165,22 @@ class TimeDecoder(object):
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() + int(dt_tz))
             unix_hex = struct.pack("<L", unix_time)
             urlsafe_encode = base64.urlsafe_b64encode(unix_hex)
+            self.out_eitime = urlsafe_encode.decode(encoding="UTF-8").strip("=")
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_eitime = False
         return self.out_eitime    
-    """
+
     def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
         try:
-            dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
-            self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+            if not (len(bplist) == 9) or not (bplist.isdigit()):
+                print("Not bplist")
+                pass
+            else:
+                dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
+                self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -1186,32 +1196,36 @@ class TimeDecoder(object):
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
                 dt_tz = 0            
-            self.out_bplist = str((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz))
+            self.out_bplist = str(int((dt_obj - self.epoch_2001).total_seconds()) - int(dt_tz))
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.out_bplist = False
         return self.out_bplist
 
-    def from_gsm(self):
+    def from_gsm(self): """REQUIRES WORK - NOT FINISHED"""
         try:
-            swap = [gsm[i:i+2] for i in range(0, len(gsm), 2)]
-            for value in swap[:]:
-                le = value[::-1]
-                swap.remove(value)
-                swap.append(le)
-            tz = '{0:8b}'.format(int(swap[6], 16))
-            if int(tz[0]) == 1:
-                utc_offset = -int(str(int(tz[1:4], 2)) + str(int(tz[4:8], 2))) * 0.25
-            elif int(tz[0]) == 0:
-                utc_offset = int(str(int(tz[0:4], 2)) + str(int(tz[4:8], 2))) * 0.25
-            swap[6] = utc_offset
-            for string in swap[:]:
-                swap.remove(string)
-                swap.append(int(string))
-            if swap[0] in range(0, 20):
-                swap[0] = swap[0] + 2000
-            self.in_gsm = str(dt(swap[0], swap[1], swap[2], swap[3], swap[4], swap[5]).strftime('%Y-%m-%d %H:%M:%S')) + " UTC" +  str(swap[6])
+            if not (len(gsm) == 14) or not (all(char in hexdigits for char in gsm)):
+                print("Not gsm")
+                pass
+            else:
+                swap = [gsm[i:i+2] for i in range(0, len(gsm), 2)]
+                for value in swap[:]:
+                    le = value[::-1]
+                    swap.remove(value)
+                    swap.append(le)
+                tz = '{0:08b}'.format(int(swap[6], 16))
+                if int(tz[0]) == 1:
+                    utc_offset = -int(str(int(tz[1:4], 2)) + str(int(tz[4:8], 2))) * 0.25
+                elif int(tz[0]) == 0:
+                    utc_offset = int(str(int(tz[0:4], 2)) + str(int(tz[4:8], 2))) * 0.25
+                swap[6] = utc_offset
+                for string in swap[:]:
+                    swap.remove(string)
+                    swap.append(int(string))
+                if swap[0] in range(0, 20):
+                    swap[0] = swap[0] + 2000
+                self.in_gsm = str((dt(swap[0], swap[1], swap[2], swap[3], swap[4], swap[5]).strftime('%Y-%m-%d %H:%M:%S')) + " UTC" +  str(swap[6]))
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -1396,9 +1410,9 @@ class TimeDecoder(object):
 
         if isinstance(self.in_iostime, str):
             if int(duparser.parse(self.in_iostime).strftime('%Y')) in range(this_year -5, this_year +5):
-                print ("\033[1;31miOS 11 Date:\t\t\t"  + self.in_iostime + " \033[1;m".format())
+                print ("\033[1;31miOS 11 Date:\t\t\t"  + self.in_iostime + " UTC\033[1;m".format())
             else:
-                print ("iOS 11 Date:\t\t\t" + self.in_iostime)
+                print ("iOS 11 Date:\t\t\t" + self.in_iostime + " UTC")
 
         if isinstance(self.in_symtime, str):
             if int(duparser.parse(self.in_symtime).strftime('%Y')) in range(this_year -5, this_year +5):
@@ -1510,8 +1524,8 @@ class TimeDecoder(object):
         if isinstance(self.out_gpstime, str):
             print ("GPS time:\t\t\t" + self.out_gpstime)
 
-        #if isinstance(self.out_eitime, str):
-            #print ("Google EI time:\t\t" + self.out_eitime)
+        if isinstance(self.out_eitime, str):
+            print ("Google EI time:\t\t\t" + self.out_eitime)
 
         if isinstance(self.out_bplist, str):
             print ("iOS Binary Plist time:\t\t" + self.out_bplist)
