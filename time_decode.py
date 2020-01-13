@@ -1203,7 +1203,7 @@ class TimeDecoder(object):
             self.out_bplist = False
         return self.out_bplist
 
-    def from_gsm(self): """REQUIRES WORK - NOT FINISHED"""
+    def from_gsm(self): #REQUIRES WORK - NOT FINISHED
         try:
             if not (len(gsm) == 14) or not (all(char in hexdigits for char in gsm)):
                 print("Not gsm")
@@ -1214,11 +1214,11 @@ class TimeDecoder(object):
                     le = value[::-1]
                     swap.remove(value)
                     swap.append(le)
-                tz = '{0:08b}'.format(int(swap[6], 16))
-                if int(tz[0]) == 1:
-                    utc_offset = -int(str(int(tz[1:4], 2)) + str(int(tz[4:8], 2))) * 0.25
-                elif int(tz[0]) == 0:
-                    utc_offset = int(str(int(tz[0:4], 2)) + str(int(tz[4:8], 2))) * 0.25
+                ts_tz = '{0:08b}'.format(int(swap[6], 16))
+                if int(ts_tz[0]) == 1:
+                    utc_offset = -int(str(int(ts_tz[1:4], 2)) + str(int(ts_tz[4:8], 2))) * 0.25
+                elif int(ts_tz[0]) == 0:
+                    utc_offset = int(str(int(ts_tz[0:4], 2)) + str(int(ts_tz[4:8], 2))) * 0.25
                 swap[6] = utc_offset
                 for string in swap[:]:
                     swap.remove(string)
