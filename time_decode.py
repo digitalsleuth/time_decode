@@ -99,14 +99,23 @@ class TimeDecoder(object):
                 except Exception as e:
                     print(reason)
             elif args.umil:
-                self.from_unix_milli()
-                print ("Unix Milliseconds: " + self.in_unix_milli + " UTC")
+                try:
+                    result, reason = self.from_unix_milli()
+                    print ("Unix Milliseconds: " + result + " UTC")
+                except Exception as e:
+                    print(reason)                
             elif args.wh:
-                self.from_win_64_hex()
-                print ("Windows 64-bit Hex BE: " + self.in_windows_hex_64 + " UTC")
+                try:
+                    result, reason = self.from_win_64_hex()
+                    print ("Windows 64-bit Hex BE: " + result + " UTC")
+                except Exception as e:
+                    print(reason)                
             elif args.whle:
-                self.from_win_64_hexle()
-                print ("Windows 64-bit Hex LE: " + self.in_windows_hex_le + " UTC")
+                try:
+                    result, reason = self.from_win_64_hexle()
+                    print ("Windows 64-bit Hex LE: " + result + " UTC")
+                except Exception as e:
+                    print(reason)                
             elif args.chrome:
                 self.from_chrome()
                 print ("Google Chrome Time: " + self.in_chrome + " UTC")
@@ -301,7 +310,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_milli = False
-        return self.in_unix_milli
+        return self.in_unix_milli, reason
 
     def to_unix_milli(self):
         """Convert date to a Unix Millisecond value"""
@@ -334,7 +343,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_windows_hex_64 = False
-        return self.in_windows_hex_64
+        return self.in_windows_hex_64, reason
 
     def to_win_64_hex(self):
         """Convert a date to a Windows 64 Hex Big-Endian value"""
@@ -369,7 +378,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_windows_hex_le = False
-        return self.in_windows_hex_le
+        return self.in_windows_hex_le, reason
 
     def to_win_64_hexle(self):
         """Convert a date to a Windows 64 Hex Little-Endian value"""
@@ -404,7 +413,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_chrome = False
-        return self.in_chrome
+        return self.in_chrome, reason
 
     def to_chrome(self):
         """Convert a date to a Chrome Timestamp/Webkit value"""
@@ -437,7 +446,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ad = False
-        return self.in_ad
+        return self.in_ad, reason
 
     def to_ad(self):
         """Convert a date to an Active Directory/LDAP timestamp"""
@@ -470,7 +479,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_hex_32 = False
-        return self.in_unix_hex_32
+        return self.in_unix_hex_32, reason
 
     def to_unix_hex_32be(self):
         """Convert a date to a Unix Hex 32-bit Big-Endian timestamp"""
@@ -503,7 +512,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_unix_hex_32le = False
-        return self.in_unix_hex_32le
+        return self.in_unix_hex_32le, reason
 
     def to_unix_hex_32le(self):
         """Convert a date to a Unix Hex 32-bit Little-Endian timestamp"""
@@ -538,7 +547,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_cookie = False
-        return self.in_cookie
+        return self.in_cookie, reason
 
     def to_cookie(self):
         """Convert a date to Internet Explorer timestamp values"""
@@ -574,7 +583,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_be = False
-        return self.in_ole_be
+        return self.in_ole_be, reason
 
     def to_ole_be(self):
         """Convert a date to an OLE Big-Endian timestamp"""
@@ -610,7 +619,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_le = False
-        return self.in_ole_le
+        return self.in_ole_le, reason
 
     def to_ole_le(self):
         """Convert a date to an OLE Little-Endian timestamp"""
@@ -644,7 +653,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_mac = False
-        return self.in_mac
+        return self.in_mac, reason
 
     def to_mac(self):
         """Convert a date to a Mac Absolute timestamp"""
@@ -675,7 +684,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_dec = False
-        return self.in_hfs_dec
+        return self.in_hfs_dec, reason
 
     def to_hfs_dec(self):
         """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
@@ -707,7 +716,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_be = False
-        return self.in_hfs_be
+        return self.in_hfs_be, reason
 
     def to_hfs_be(self):
         """Convert a date to an HFS/HFS+ Big-Endian timestamp"""
@@ -741,7 +750,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_hfs_le = False
-        return self.in_hfs_le
+        return self.in_hfs_le, reason
 
     def to_hfs_le(self):
         """Convert a date to an HFS/HFS+ Little-Endian timestamp"""
@@ -784,7 +793,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_fat = False
-        return self.in_fat
+        return self.in_fat, reason
 
     def to_fat(self):
         """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
@@ -828,7 +837,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_msdos = False
-        return self.in_msdos
+        return self.in_msdos, reason
 
     def to_msdos(self):
         """Convert a date to an MS-DOS timestamp"""
@@ -868,7 +877,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_systemtime = False
-        return self.in_systemtime
+        return self.in_systemtime, reason
 
     def to_systime(self):
         """Convert a date to a Microsoft 128-bit SYSTEMTIME timestamp"""
@@ -916,7 +925,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_filetime = False
-        return self.in_filetime
+        return self.in_filetime, reason
 
     def to_filetime(self):
         """Convert a date to a Microsoft FILETIME timestamp"""
@@ -951,7 +960,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_prtime = False
-        return self.in_prtime
+        return self.in_prtime, reason
 
     def to_prtime(self):
         """Convert a date to Mozilla's PRTime timestamp"""
@@ -983,7 +992,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ole_auto = False
-        return self.in_ole_auto
+        return self.in_ole_auto, reason
 
     def to_ole_auto(self):
         """Convert a date to an OLE Automation timestamp"""
@@ -1015,7 +1024,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_ms1904 = False
-        return self.in_ms1904
+        return self.in_ms1904, reason
 
     def to_ms1904(self):
         """Convert a date to a Microsoft Excel 1904 timestamp"""
@@ -1047,7 +1056,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_iostime = False
-        return self.in_iostime
+        return self.in_iostime, reason
 
     def to_ios_time(self):
         """Convert a date to an iOS 11 timestamp"""
@@ -1082,7 +1091,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_symtime = False
-        return self.in_symtime
+        return self.in_symtime, reason
 
     def to_sym_time(self):
         """Convert a date to Symantec's 6-byte hex timestamp"""
@@ -1131,7 +1140,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_gpstime = False
-        return self.in_gpstime
+        return self.in_gpstime, reason
 
     def to_gps_time(self):
         """Convert a date to a GPS timestamp (involves leap seconds)"""
@@ -1184,7 +1193,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_eitime = False
-        return self.in_eitime
+        return self.in_eitime, reason
 
     def to_eitime(self):
         try:
@@ -1218,7 +1227,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_bplist = False
-        return self.in_bplist
+        return self.in_bplist, reason
 
     def to_bplist(self):
         """Convert a date to a Binary Plist timestamp"""
@@ -1278,7 +1287,7 @@ class TimeDecoder(object):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
             self.in_gsm = False
-        return self.in_gsm
+        return self.in_gsm, reason
 
     def to_gsm(self):
         try:
