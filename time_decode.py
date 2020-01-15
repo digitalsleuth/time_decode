@@ -93,6 +93,8 @@ class TimeDecoder(object):
         36:[dt(2015,7,1), dt(2017,1,1)],
         37:[dt(2017,1,1), dt.now()]
         }
+        self.left_color = "\033[1;31m"
+        self.right_color = "\033[1;m"
 
     def run(self):
         """Process arguments and errors"""
@@ -211,7 +213,9 @@ class TimeDecoder(object):
         print ('\033[1;31mMost likely results (results within +/- 5 years) are highlighted.\n\033[1;m'.format())
 
         for func in self.ts_funcs:
+            #result, output, reason = func()
             func()
+        #self.date_output(result, output, reason)
         self.date_output()
         print ('\r')
 
@@ -1316,12 +1320,11 @@ class TimeDecoder(object):
             self.out_gsm = False
         return self.out_gsm
 
+    #def date_output(self, result, output, reason):
     def date_output(self):
         """Output all processed timestamp values"""
         inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_ms1904, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist, self.in_gsm)
         this_year = int(dt.now().strftime('%Y'))
-        left_color = "\033[1;31m"
-        right_color = "\033[1;m"
         if isinstance(self.in_unix_sec, str):
             if int(duparser.parse(self.in_unix_sec).strftime('%Y')) in range(this_year -5, this_year +5):
                 print("\033[1;31mUnix Seconds:\t\t\t"  + self.in_unix_sec + " UTC\033[1;m".format())
