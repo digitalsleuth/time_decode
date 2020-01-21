@@ -34,8 +34,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '13 Jan 2020'
-__version__ = '1.6'
+__date__ = '15 Jan 2020'
+__version__ = '2.0'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -284,13 +284,12 @@ class TimeDecoder(object):
         for func in self.date_funcs:
             func()
         self.timestamp_output()
-        print ('\r')
 
     def from_unix_sec(self):
         """Convert Unix Seconds value to a date"""
-        reason = "Unix seconds timestamp is between 9-12 (usually 10) digits in length"
+        reason = "Unix seconds timestamp is 10 digits in length"
         try:
-            if not (len(unix) in range(9,13)) or not (unix.isdigit()):
+            if not (len(unix) == 10) or not (unix.isdigit()):
                 self.in_unix_sec = indiv_output = combined_output = False
                 pass
             else:
@@ -313,17 +312,18 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0
             self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()) - int(dt_tz))
+            ts_output = str("Unix Seconds:\t\t\t" + self.out_unix_sec)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_unix_sec = False
-        return self.out_unix_sec
+            self.out_unix_sec = ts_output = False
+        return self.out_unix_sec, ts_output
 
     def from_unix_milli(self):
         """Convert Unix Millisecond value to a date"""
-        reason = "Unix milliseconds timestamp is between 9-13 digits in length"
+        reason = "Unix milliseconds timestamp is 13 digits in length"
         try:
-            if not (len(umil) in range(9,14)) or not (umil.isdigit()):
+            if not (len(umil) == 13) or not (umil.isdigit()):
                 self.in_unix_milli = indiv_output = combined_output = False
                 pass            
             else:
@@ -346,11 +346,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_unix_milli = str((int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
+            ts_output = str("Unix Milliseconds:\t\t" + self.out_unix_milli)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_unix_milli = False
-        return self.out_unix_milli
+            self.out_unix_milli = ts_output = False
+        return self.out_unix_milli, ts_output
 
     def from_win_64_hex(self):
         """Convert a Windows 64 Hex Big-Endian value to a date"""
@@ -383,11 +384,12 @@ class TimeDecoder(object):
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_64 = str(hex(int(calculated_time)*10))[2:].zfill(16)
+            ts_output = str("Windows 64-bit Hex BE:\t\t" + self.out_windows_hex_64)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_windows_hex_64 = False
-        return self.out_windows_hex_64
+            self.out_windows_hex_64 = ts_output = False
+        return self.out_windows_hex_64, ts_output
 
     def from_win_64_hexle(self):
         """Convert a Windows 64 Hex Little-Endian value to a date"""
@@ -420,11 +422,12 @@ class TimeDecoder(object):
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_le = str(struct.pack("<Q", int(calculated_time*10)).hex())[2:].zfill(16)
+            ts_output = str("Windows 64-bit Hex LE:\t\t" + self.out_windows_hex_le)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_windows_hex_le = False
-        return self.out_windows_hex_le
+            self.out_windows_hex_le = ts_output = False
+        return self.out_windows_hex_le, ts_output
 
     def from_chrome(self):
         """Convert a Chrome Timestamp/Webkit Value to a date"""
@@ -456,11 +459,12 @@ class TimeDecoder(object):
                 dt_tz = 0            
             chrome_time = ((dt_obj - self.epoch_1601).total_seconds() - int(dt_tz))* 1000000
             self.out_chrome = str(int(chrome_time))
+            ts_output = str("Google Chrome:\t\t\t" + self.out_chrome)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_chrome = False
-        return self.out_chrome
+            self.out_chrome = ts_output = False
+        return self.out_chrome, ts_output
 
     def from_ad(self):
         """Convert an Active Directory/LDAP timestamp to a date"""
@@ -491,11 +495,12 @@ class TimeDecoder(object):
                 dt_tz = 0
             tz_shift = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
             self.out_adtime = str(int(tz_shift * self.hundreds_nano + self.epoch_active))
+            ts_output = str("Active Directory/LDAP dt:\t" + self.out_adtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_adtime = False
-        return self.out_adtime
+            self.out_adtime = ts_output = False
+        return self.out_adtime, ts_output
 
     def from_unix_hex_32be(self):
         """Convert a Unix Hex 32-bit Big-Endian timestamp to a date"""
@@ -526,11 +531,12 @@ class TimeDecoder(object):
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
             self.out_unix_hex_32 = str(struct.pack(">L", unix_time).hex())
+            ts_output = str("Unix Hex 32-bit BE:\t\t" + self.out_unix_hex_32)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_unix_hex_32 = False
-        return self.out_unix_hex_32
+            self.out_unix_hex_32 = ts_output = False
+        return self.out_unix_hex_32, ts_output
 
     def from_unix_hex_32le(self):
         """Convert a Unix Hex 32-bit Little-Endian timestamp to a date"""
@@ -561,11 +567,12 @@ class TimeDecoder(object):
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
             self.out_unix_hex_32le = str(struct.pack("<L", unix_time).hex())
+            ts_output = str("Unix Hex 32-bit LE:\t\t" + self.out_unix_hex_32le)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_unix_hex_32le = False
-        return self.out_unix_hex_32le
+            self.out_unix_hex_32le = ts_output = False
+        return self.out_unix_hex_32le, ts_output
 
     def from_cookie(self):
         """Convert an Internet Explorer timestamp to a date"""
@@ -600,11 +607,12 @@ class TimeDecoder(object):
             high = int(((unix + 11644473600) * 10**7) / 2**32)
             low = int((unix + 11644473600) * 10**7) - (high * 2**32)
             self.out_cookie = str(low) + ',' + str(high)
+            ts_output = str("Windows Cookie Date:\t\t" + self.out_cookie)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_cookie = False
-        return self.out_cookie
+            self.out_cookie = ts_output = False
+        return self.out_cookie, ts_output
 
     def from_ole_be(self):
         """Convert an OLE Big-Endian timestamp to a date"""
@@ -637,11 +645,12 @@ class TimeDecoder(object):
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_be = str(struct.pack('>Q', conv).hex())
+            ts_output = str("Windows OLE 64-bit double BE:\t" + self.out_ole_be)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_ole_be = False
-        return self.out_ole_be
+            self.out_ole_be = ts_output = False
+        return self.out_ole_be, ts_output
 
     def from_ole_le(self):
         """Convert an OLE Little-Endian timestamp to a date"""
@@ -675,11 +684,12 @@ class TimeDecoder(object):
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_le = str(struct.pack('<Q', conv).hex())
+            ts_output = str("Windows OLE 64-bit double LE:\t" + self.out_ole_le)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_ole_le = False
-        return self.out_ole_le
+            self.out_ole_le = ts_output = False
+        return self.out_ole_le, ts_output
 
     def from_mac(self):
         """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
@@ -709,11 +719,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0             
             self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)))
+            ts_output = str("Mac Absolute Time:\t\t" + self.out_mac)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_mac = False
-        return self.out_mac
+            self.out_mac = ts_output = False
+        return self.out_mac, ts_output
 
     def from_hfs_dec(self):
         """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
@@ -742,11 +753,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)))
+            ts_output = str("Mac OS/HFS+ Decimal Time:\t" + self.out_hfs_dec)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_hfs_dec = False
-        return self.out_hfs_dec
+            self.out_hfs_dec = ts_output = False
+        return self.out_hfs_dec, ts_output
 
     def from_hfs_be(self):
         """Convert an HFS/HFS+ Big-Endian timestamp to a date (HFS+ is in UTC)"""
@@ -777,11 +789,12 @@ class TimeDecoder(object):
                 dt_tz = 0            
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
             self.out_hfs_be = '{0:08x}'.format(conv)
+            ts_output = str("HFS/HFS+ 32-bit Hex BE:\t\t" + self.out_hfs_be)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_hfs_be = False
-        return self.out_hfs_be
+            self.out_hfs_be = ts_output = False
+        return self.out_hfs_be, ts_output
 
     def from_hfs_le(self):
         """Convert an HFS/HFS+ Little-Endian timestamp to a date (HFS+ is in UTC)"""
@@ -813,11 +826,12 @@ class TimeDecoder(object):
                 dt_tz = 0             
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
             self.out_hfs_le = str(struct.pack('<I', conv).hex())
+            ts_output = str("HFS/HFS+ 32-bit Hex LE:\t\t" + self.out_hfs_le)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_hfs_le = False
-        return self.out_hfs_le
+            self.out_hfs_le = ts_output = False
+        return self.out_hfs_le, ts_output
 
     def from_fat(self):
         """Convert an MS-DOS wFatDate wFatTime timestamp to a date"""
@@ -860,11 +874,12 @@ class TimeDecoder(object):
             to_hex = str(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)).hex())
             byte_swap = ''.join([to_hex[i:i+2] for i in range(0, len(to_hex), 2)][::-1])
             self.out_fat = ''.join([byte_swap[i:i+4] for i in range(0, len(byte_swap), 4)][::-1])
+            ts_output = str("FAT Date + Time:\t\t" + self.out_fat)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_fat = False
-        return self.out_fat
+            self.out_fat = ts_output = False
+        return self.out_fat, ts_output
 
     def from_msdos(self):
         """Convert an MS-DOS timestamp to a date"""
@@ -905,11 +920,12 @@ class TimeDecoder(object):
             seconds = '{0:05b}'.format(int(dt_obj.second / 2))
             hexval = str(struct.pack('>I', int(year + month + day + hour + minute + seconds, 2)).hex())
             self.out_msdos = ''.join([hexval[i:i+2] for i in range(0, len(hexval), 2)][::-1])
+            ts_output = str("MS-DOS 32-bit Hex Value:\t" + self.out_msdos)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_msdos = False
-        return self.out_msdos
+            self.out_msdos = ts_output = False
+        return self.out_msdos, ts_output
 
     def from_systime(self):
         """Convert a Microsoft 128-bit SYSTEMTIME timestamp to a date"""
@@ -959,11 +975,12 @@ class TimeDecoder(object):
                 for value in full_date.split(','):
                     stamp.append(hexlify(struct.pack('<H', int(value))))
             self.out_systemtime = ''.join(stamp)
+            ts_output = str("Microsoft 128-bit SYSTEMTIME:\t" + self.out_systemtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_systemtime = False
-        return self.out_systemtime
+            self.out_systemtime = ts_output = False
+        return self.out_systemtime, ts_output
 
     def from_filetime(self):
         """Convert a Microsoft FILETIME timestamp to a date"""
@@ -998,11 +1015,12 @@ class TimeDecoder(object):
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             indiv_output = str(struct.pack(">Q", int(calculated_time*10)).hex())
             self.out_filetime = str(indiv_output[8:]) + ":" + str(indiv_output[:8])
+            ts_output = str("Microsoft FILETIME time:\t" + self.out_filetime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_filetime = False
-        return self.out_filetime
+            self.out_filetime = ts_output = False
+        return self.out_filetime, ts_output
 
     def from_prtime(self):
         """Convert a Mozilla PRTime timestamp to a date"""
@@ -1032,11 +1050,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0
             self.out_prtime = str(int(((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz)) * 1000000))
+            ts_output = str("Mozilla PRTime:\t\t\t" + self.out_prtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_prtime = False
-        return self.out_prtime
+            self.out_prtime = ts_output = False
+        return self.out_prtime, ts_output
 
     def from_ole_auto(self):
         """Convert an OLE Automation timestamp to a date"""
@@ -1066,11 +1085,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_ole_auto = "{0:.12f}".format(((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400)
+            ts_output = str("OLE Automation Date:\t\t" + self.out_ole_auto)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_ole_auto = False
-        return self.out_ole_auto
+            self.out_ole_auto = ts_output = False
+        return self.out_ole_auto, ts_output
 
     def from_ms1904(self):
         """Convert a Microsoft Excel 1904 timestamp to a date"""
@@ -1100,11 +1120,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_ms1904 = "{0:.12f}".format(((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)) / 86400)
+            ts_output = str("MS Excel 1904 Date:\t\t" + self.out_ms1904)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_ms1904 = False
-        return self.out_ms1904
+            self.out_ms1904 = ts_output = False
+        return self.out_ms1904, ts_output
 
     def from_ios_time(self):
         """Convert an iOS 11 timestamp to a date"""
@@ -1134,11 +1155,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)) * self.nano_2001))
+            ts_output = str("iOS 11 Date:\t\t\t" + self.out_iostime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_iostime = False
-        return self.out_iostime
+            self.out_iostime = ts_output = False
+        return self.out_iostime, ts_output
 
     def from_sym_time(self):
         """Convert a Symantec 6-byte hex timestamp to a date"""
@@ -1172,11 +1194,12 @@ class TimeDecoder(object):
             sym_minute = '{0:x}'.format(dt_obj.minute).zfill(2)
             sym_second = '{0:x}'.format(dt_obj.second).zfill(2)
             self.out_symtime = sym_year + sym_month + sym_day + sym_hour + sym_minute + sym_second
+            ts_output = str("Symantec AV time:\t\t" + self.out_symtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_symtime = False
-        return self.out_symtime
+            self.out_symtime = ts_output = False
+        return self.out_symtime, ts_output
 
     def date_range(self, start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
@@ -1233,11 +1256,12 @@ class TimeDecoder(object):
             gps_stamp = (dt.utcfromtimestamp(epoch_shift.total_seconds()) - self.epoch_1980).total_seconds() - 19
             gps_stamp = int(gps_stamp) - int(dt_tz)
             self.out_gpstime = str(gps_stamp)
+            ts_output = str("GPS time:\t\t\t" + self.out_gpstime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_gpstime = False
-        return self.out_gpstime
+            self.out_gpstime = ts_output = False
+        return self.out_gpstime, ts_output
 
     def from_eitime(self):
         """Convert a Google ei URL timestamp"""
@@ -1281,11 +1305,12 @@ class TimeDecoder(object):
             unix_hex = struct.pack("<L", unix_time)
             urlsafe_encode = base64.urlsafe_b64encode(unix_hex)
             self.out_eitime = urlsafe_encode.decode(encoding="UTF-8").strip("=")
+            ts_output = str("Google EI time:\t\t\t" + self.out_eitime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_eitime = False
-        return self.out_eitime    
+            self.out_eitime = ts_output = False
+        return self.out_eitime, ts_output
 
     def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
@@ -1315,11 +1340,12 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0            
             self.out_bplist = str(int((dt_obj - self.epoch_2001).total_seconds()) - int(dt_tz))
+            ts_output = str("iOS Binary Plist time:\t\t" + self.out_bplist)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_bplist = False
-        return self.out_bplist
+            self.out_bplist = ts_output = False
+        return self.out_bplist, ts_output
 
     def from_gsm(self):
         """Convert a GSM timestamp to a date"""
@@ -1401,11 +1427,12 @@ class TimeDecoder(object):
                 be = value[::-1]
                 date_value_swap.append(be)
             self.out_gsm = ''.join(date_value_swap)
+            ts_output = str("GSM time:\t\t\t" + self.out_gsm)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
-            self.out_gsm = False
-        return self.out_gsm
+            self.out_gsm = ts_output = False
+        return self.out_gsm, ts_output
 
     def from_all(self):
         """Output all processed timestamp values"""
@@ -1430,90 +1457,11 @@ class TimeDecoder(object):
 
     def timestamp_output(self):
         """Output all processed dates from timestamp values"""
-        outputs = (self.out_unix_sec,self.out_unix_milli,self.out_windows_hex_64,self.out_windows_hex_le,self.out_chrome,self.out_adtime,self.out_unix_hex_32,self.out_unix_hex_32le,self.out_cookie,self.out_ole_be,self.out_ole_le,self.out_mac,self.out_hfs_dec,self.out_hfs_be,self.out_hfs_le,self.out_fat,self.out_msdos,self.out_systemtime,self.out_filetime,self.out_prtime,self.out_ole_auto,self.out_ms1904,self.out_iostime,self.out_symtime,self.out_gpstime,self.out_eitime,self.out_bplist,self.out_gsm)
-        if isinstance(self.out_unix_sec, str):
-            print ("Unix Seconds:\t\t\t" + self.out_unix_sec)
-
-        if isinstance(self.out_unix_milli, str):
-            print ("Unix Milliseconds:\t\t" + self.out_unix_milli)
-
-        if isinstance(self.out_windows_hex_64, str):
-            print ("Windows 64-bit Hex BE:\t\t" + self.out_windows_hex_64)
-
-        if isinstance(self.out_windows_hex_le, str):
-            print ("Windows 64-bit Hex LE:\t\t" + self.out_windows_hex_le)
-
-        if isinstance(self.out_chrome, str):
-            print ("Google Chrome:\t\t\t" + self.out_chrome)
-
-        if isinstance(self.out_adtime, str):
-            print ("Active Directory/LDAP dt:\t" + self.out_adtime)
-
-        if isinstance(self.out_unix_hex_32, str):
-            print ("Unix Hex 32-bit BE:\t\t" + self.out_unix_hex_32)
-
-        if isinstance(self.out_unix_hex_32le, str):
-            print ("Unix Hex 32-bit LE:\t\t" + self.out_unix_hex_32le)
-
-        if isinstance(self.out_cookie, str):
-            print ("Windows Cookie Date:\t\t" + self.out_cookie)
-
-        if isinstance(self.out_ole_be, str):
-            print ("Windows OLE 64-bit double BE:\t" + self.out_ole_be)
-
-        if isinstance(self.out_ole_le, str):
-            print ("Windows OLE 64-bit double LE:\t" + self.out_ole_le)
-
-        if isinstance(self.out_mac, str):
-            print ("Mac Absolute Time:\t\t" + self.out_mac)
-
-        if isinstance(self.out_hfs_dec, str):
-            print ("Mac OS/HFS+ Decimal Time:\t" + self.out_hfs_dec)
-
-        if isinstance(self.out_hfs_be, str):
-            print ("HFS/HFS+ 32-bit Hex BE:\t\t" + self.out_hfs_be)
-
-        if isinstance(self.out_hfs_le, str):
-            print ("HFS/HFS+ 32-bit Hex LE:\t\t" + self.out_hfs_le)
-        
-        if isinstance(self.out_fat, str):
-            print ("FAT Date + Time:\t\t" + self.out_fat)
-        
-        if isinstance(self.out_msdos, str):
-            print ("MS-DOS 32-bit Hex Value:\t" + self.out_msdos)
-
-        if isinstance(self.out_systemtime, str):
-            print ("Microsoft 128-bit SYSTEMTIME:\t" + self.out_systemtime)
-
-        if isinstance(self.out_filetime, str):
-            print ("Microsoft FILETIME time:\t" + self.out_filetime)
-
-        if isinstance(self.out_prtime, str):
-            print ("Mozilla PRTime:\t\t\t" + self.out_prtime)
-
-        if isinstance(self.out_ole_auto, str):
-            print ("OLE Automation Date:\t\t" + self.out_ole_auto)
-
-        if isinstance(self.out_ms1904, str):
-            print ("MS Excel 1904 Date:\t\t" + self.out_ms1904)
-
-        if isinstance(self.out_iostime, str):
-            print ("iOS 11 Date:\t\t\t" + self.out_iostime)
-
-        if isinstance(self.out_symtime, str):
-            print ("Symantec AV time:\t\t" + self.out_symtime)
-
-        if isinstance(self.out_gpstime, str):
-            print ("GPS time:\t\t\t" + self.out_gpstime)
-
-        if isinstance(self.out_eitime, str):
-            print ("Google EI time:\t\t\t" + self.out_eitime)
-
-        if isinstance(self.out_bplist, str):
-            print ("iOS Binary Plist time:\t\t" + self.out_bplist)
-
-        if isinstance(self.out_gsm, str):
-            print ("GSM time:\t\t\t" + self.out_gsm)
+        for func in self.date_funcs:
+            result, ts_output = func()
+            if isinstance(result, str):
+                print(ts_output)
+        print('\r')
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
