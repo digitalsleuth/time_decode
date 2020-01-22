@@ -1404,7 +1404,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
             else:
                 dt_tz = 0
-            if dt_tz is 0:
+            if dt_tz == 0:
                 hex_tz = '{:02d}'.format(0)
             elif dt_tz < 0:
                 dt_tz = dt_tz / 3600
