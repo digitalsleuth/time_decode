@@ -3,7 +3,7 @@
 This application is designed to decode timestamps into human-readable date/times and vice-versa
 Additional information regarding the source of the timestamp formats and associated equations
 will be provided in the docstrings below.
-TODO:
+TO DO:
     Re-evaluate error handling.
     MSDOS and FAT timestamps both need method for accepting time offset
 
@@ -21,7 +21,7 @@ bplist timestamp: https://developer.apple.com/documentation/corefoundation/cfabs
                   https://developer.apple.com/documentation/foundation/nsdate
 GSM Timestamps: https://en.wikipedia.org/wiki/GSM_03.40
                 http://seven-bit-forensics.blogspot.com/2014/02/decoding-gsmsms-timestamps.html
-                
+
 """
 from datetime import datetime as dt, timedelta
 import struct
@@ -58,7 +58,7 @@ class TimeDecoder(object):
                  self.from_hfs_dec, self.from_hfs_be, self.from_hfs_le, self.from_msdos, self.from_fat, self.from_systime, self.from_filetime,
                  self.from_prtime, self.from_ole_auto, self.from_ms1904, self.from_ios_time, self.from_sym_time, self.from_gps_time,
                  self.from_eitime, self.from_bplist, self.from_gsm]
-        self.date_funcs = [self.to_unix_sec, self.to_unix_milli, self.to_win_64_hex, self.to_win_64_hexle, self.to_chrome, self.to_ad, self.to_unix_hex_32be, 
+        self.date_funcs = [self.to_unix_sec, self.to_unix_milli, self.to_win_64_hex, self.to_win_64_hexle, self.to_chrome, self.to_ad, self.to_unix_hex_32be,
                            self.to_unix_hex_32le, self.to_cookie, self.to_ole_be, self.to_ole_le, self.to_mac, self.to_hfs_dec, self.to_hfs_be, self.to_hfs_le,
                            self.to_msdos, self.to_fat, self.to_systime, self.to_filetime, self.to_prtime, self.to_ole_auto, self.to_ms1904, self.to_ios_time,
                            self.to_sym_time, self.to_gps_time, self.to_eitime, self.to_bplist, self.to_gsm]
@@ -103,7 +103,7 @@ class TimeDecoder(object):
         """Process arguments and errors"""
         if len(sys.argv[1:]) == 0:
             arg_parse.print_usage()
-            arg_parse.exit()       
+            arg_parse.exit()
         try:
             if args.unix:
                 try:
@@ -116,19 +116,19 @@ class TimeDecoder(object):
                     result, indiv_output, combined_output, reason = self.from_unix_milli()
                     print (indiv_output)
                 except Exception as e:
-                    print(reason)                
+                    print(reason)
             elif args.wh:
                 try:
                     result, indiv_output, combined_output, reason = self.from_win_64_hex()
                     print (indiv_output)
                 except Exception as e:
-                    print(reason)                
+                    print(reason)
             elif args.whle:
                 try:
                     result, indiv_output, combined_output, reason = self.from_win_64_hexle()
                     print (indiv_output)
                 except Exception as e:
-                    print(reason)                
+                    print(reason)
             elif args.chrome:
                 try:
                     result, indiv_output, combined_output, reason = self.from_chrome()
@@ -152,7 +152,7 @@ class TimeDecoder(object):
                     result, indiv_output, combined_output, reason = self.from_unix_hex_32le()
                     print (indiv_output)
                 except Exception as e:
-                    print(reason)                
+                    print(reason)
             elif args.cookie:
                 try:
                     result, indiv_output, combined_output, reason = self.from_cookie()
@@ -200,7 +200,7 @@ class TimeDecoder(object):
                     result, indiv_output, combined_output, reason = self.from_fat()
                     print (indiv_output)
                 except Exception as e:
-                    print(reason)         
+                    print(reason)
             elif args.msdos:
                 try:
                     result, indiv_output, combined_output, reason = self.from_msdos()
@@ -231,7 +231,7 @@ class TimeDecoder(object):
                     print (indiv_output)
                 except Exception as e:
                     print(reason)
-            elif args.ms1904:               
+            elif args.ms1904:
                 try:
                     result, indiv_output, combined_output, reason = self.from_ms1904()
                     print (indiv_output)
@@ -243,13 +243,13 @@ class TimeDecoder(object):
                     print (indiv_output)
                 except Exception as e:
                     print(reason)
-            elif args.sym:               
+            elif args.sym:
                 try:
                     result, indiv_output, combined_output, reason = self.from_sym_time()
                     print (indiv_output)
                 except Exception as e:
                     print(reason)
-            elif args.gps:                
+            elif args.gps:
                 try:
                     result, indiv_output, combined_output, reason = self.from_gps_time()
                     print (indiv_output)
@@ -261,7 +261,7 @@ class TimeDecoder(object):
                     print (indiv_output)
                 except Exception as e:
                     print(reason)
-            elif args.bplist:                
+            elif args.bplist:
                 try:
                     result, indiv_output, combined_output, reason = self.from_bplist()
                     print (indiv_output)
@@ -328,7 +328,7 @@ class TimeDecoder(object):
         try:
             if not (len(umil) == 13) or not (umil.isdigit()):
                 self.in_unix_milli = indiv_output = combined_output = False
-                pass            
+                pass
             else:
                 self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("Unix Milliseconds: " + self.in_unix_milli + " UTC")
@@ -347,7 +347,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_unix_milli = str((int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
             ts_output = str("Unix Milliseconds:\t\t" + self.out_unix_milli)
         except Exception as e:
@@ -383,7 +383,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_64 = str(hex(int(calculated_time)*10))[2:].zfill(16)
@@ -400,7 +400,7 @@ class TimeDecoder(object):
         try:
             if not (len(whle) == 16) or not (all(char in hexdigits for char in whle)):
                 self.in_windows_hex_le = indiv_output = combined_output = False
-                pass            
+                pass
             else:
                 converted_time = struct.unpack("<Q", unhexlify(whle))[0]
                 dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
@@ -421,7 +421,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             self.out_windows_hex_le = str(struct.pack("<Q", int(calculated_time*10)).hex())[2:].zfill(16)
@@ -438,8 +438,8 @@ class TimeDecoder(object):
         try:
             if not (len(chrome) == 17) or not (chrome.isdigit()):
                 self.in_chrome = indiv_output = combined_output = False
-                pass            
-            else:            
+                pass
+            else:
                 delta = timedelta(microseconds=int(chrome))
                 converted_time = self.epoch_1601 + delta
                 self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -459,7 +459,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             chrome_time = ((dt_obj - self.epoch_1601).total_seconds() - int(dt_tz))* 1000000
             self.out_chrome = str(int(chrome_time))
             ts_output = str("Google Chrome:\t\t\t" + self.out_chrome)
@@ -548,7 +548,7 @@ class TimeDecoder(object):
             if not (len(uhle) == 8) or not (all(char in hexdigits for char in uhle)):
                 self.in_unix_hex_32le = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 to_dec = struct.unpack("<L", unhexlify(uhle))[0]
                 self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("Unix Hex 32-bit LE: " + self.in_unix_hex_32le + " UTC")
@@ -605,7 +605,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             unix = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
             high = int(((unix + 11644473600) * 10**7) / 2**32)
             low = int((unix + 11644473600) * 10**7) - (high * 2**32)
@@ -624,7 +624,7 @@ class TimeDecoder(object):
             if not (len(oleb) == 16) or not (all(char in hexdigits for char in oleb)):
                 self.in_ole_be = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 delta = struct.unpack('>d', struct.pack('>Q', int(oleb, 16)))[0]
                 dt_obj = self.epoch_1899 + timedelta(days=delta)
                 self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -644,7 +644,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_be = str(struct.pack('>Q', conv).hex())
@@ -662,7 +662,7 @@ class TimeDecoder(object):
             if not (len(olel) == 16) or not (all(char in hexdigits for char in olel)):
                 self.in_ole_le = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 to_le = hexlify(struct.pack('<Q', int(olel, 16)))
                 delta = struct.unpack('>d', struct.pack('>Q', int(to_le, 16)))[0]
                 dt_obj = self.epoch_1899 + timedelta(days=delta)
@@ -683,7 +683,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
             conv = struct.unpack('<Q', struct.pack('<d', delta))[0]
             self.out_ole_le = str(struct.pack('<Q', conv).hex())
@@ -720,7 +720,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0             
+                dt_tz = 0
             self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)))
             ts_output = str("Mac Absolute Time:\t\t" + self.out_mac)
         except Exception as e:
@@ -754,7 +754,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)))
             ts_output = str("Mac OS/HFS+ Decimal Time:\t" + self.out_hfs_dec)
         except Exception as e:
@@ -789,7 +789,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
             self.out_hfs_be = '{0:08x}'.format(conv)
             ts_output = str("HFS/HFS+ 32-bit Hex BE:\t\t" + self.out_hfs_be)
@@ -806,7 +806,7 @@ class TimeDecoder(object):
             if not (len(hfsle) == 8) or not (all(char in hexdigits for char in hfsle)):
                 self.in_hfs_le = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 to_le = struct.unpack('>I', struct.pack('<I', int(hfsle, 16)))[0]
                 dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
                 self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -826,7 +826,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0             
+                dt_tz = 0
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
             self.out_hfs_le = str(struct.pack('<I', conv).hex())
             ts_output = str("HFS/HFS+ 32-bit Hex LE:\t\t" + self.out_hfs_le)
@@ -843,7 +843,7 @@ class TimeDecoder(object):
             if not (len(fat) == 8) or not (all(char in hexdigits for char in fat)):
                 self.in_fat = indiv_output = combined_output = False
                 pass
-            else:             
+            else:
                 byte_swap = [fat[i:i+2] for i in range(0, len(fat), 2)]
                 to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
                 binary = '{0:032b}'.format(int(to_le, 16))
@@ -867,7 +867,7 @@ class TimeDecoder(object):
     def to_fat(self):
         """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
         try:
-            dt_obj = duparser.parse(timestamp)           
+            dt_obj = duparser.parse(timestamp)
             year = '{0:07b}'.format(dt_obj.year - 1980)
             month = '{0:04b}'.format(dt_obj.month)
             day = '{0:05b}'.format(dt_obj.day)
@@ -891,7 +891,7 @@ class TimeDecoder(object):
             if not (len(msdos) == 8) or not (all(char in hexdigits for char in msdos)):
                 self.in_msdos = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 swap = ''.join([msdos[i:i+2] for i in range(0, len(msdos), 2)][::-1])
                 binary = '{0:032b}'.format(int(swap, 16))
                 stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
@@ -1013,7 +1013,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
             calculated_time = minus_epoch.microseconds + ((minus_epoch.seconds - int(dt_tz)) * 1000000) + (minus_epoch.days * 86400000000)
             indiv_output = str(struct.pack(">Q", int(calculated_time*10)).hex())
@@ -1086,7 +1086,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_ole_auto = "{0:.12f}".format(((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400)
             ts_output = str("OLE Automation Date:\t\t" + self.out_ole_auto)
         except Exception as e:
@@ -1102,7 +1102,7 @@ class TimeDecoder(object):
             if not ("." in ms1904) or not ((len(ms1904.split(".")[0]) == 5) and (len(ms1904.split(".")[1]) in range(9,13))) or not (''.join(ms1904.split(".")).isdigit()):
                 self.in_ms1904 = indiv_output = combined_output = False
                 pass
-            else:            
+            else:
                 dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
                 self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("MS Excel 1904 Date: " + self.in_ms1904 + " UTC")
@@ -1121,7 +1121,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_ms1904 = "{0:.12f}".format(((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)) / 86400)
             ts_output = str("MS Excel 1904 Date:\t\t" + self.out_ms1904)
         except Exception as e:
@@ -1156,7 +1156,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)) * self.nano_2001))
             ts_output = str("iOS 11 Date:\t\t\t" + self.out_iostime)
         except Exception as e:
@@ -1291,7 +1291,7 @@ class TimeDecoder(object):
                     combined_output = str("\033[1;31mGoogle EI URL timestamp:\t" + self.in_eitime + " UTC\033[1;m".format())
                 except base64.binascii.Error as e:
                     self.in_eitime = indiv_output = combined_output = False
-                    pass                
+                    pass
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -1343,7 +1343,7 @@ class TimeDecoder(object):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
-                dt_tz = 0            
+                dt_tz = 0
             self.out_bplist = str(int((dt_obj - self.epoch_2001).total_seconds()) - int(dt_tz))
             ts_output = str("iOS Binary Plist time:\t\t" + self.out_bplist)
         except Exception as e:
@@ -1359,7 +1359,7 @@ class TimeDecoder(object):
             # The last byte of the GSM timestamp is a hex representation of the timezone.
             # If the timezone bitwise operation on this byte results in a timezone offset
             # of less than -12 or greater than 12, then the value is incorrect.
-            # The values in tz_in_range are hex bytes which return proper timezones.            
+            # The values in tz_in_range are hex bytes which return proper timezones.
             tz_in_range = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8']
             tz_check = gsm[12:14][::-1].lower()
             if not (len(gsm) == 14) or not (all(char in hexdigits for char in gsm)) or not (tz_check in tz_in_range):
@@ -1447,7 +1447,7 @@ class TimeDecoder(object):
         inputs = (self.in_unix_sec, self.in_unix_milli, self.in_windows_hex_64, self.in_windows_hex_le, self.in_chrome, self.in_ad, self.in_unix_hex_32, self.in_unix_hex_32le, self.in_cookie, self.in_ole_be, self.in_ole_le, self.in_mac, self.in_hfs_dec, self.in_hfs_be, self.in_hfs_le, self.in_msdos, self.in_fat, self.in_systemtime, self.in_filetime, self.in_prtime, self.in_ole_auto, self.in_ms1904, self.in_iostime, self.in_symtime, self.in_gpstime, self.in_eitime, self.in_bplist, self.in_gsm)
         print ('\nGuessing Date from Timestamp: ' + sys.argv[2] + '\r')
         print ('Outputs which do not result in a date/time value are not displayed.\r')
-        print ('\033[1;31mMost likely results (results within +/- 5 years) are highlighted.\n\033[1;m'.format())   
+        print ('\033[1;31mMost likely results (results within +/- 5 years) are highlighted.\n\033[1;m'.format())
         for func in self.ts_funcs:
             result, indiv_output, combined_output, reason = func()
             states.append(result)
@@ -1457,8 +1457,8 @@ class TimeDecoder(object):
                 else:
                     print(combined_output.strip(self.left_color).strip(self.right_color))
         if all([ state == False for state in states ]) :
-            print ('No valid dates found. Check your input and try again.')                
-        print ('\r')        
+            print ('No valid dates found. Check your input and try again.')
+        print ('\r')
 
     def timestamp_output(self):
         """Output all processed dates from timestamp values"""
