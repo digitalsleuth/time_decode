@@ -732,7 +732,7 @@ class TimeDecoder(object):
         """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
         reason = "Mac OS/HFS+ Decimal timestamps are 10 digits"
         try:
-            if not (len(hfsdec) == 10) or not (hfsdec.isdigit()):
+            if not (len(hfsdec) == 10) or not (hfsdec.isdigit()) or not (int(hfsdec) >= 2082844800):
                 self.in_hfs_dec = indiv_output = combined_output = False
                 pass
             else:
@@ -1284,7 +1284,7 @@ class TimeDecoder(object):
                     result_eitime = eitime
                 try:
                     decoded_eitime = base64.urlsafe_b64decode(result_eitime).hex()[:8]
-                    unix_timestamp, = struct.unpack("<L", unhexlify(result_eitime))
+                    unix_timestamp, = struct.unpack("<L", unhexlify(decoded_eitime))
                     self.in_eitime = dt.utcfromtimestamp(unix_timestamp).strftime('%Y-%m-%d %H:%M:%S.%f')
                     indiv_output = str("Google URL EI Timestamp: " + self.in_eitime)
                     combined_output = str("\033[1;31mGoogle EI URL timestamp:\t" + self.in_eitime + " UTC\033[1;m".format())
