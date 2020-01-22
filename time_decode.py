@@ -2,8 +2,9 @@
 """
 This application is designed to decode timestamps into human-readable date/times and vice-versa
 Additional information regarding the source of the timestamp formats and associated equations
-will be provided inline with the docstrings for each module.
+will be provided in the docstrings below.
 TODO:
+    Re-evaluate error handling.
     MSDOS and FAT timestamps both need method for accepting time offset
 
 GPS Ref: http://www.leapsecond.com/java/gpsclock.htm
@@ -34,8 +35,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '15 Jan 2020'
-__version__ = '2.0'
+__date__ = '21 Jan 2020'
+__version__ = '2.1'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
