@@ -91,8 +91,10 @@ class TimeDecoder(object):
         34:[dt(2009,1,1), dt(2012,7,1)],
         35:[dt(2012,7,1), dt(2015,7,1)],
         36:[dt(2015,7,1), dt(2017,1,1)],
-        37:[dt(2017,1,1), dt.now()]
+        37:[dt(2017,1,1), dt.now() - timedelta(seconds=37)]
         }
+        # There have been no further leapseconds since 2017,1,1 at the __date__ of this script
+        # which is why the leapseconds end with a dt.now object to valid/relevant timestamp output.
         self.left_color = "\033[1;31m"
         self.right_color = "\033[1;m"
 
@@ -1251,6 +1253,8 @@ class TimeDecoder(object):
                 check = self.date_range(leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date)
                 if check == True:
                     variance = entry
+                else:
+                    variance = 0
             leap_correction = check_date + timedelta(seconds=variance)
             epoch_shift = leap_correction - self.epoch_1970
             gps_stamp = (dt.utcfromtimestamp(epoch_shift.total_seconds()) - self.epoch_1980).total_seconds() - 19
