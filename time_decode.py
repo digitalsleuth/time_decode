@@ -402,11 +402,16 @@ class TimeDecoder(object):
                 self.in_windows_hex_le = indiv_output = combined_output = False
                 pass
             else:
-                converted_time = struct.unpack("<Q", unhexlify(whle))[0]
-                dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time /10)
-                self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
-                indiv_output = str("Windows 64-bit Hex LE: " + self.in_windows_hex_le + " UTC")
-                combined_output = str("\033[1;31mWindows 64-bit Hex LE:\t\t"  + self.in_windows_hex_le + " UTC\033[1;m".format())
+                indiv_output = combined_output = False
+                endianness_change, = struct.unpack("<Q", unhexlify(whle))
+                converted_time = endianness_change / 10
+                try:
+                    dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time)
+                    self.in_windows_hex_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+                    indiv_output = str("Windows 64-bit Hex LE: " + self.in_windows_hex_le + " UTC")
+                    combined_output = str("\033[1;31mWindows 64-bit Hex LE:\t\t"  + self.in_windows_hex_le + " UTC\033[1;m".format())
+                except OverflowError:
+                    pass
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
