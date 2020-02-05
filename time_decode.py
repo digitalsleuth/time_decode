@@ -701,13 +701,13 @@ class TimeDecoder(object):
 
     def from_mac(self):
         """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
-        reason = "Mac Absolute timestamps are 9 digits"
+        reason = "Mac Absolute timestamps are 9 digits, commonly followed by a decimal and up to 6 digits for milliseconds"
         try:
-            if not (len(mac) == 9) or not (mac.isdigit()):
+            if not ("." in mac) or not ((len(mac.split(".")[0]) == 9) and (len(mac.split(".")[1]) in range(0,7))) or not (''.join(mac.split(".")).isdigit()):
                 self.in_mac = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_2001 + timedelta(seconds=int(mac))
+                dt_obj = self.epoch_2001 + timedelta(seconds=float(mac))
                 self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("Mac Absolute Time: " + self.in_mac + " UTC")
                 combined_output = str("\033[1;31mMac Absolute Time:\t\t"  + self.in_mac + " UTC\033[1;m".format())
