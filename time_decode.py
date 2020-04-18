@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 This application is designed to decode timestamps into human-readable date/times and vice-versa
 Additional information regarding the source of the timestamp formats and associated equations
