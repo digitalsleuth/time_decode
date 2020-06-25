@@ -35,8 +35,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '21 Jan 2020'
-__version__ = '2.1'
+__date__ = '24 Jun 2020'
+__version__ = '2.2'
 __description__ = 'Python CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -1475,7 +1475,7 @@ class TimeDecoder(object):
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter', epilog='If logging is enabled, see time_decoder.log in current users home dir.')
+    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter')
     arg_parse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds')
     arg_parse.add_argument('--umil', metavar='<value>', help='convert from Unix Milliseconds')
     arg_parse.add_argument('--wh', metavar='<value>', help='convert from Windows 64-bit Hex BE')
@@ -1506,7 +1506,7 @@ if __name__ == '__main__':
     arg_parse.add_argument('--gsm', metavar='<value>', help='convert from a GSM Timestamp')
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities')
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', nargs='?', const=now)
-    arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s' +str(__version__))
+    arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' +str(__version__))
     args = arg_parse.parse_args()
     guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; chrome = args.chrome; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; fat = args.fat; msdos = args.msdos; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm
     if args.guess:
