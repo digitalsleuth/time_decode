@@ -106,173 +106,173 @@ class TimeDecoder(object):
             arg_parse.exit()
         try:
             if args.unix:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_unix_sec()
+                result, indiv_output, combined_output, reason = self.from_unix_sec()
+                if indiv_output == False:
+                    print(reason)
+                else:
                     print(indiv_output)
-                except Exception as e:
-                    print(reason)
             elif args.umil:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_unix_milli()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_unix_milli()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.wh:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_win_64_hex()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_win_64_hex()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.whle:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_win_64_hexle()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_win_64_hexle()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.chrome:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_chrome()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_chrome()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.active:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ad()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ad()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.uhbe:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_unix_hex_32be()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_unix_hex_32be()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.uhle:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_unix_hex_32le()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_unix_hex_32le()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.cookie:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_cookie()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_cookie()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.oleb:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ole_be()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ole_be()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.olel:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ole_le()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ole_le()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.mac:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_mac()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_mac()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.hfsdec:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_hfs_dec()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_hfs_dec()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.hfsbe:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_hfs_be()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_hfs_be()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.hfsle:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_hfs_le()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_hfs_le()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.fat:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_fat()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_fat()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.msdos:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_msdos()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_msdos()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.sys:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_systime()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_systime()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.ft:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_filetime()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_filetime()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.pr:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_prtime()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_prtime()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.auto:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ole_auto()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ole_auto()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.ms1904:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ms1904()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ms1904()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.ios:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_ios_time()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_ios_time()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.sym:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_sym_time()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_sym_time()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.gps:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_gps_time()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_gps_time()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.eitime:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_eitime()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_eitime()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.bplist:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_bplist()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_bplist()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.gsm:
-                try:
-                    result, indiv_output, combined_output, reason = self.from_gsm()
-                    print (indiv_output)
-                except Exception as e:
+                result, indiv_output, combined_output, reason = self.from_gsm()
+                if indiv_output == False:
                     print(reason)
+                else:
+                    print(indiv_output)
             elif args.timestamp:
                 self.to_timestamps()
             elif args.guess:
@@ -290,7 +290,7 @@ class TimeDecoder(object):
 
     def from_unix_sec(self):
         """Convert Unix Seconds value to a date"""
-        reason = "Unix seconds timestamp is 10 digits in length"
+        reason = "[!] Unix seconds timestamp is 10 digits in length"
         try:
             if not (len(unix) == 10) or not (unix.isdigit()):
                 self.in_unix_sec = indiv_output = combined_output = False
@@ -324,7 +324,7 @@ class TimeDecoder(object):
 
     def from_unix_milli(self):
         """Convert Unix Millisecond value to a date"""
-        reason = "Unix milliseconds timestamp is 13 digits in length"
+        reason = "[!] Unix milliseconds timestamp is 13 digits in length"
         try:
             if not (len(umil) == 13) or not (umil.isdigit()):
                 self.in_unix_milli = indiv_output = combined_output = False
@@ -358,7 +358,7 @@ class TimeDecoder(object):
 
     def from_win_64_hex(self):
         """Convert a Windows 64 Hex Big-Endian value to a date"""
-        reason = "Windows 64-bit Hex Big-Endian timestamp is 16 hex characters (8 bytes)"
+        reason = "[!] Windows 64-bit Hex Big-Endian timestamp is 16 hex characters (8 bytes)"
         try:
             if not (len(wh) == 16) or not (all(char in hexdigits for char in wh)):
                 self.in_windows_hex_64 = indiv_output = combined_output = False
@@ -396,7 +396,7 @@ class TimeDecoder(object):
 
     def from_win_64_hexle(self):
         """Convert a Windows 64 Hex Little-Endian value to a date"""
-        reason = "Windows 64-bit Hex Little-Endian timestamp is 16 hex characters (8 bytes)"
+        reason = "[!] Windows 64-bit Hex Little-Endian timestamp is 16 hex characters (8 bytes)"
         try:
             if not (len(whle) == 16) or not (all(char in hexdigits for char in whle)):
                 self.in_windows_hex_le = indiv_output = combined_output = False
@@ -439,7 +439,7 @@ class TimeDecoder(object):
 
     def from_chrome(self):
         """Convert a Chrome Timestamp/Webkit Value to a date"""
-        reason = "Chrome/Webkit timestamp is 17 digits"
+        reason = "[!] Chrome/Webkit timestamp is 17 digits"
         try:
             if not (len(chrome) == 17) or not (chrome.isdigit()):
                 self.in_chrome = indiv_output = combined_output = False
@@ -476,7 +476,7 @@ class TimeDecoder(object):
 
     def from_ad(self):
         """Convert an Active Directory/LDAP timestamp to a date"""
-        reason = "Active Directory/LDAP timestamps are 18 digits"
+        reason = "[!] Active Directory/LDAP timestamps are 18 digits"
         try:
             if not (len(active) == 18) or not (active.isdigit()):
                 self.in_ad = indiv_output = combined_output = False
@@ -512,7 +512,7 @@ class TimeDecoder(object):
 
     def from_unix_hex_32be(self):
         """Convert a Unix Hex 32-bit Big-Endian timestamp to a date"""
-        reason = "Unix Hex 32-bit Big-Endian timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] Unix Hex 32-bit Big-Endian timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(uhbe) == 8) or not (all(char in hexdigits for char in uhbe)):
                 self.in_unix_hex_32 = indiv_output = combined_output = False
@@ -548,7 +548,7 @@ class TimeDecoder(object):
 
     def from_unix_hex_32le(self):
         """Convert a Unix Hex 32-bit Little-Endian timestamp to a date"""
-        reason = "Unix Hex 32-bit Little-Endian timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] Unix Hex 32-bit Little-Endian timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(uhle) == 8) or not (all(char in hexdigits for char in uhle)):
                 self.in_unix_hex_32le = indiv_output = combined_output = False
@@ -584,7 +584,7 @@ class TimeDecoder(object):
 
     def from_cookie(self):
         """Convert an Internet Explorer timestamp to a date"""
-        reason = "Internet Explorer Cookie timestamps (txt cookies) consist of 2 integers values. Must be input with a comma between them."
+        reason = "[!] Internet Explorer Cookie timestamps (txt cookies) consist of 2 integers values. Must be input with a comma between them."
         try:
             if not ("," in cookie) or not (cookie.split(",")[0].isdigit() and cookie.split(",")[1].isdigit()):
                 self.in_cookie = indiv_output = combined_output = False
@@ -624,7 +624,7 @@ class TimeDecoder(object):
 
     def from_ole_be(self):
         """Convert an OLE Big-Endian timestamp to a date"""
-        reason = "OLE Big-Endian timestamps are 16 hex characters (8 bytes)"
+        reason = "[!] OLE Big-Endian timestamps are 16 hex characters (8 bytes)"
         try:
             if not (len(oleb) == 16) or not (all(char in hexdigits for char in oleb)):
                 self.in_ole_be = indiv_output = combined_output = False
@@ -662,7 +662,7 @@ class TimeDecoder(object):
 
     def from_ole_le(self):
         """Convert an OLE Little-Endian timestamp to a date"""
-        reason = "OLE Little-Endian timestamps are 16 hex characters (8 bytes)"
+        reason = "[!] OLE Little-Endian timestamps are 16 hex characters (8 bytes)"
         try:
             if not (len(olel) == 16) or not (all(char in hexdigits for char in olel)):
                 self.in_ole_le = indiv_output = combined_output = False
@@ -701,7 +701,7 @@ class TimeDecoder(object):
 
     def from_mac(self):
         """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
-        reason = "Mac Absolute timestamps are 9 digits, commonly followed by a decimal and up to 6 digits for milliseconds"
+        reason = "[!] Mac Absolute timestamps are 9 digits, commonly followed by a decimal and up to 6 digits for milliseconds"
         try:
             if not ("." in mac) or not ((len(mac.split(".")[0]) == 9) and (len(mac.split(".")[1]) in range(0,7))) or not (''.join(mac.split(".")).isdigit()):
                 self.in_mac = indiv_output = combined_output = False
@@ -736,7 +736,7 @@ class TimeDecoder(object):
 
     def from_hfs_dec(self):
         """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
-        reason = "Mac OS/HFS+ Decimal timestamps are 10 digits"
+        reason = "[!] Mac OS/HFS+ Decimal timestamps are 10 digits"
         try:
             if not (len(hfsdec) == 10) or not (hfsdec.isdigit()) or not (int(hfsdec) >= 2082844800):
                 self.in_hfs_dec = indiv_output = combined_output = False
@@ -770,7 +770,7 @@ class TimeDecoder(object):
 
     def from_hfs_be(self):
         """Convert an HFS/HFS+ Big-Endian timestamp to a date (HFS+ is in UTC)"""
-        reason = "HFS/HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] HFS/HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(hfsbe) == 8) or not (all(char in hexdigits for char in hfsbe)):
                 self.in_hfs_be = indiv_output = combined_output = False
@@ -806,7 +806,7 @@ class TimeDecoder(object):
 
     def from_hfs_le(self):
         """Convert an HFS/HFS+ Little-Endian timestamp to a date (HFS+ is in UTC)"""
-        reason = "HFS/HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] HFS/HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(hfsle) == 8) or not (all(char in hexdigits for char in hfsle)):
                 self.in_hfs_le = indiv_output = combined_output = False
@@ -843,7 +843,7 @@ class TimeDecoder(object):
 
     def from_fat(self):
         """Convert an MS-DOS wFatDate wFatTime timestamp to a date"""
-        reason = "MS-DOS wFatDate wFatTime timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] MS-DOS wFatDate wFatTime timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(fat) == 8) or not (all(char in hexdigits for char in fat)):
                 self.in_fat = indiv_output = combined_output = False
@@ -891,7 +891,7 @@ class TimeDecoder(object):
 
     def from_msdos(self):
         """Convert an MS-DOS timestamp to a date"""
-        reason = "MS-DOS 32-bit timestamps are 8 hex characters (4 bytes)"
+        reason = "[!] MS-DOS 32-bit timestamps are 8 hex characters (4 bytes)"
         try:
             if not (len(msdos) == 8) or not (all(char in hexdigits for char in msdos)):
                 self.in_msdos = indiv_output = combined_output = False
@@ -937,7 +937,7 @@ class TimeDecoder(object):
 
     def from_systime(self):
         """Convert a Microsoft 128-bit SYSTEMTIME timestamp to a date"""
-        reason = "Microsoft 128-bit SYSTEMTIME timestamps are 32 hex characters (16 bytes)"
+        reason = "[!] Microsoft 128-bit SYSTEMTIME timestamps are 32 hex characters (16 bytes)"
         try:
             if not (len(systime) == 32) or not (all(char in hexdigits for char in systime)):
                 self.in_systemtime = indiv_output = combined_output = False
@@ -992,7 +992,7 @@ class TimeDecoder(object):
 
     def from_filetime(self):
         """Convert a Microsoft FILETIME timestamp to a date"""
-        reason = "Microsoft FILETIME timestamps are 2 sets of 8 hex characters (4 bytes), separated by a colon"
+        reason = "[!] Microsoft FILETIME timestamps are 2 sets of 8 hex characters (4 bytes), separated by a colon"
         try:
             if not (":" in ft) or not (all(char in hexdigits for char in ft[0:8]) and all(char in hexdigits for char in ft[9:])):
                 self.in_filetime = indiv_output = combined_output = False
@@ -1032,7 +1032,7 @@ class TimeDecoder(object):
 
     def from_prtime(self):
         """Convert a Mozilla PRTime timestamp to a date"""
-        reason = "Mozilla PRTime timestamps are 16 digits"
+        reason = "[!] Mozilla PRTime timestamps are 16 digits"
         try:
             if not (len(pr) == 16) or not (pr.isdigit()):
                 self.in_prtime = indiv_output = combined_output = False
@@ -1067,7 +1067,7 @@ class TimeDecoder(object):
 
     def from_ole_auto(self):
         """Convert an OLE Automation timestamp to a date"""
-        reason = "OLE Automation timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
+        reason = "[!] OLE Automation timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
         try:
             if not ("." in auto) or not ((len(auto.split(".")[0]) == 5) and (len(auto.split(".")[1]) in range(9,13))) or not (''.join(auto.split(".")).isdigit()):
                 self.in_ole_auto = indiv_output = combined_output = False
@@ -1102,7 +1102,7 @@ class TimeDecoder(object):
 
     def from_ms1904(self):
         """Convert a Microsoft Excel 1904 timestamp to a date"""
-        reason = "Microsoft Excel 1904 timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
+        reason = "[!] Microsoft Excel 1904 timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
         try:
             if not ("." in ms1904) or not ((len(ms1904.split(".")[0]) == 5) and (len(ms1904.split(".")[1]) in range(9,13))) or not (''.join(ms1904.split(".")).isdigit()):
                 self.in_ms1904 = indiv_output = combined_output = False
@@ -1137,7 +1137,7 @@ class TimeDecoder(object):
 
     def from_ios_time(self):
         """Convert an iOS 11 timestamp to a date"""
-        reason = "iOS 11 timestamps are typically 15-18 digits"
+        reason = "[!] iOS 11 timestamps are typically 15-18 digits"
         try:
             if not (len(ios) in range(15,19)) or not (ios.isdigit()):
                 self.in_iostime = indiv_output = combined_output = False
@@ -1172,7 +1172,7 @@ class TimeDecoder(object):
 
     def from_sym_time(self):
         """Convert a Symantec 6-byte hex timestamp to a date"""
-        reason = "Symantec 6-byte hex timestamps are 12 hex characters"
+        reason = "[!] Symantec 6-byte hex timestamps are 12 hex characters"
         try:
             if not (len(sym) == 12) or not (all(char in hexdigits for char in sym)):
                 self.in_symtime = indiv_output = combined_output = False
@@ -1218,7 +1218,7 @@ class TimeDecoder(object):
 
     def from_gps_time(self):
         """Convert a GPS timestamp to a date (involves leap seconds)"""
-        reason = "GPS timestamps are 10 digits"
+        reason = "[!] GPS timestamps are 10 digits"
         try:
             if not (len(gps) == 10) or not (gps.isdigit()):
                 self.in_gpstime = indiv_output = combined_output = False
@@ -1275,7 +1275,7 @@ class TimeDecoder(object):
 
     def from_eitime(self):
         """Convert a Google ei URL timestamp"""
-        reason = "Google ei URL timestamps contain only URL-safe base64 characters: [A-Z][a-z][0-9][=-_]"
+        reason = "[!] Google ei URL timestamps contain only URL-safe base64 characters: [A-Z][a-z][0-9][=-_]"
         try:
             urlsafe_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
             if not (all(char in urlsafe_chars for char in eitime)):
@@ -1324,7 +1324,7 @@ class TimeDecoder(object):
 
     def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
-        reason = "Binary Plist timestamps are 9 digits"
+        reason = "[!] Binary Plist timestamps are 9 digits"
         try:
             if not (len(bplist) == 9) or not (bplist.isdigit()):
                 self.in_bplist = indiv_output = combined_output = False
@@ -1359,7 +1359,7 @@ class TimeDecoder(object):
 
     def from_gsm(self):
         """Convert a GSM timestamp to a date"""
-        reason = "GSM timestamps are 14 hex characters (7 bytes)"
+        reason = "[!] GSM timestamps are 14 hex characters (7 bytes)"
         try:
             # The last byte of the GSM timestamp is a hex representation of the timezone.
             # If the timezone bitwise operation on this byte results in a timezone offset
