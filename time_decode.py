@@ -35,9 +35,9 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '24 Jun 2020'
-__version__ = '2.2'
-__description__ = 'Python CLI Date Time Conversion Tool'
+__date__ = '1 Jul 2020'
+__version__ = '2.3'
+__description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
     """Run the decoding class"""
