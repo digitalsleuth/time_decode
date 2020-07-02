@@ -18,5 +18,6 @@ setup(
         "python-dateutil",
         "colorama"
     ],
+    scripts=['time_decode.py'],
     package_data={'': ['README.md, LICENSE.md']}
 )
