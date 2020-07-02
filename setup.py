@@ -19,5 +19,5 @@ setup(
         "colorama"
     ],
     scripts=['time_decode.py'],
-    package_data={'': ['README.md, LICENSE.md']}
+    package_data={'': ['README.md, LICENSE']}
 )
