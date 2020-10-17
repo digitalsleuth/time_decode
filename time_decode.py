@@ -35,8 +35,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '1 Jul 2020'
-__version__ = '2.3'
+__date__ = '17 Oct 2020'
+__version__ = '2.4'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -857,12 +857,19 @@ class TimeDecoder(object):
                     dec = int(binary, 2)
                     stamp.remove(binary)
                     stamp.append(dec)
-                stamp[0] = stamp[0] + 1980
-                stamp[5] = stamp[5] * 2
-                dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
-                self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
-                indiv_output = str("FAT Date + Time: " + self.in_fat + " Local")
-                combined_output = str("\033[1;31mFAT Date + Time:\t\t"  + self.in_fat + " Local\033[1;m".format())
+                fat_year = stamp[0] + 1980
+                fat_month = stamp[1]
+                fat_day = stamp[2]
+                fat_hour = stamp[3]
+                fat_min = stamp[4]
+                fat_sec = stamp[5] * 2
+                if not (fat_year in range(1970,2100)) or not (fat_month in range(1,13)) or not (fat_day in range(1,32)) or not (fat_hour in range(0,24)) or not (fat_min in range(0,60)) or not (fat_sec in range(0,60)):
+                    self.in_fat = indiv_output = combined_output = False
+                else:
+                    dt_obj = dt(fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec)
+                    self.in_fat = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+                    indiv_output = str("FAT Date + Time: " + self.in_fat + " Local")
+                    combined_output = str("\033[1;31mFAT Date + Time:\t\t"  + self.in_fat + " Local\033[1;m".format())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
@@ -904,12 +911,19 @@ class TimeDecoder(object):
                     dec = int(val, 2)
                     stamp.remove(val)
                     stamp.append(dec)
-                stamp[0] = stamp[0] + 1980
-                stamp[5] = stamp[5] * 2
-                dt_obj = dt(stamp[0], stamp[1], stamp[2], stamp[3], stamp[4], stamp[5])
-                self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
-                indiv_output = str("MS-DOS 32-bit Hex Value: " + self.in_msdos + " Local")
-                combined_output = str("\033[1;31mMS-DOS 32-bit Hex Value:\t"  + self.in_msdos + " Local\033[1;m".format())
+                dos_year = stamp[0] + 1980
+                dos_month = stamp[1]
+                dos_day = stamp[2]
+                dos_hour = stamp[3]
+                dos_min = stamp[4]
+                dos_sec = stamp[5] * 2
+                if not (dos_year in range(1970,2100)) or not (dos_month in range(1,13)) or not (dos_day in range(1,32)) or not (dos_hour in range(0,24)) or not (dos_min in range(0,60)) or not (dos_sec in range(0,60)):
+                    self.in_msdos = indiv_output = combined_output = False
+                else:
+                    dt_obj = dt(dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec)
+                    self.in_msdos = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+                    indiv_output = str("MS-DOS 32-bit Hex Value: " + self.in_msdos + " Local")
+                    combined_output = str("\033[1;31mMS-DOS 32-bit Hex Value:\t"  + self.in_msdos + " Local\033[1;m".format())
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))

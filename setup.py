@@ -6,7 +6,7 @@ with open("README.md", encoding='utf8') as readme:
 
 setup(
     name="time_decode",
-    version="2.3",
+    version="2.4",
     author="Corey Forman",
     license="MIT",
     url="https://github.com/digitalsleuth/time_decode",
@@ -14,6 +14,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
     install_requires=[
         "python-dateutil",
         "colorama"
