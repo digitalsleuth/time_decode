@@ -13,6 +13,9 @@ For python3, dateutil does not come pre-installed as a module. It will need to b
 
 `sudo apt-get install python3-dateutil` or `pip install python-dateutil`
 
+# Install
+`pip3 install time-decode` or `pip3 install git+https://github.com/digitalsleuth/time_decode`
+
 This python script provides the following conversions from existing timestamps:
 
 - Unix Seconds
@@ -42,15 +45,16 @@ This python script provides the following conversions from existing timestamps:
 - Google EI URL timestamp (thanks to http://cheeky4n6monkey.blogspot.com/2014/10/google-eid.html)
 - iOS Binary Plist (Mac Absolute + milli/nano seconds)
 - GSM Timestamps
+- Virtual Machine Snapshot timestamp (vmsd createTimeHigh / createTimeLow)
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values and MS-DOS FAT Date+Time are also in Local Time of the source generating the timestamp. All other times, unless expressly mentioned, are in UTC.
 
 I have added a feature to 'guess' in what format the timestamp is that you've provided. This will run the timestamp you provide against all methods, and provide an output if human-readable.
 There is also the ability to convert a date-time to all of the aforementioned timestamps. Simply use the following command:
 
-`python time_decode.py --timestamp "2017-06-02 13:14:15.678"`
+`time_decode.py --timestamp "2017-06-02 13:14:15.678"`
 or for timezones use:
-`python time_decode.py --timestamp "2017-06-02 13:14:15 -5"`
+`time_decode.py --timestamp "2017-06-02 13:14:15 -5"`
 
 The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
