@@ -21,7 +21,7 @@ bplist timestamp: https://developer.apple.com/documentation/corefoundation/cfabs
                   https://developer.apple.com/documentation/foundation/nsdate
 GSM Timestamps: https://en.wikipedia.org/wiki/GSM_03.40
                 http://seven-bit-forensics.blogspot.com/2014/02/decoding-gsmsms-timestamps.html
-
+VMWare Snapshot timestamp: https://stuffphilwrites.com/2013/03/vmware-snapshot-forensics/
 """
 from datetime import datetime as dt, timedelta
 import struct
@@ -35,8 +35,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '17 Oct 2020'
-__version__ = '2.4'
+__date__ = '7 Dec 2020'
+__version__ = '2.5'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -57,13 +57,13 @@ class TimeDecoder(object):
                  self.from_unix_hex_32be, self.from_unix_hex_32le, self.from_cookie, self.from_ole_be, self.from_ole_le, self.from_mac,
                  self.from_hfs_dec, self.from_hfs_be, self.from_hfs_le, self.from_msdos, self.from_fat, self.from_systime, self.from_filetime,
                  self.from_prtime, self.from_ole_auto, self.from_ms1904, self.from_ios_time, self.from_sym_time, self.from_gps_time,
-                 self.from_eitime, self.from_bplist, self.from_gsm]
+                 self.from_eitime, self.from_bplist, self.from_gsm, self.from_vm]
         self.date_funcs = [self.to_unix_sec, self.to_unix_milli, self.to_win_64_hex, self.to_win_64_hexle, self.to_chrome, self.to_ad, self.to_unix_hex_32be,
                            self.to_unix_hex_32le, self.to_cookie, self.to_ole_be, self.to_ole_le, self.to_mac, self.to_hfs_dec, self.to_hfs_be, self.to_hfs_le,
                            self.to_msdos, self.to_fat, self.to_systime, self.to_filetime, self.to_prtime, self.to_ole_auto, self.to_ms1904, self.to_ios_time,
-                           self.to_sym_time, self.to_gps_time, self.to_eitime, self.to_bplist, self.to_gsm]
-        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_fat = self.in_msdos = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = self.in_gsm = None
-        self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = self.out_unix_hex_32le = self.out_cookie = self.out_ole_be = self.out_ole_le = self.out_mac = self.out_hfs_dec = self.out_hfs_be = self.out_hfs_le = self.out_fat = self.out_msdos = self.out_systemtime = self.out_filetime = self.out_prtime = self.out_ole_auto = self.out_ms1904 = self.out_iostime = self.out_symtime = self.out_gpstime = self.out_eitime = self.out_bplist = self.out_gsm = None
+                           self.to_sym_time, self.to_gps_time, self.to_eitime, self.to_bplist, self.to_gsm, self.to_vm]
+        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_fat = self.in_msdos = self.in_systemtime = self.in_filetime = self.in_prtime = self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_gpstime = self.in_eitime = self.in_bplist = self.in_gsm = self.in_vm = None
+        self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = self.out_unix_hex_32le = self.out_cookie = self.out_ole_be = self.out_ole_le = self.out_mac = self.out_hfs_dec = self.out_hfs_be = self.out_hfs_le = self.out_fat = self.out_msdos = self.out_systemtime = self.out_filetime = self.out_prtime = self.out_ole_auto = self.out_ms1904 = self.out_iostime = self.out_symtime = self.out_gpstime = self.out_eitime = self.out_bplist = self.out_gsm = self.out_vm = None
         self.leapseconds = {
         10:[dt(1972,1,1), dt(1972,7,1)],
         11:[dt(1972,7,1), dt(1973,1,1)],
@@ -269,6 +269,12 @@ class TimeDecoder(object):
                     print(indiv_output)
             elif args.gsm:
                 result, indiv_output, combined_output, reason = self.from_gsm()
+                if indiv_output == False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.vm:
+                result, indiv_output, combined_output, reason = self.from_vm()
                 if indiv_output == False:
                     print(reason)
                 else:
@@ -1458,6 +1464,47 @@ class TimeDecoder(object):
             self.out_gsm = ts_output = False
         return self.out_gsm, ts_output
 
+    def from_vm(self):
+        """Convert from a .vmsd createTimeHigh/createTimeLow timestamp"""
+        reason = "[!] VMSD timestamps are a 6-digit \'High\' value followed by a signed/unsigned integer at least 9 digits"
+        try:
+            if (("," not in vm) and (type(vm.split(",")[0])) != int) or (type(vm.split(",")[1]) != int):
+                self.in_vm = indiv_output = combined_output = False
+                pass
+            else:
+                cTimeHigh = int(vm.split(',')[0])
+                cTimeLow = int(vm.split(',')[1])
+                dt_obj = float((cTimeHigh * 2**32) + struct.unpack('I', struct.pack('i', cTimeLow))[0]) / 1000000
+                self.in_vm = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("VMSD Timestamp: " + self.in_vm)
+                combined_output = str("\033[1;31mVMSD Timestamp:\t\t\t"  + self.in_vm + " UTC\033[1;m".format())
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_vm = indiv_output = combined_output = False
+        return self.in_vm, indiv_output, combined_output, reason
+
+    def to_vm(self):
+        """Convert date to a .vmsd createTime* value"""
+        try:
+            dt_obj = duparser.parse(timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+                dt_obj = duparser.parse(timestamp, ignoretz=True)
+            else:
+                dt_tz = 0
+            unix_seconds = (int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000000)
+            createTimeHigh = int(float(unix_seconds) / 2**32)
+            unpacked_int = unix_seconds - (createTimeHigh  * 2**32)
+            createTimeLow = struct.unpack('i', struct.pack('I', unpacked_int))[0]
+            self.out_vm = str(createTimeHigh) + ',' + str(createTimeLow)
+            ts_output = str("VMSD time:\t\t\t" + self.out_vm)
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.out_vm = ts_output = False
+        return self.out_vm, ts_output
+
     def from_all(self):
         """Output all processed timestamp values"""
         """Find date from provided timestamp"""
@@ -1489,7 +1536,7 @@ class TimeDecoder(object):
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter')
+    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter v' +str(__version__))
     arg_parse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds')
     arg_parse.add_argument('--umil', metavar='<value>', help='convert from Unix Milliseconds')
     arg_parse.add_argument('--wh', metavar='<value>', help='convert from Windows 64-bit Hex BE')
@@ -1518,13 +1565,14 @@ if __name__ == '__main__':
     arg_parse.add_argument('--eitime', metavar='<value>', help='convert from a Google EI URL Timestamp')
     arg_parse.add_argument('--bplist', metavar='<value>', help='convert from an iOS Binary Plist Timestamp')
     arg_parse.add_argument('--gsm', metavar='<value>', help='convert from a GSM Timestamp')
+    arg_parse.add_argument('--vm', metavar='<value>', help='convert from a VMWare Snapshot (.vmsd) timestamp - enter as "high value,low value"')
     arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities')
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' +str(__version__))
     args = arg_parse.parse_args()
-    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; chrome = args.chrome; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; fat = args.fat; msdos = args.msdos; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm
+    guess = args.guess; unix = args.unix; umil = args.umil; wh = args.wh; whle = args.whle; chrome = args.chrome; active = args.active; uhbe = args.uhbe; uhle = args.uhle; cookie = args.cookie; oleb = args.oleb; olel = args.olel; mac = args.mac; hfsdec = args.hfsdec; hfsbe = args.hfsbe; hfsle = args.hfsle; fat = args.fat; msdos = args.msdos; systime = args.sys; ft = args.ft; pr = args.pr; auto = args.auto; ms1904 = args.ms1904; ios = args.ios; sym = args.sym; gps = args.gps; timestamp = args.timestamp; eitime = args.eitime; bplist = args.bplist; gsm = args.gsm; vm = args.vm
     if args.guess:
-        unix = umil = wh = whle = chrome = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = fat = msdos = systime = ft = pr = auto = ms1904 = ios = sym = gps = eitime = bplist = gsm = guess
+        unix = umil = wh = whle = chrome = active = uhbe = uhle = cookie = oleb = olel = mac = hfsdec = hfsbe = hfsle = fat = msdos = systime = ft = pr = auto = ms1904 = ios = sym = gps = eitime = bplist = gsm = vm = guess
 
     td = TimeDecoder()
     td.run()
