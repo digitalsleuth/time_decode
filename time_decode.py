@@ -32,11 +32,12 @@ import sys
 from dateutil import parser as duparser
 import base64
 from colorama import init
+from calendar import monthrange
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '7 Dec 2020'
-__version__ = '2.5'
+__date__ = '18 Mar 2021'
+__version__ = '2.6'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -354,7 +355,7 @@ class TimeDecoder(object):
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
                 dt_tz = 0
-            self.out_unix_milli = str((int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
+            self.out_unix_milli = str(int(((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
             ts_output = str("Unix Milliseconds:\t\t" + self.out_unix_milli)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -507,8 +508,8 @@ class TimeDecoder(object):
                 dt_obj = duparser.parse(timestamp, ignoretz=True)
             else:
                 dt_tz = 0
-            tz_shift = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
-            self.out_adtime = str(int(tz_shift * self.hundreds_nano + self.epoch_active))
+            tz_shift = ((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz)) * self.hundreds_nano
+            self.out_adtime = str(int(tz_shift + self.epoch_active))
             ts_output = str("Active Directory/LDAP dt:\t" + self.out_adtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -923,7 +924,13 @@ class TimeDecoder(object):
                 dos_hour = stamp[3]
                 dos_min = stamp[4]
                 dos_sec = stamp[5] * 2
-                if not (dos_year in range(1970,2100)) or not (dos_month in range(1,13)) or not (dos_day in range(1,32)) or not (dos_hour in range(0,24)) or not (dos_min in range(0,60)) or not (dos_sec in range(0,60)):
+                if not (dos_year in range(1970,2100)) \
+                   or not (dos_month in range(1,13)) \
+                   or not (dos_day in range(1,32)) \
+                   or not (dos_hour in range(0,24)) \
+                   or not (dos_min in range(0,60)) \
+                   or not (dos_sec in range(0,60))\
+                   or not (dos_day in range(1, monthrange(dos_year, dos_month)[1])):
                     self.in_msdos = indiv_output = combined_output = False
                 else:
                     dt_obj = dt(dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec)
