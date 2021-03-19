@@ -36,8 +36,8 @@ from calendar import monthrange
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '18 Mar 2021'
-__version__ = '2.6'
+__date__ = '19 Mar 2021'
+__version__ = '2.7'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
@@ -489,7 +489,7 @@ class TimeDecoder(object):
                 self.in_ad = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = dt.utcfromtimestamp((float(active) - self.epoch_active) / self.hundreds_nano)
+                dt_obj = dt.utcfromtimestamp((float(int(active) - self.epoch_active) / self.hundreds_nano))
                 self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("Active Directory Timestamp: " + self.in_ad + " UTC")
                 combined_output = str("\033[1;31mActive Directory/LDAP dt:\t"  + self.in_ad + " UTC\033[1;m".format())
@@ -509,7 +509,7 @@ class TimeDecoder(object):
             else:
                 dt_tz = 0
             tz_shift = ((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz)) * self.hundreds_nano
-            self.out_adtime = str(int(tz_shift + self.epoch_active))
+            self.out_adtime = str(int(tz_shift) + int(self.epoch_active))
             ts_output = str("Active Directory/LDAP dt:\t" + self.out_adtime)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
