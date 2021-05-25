@@ -1,7 +1,5 @@
 # Time Decode
-A timestamp and date decoder. 
-Compatible with Python 3.x.
-(can be compatible with Python 2.7x with minor changes)
+A Python 3 timestamp and date decoder/encoder. 
 
 I noticed a lack of timestamp conversion utilities in a number of different linux systems. Since I happen to use linux in my day-to-day work I thought this would help.
 
@@ -11,10 +9,10 @@ If you have any questions, suggestions, helpful thoughts of any kind, please fee
 # Requirements
 For python3, dateutil does not come pre-installed as a module. It will need to be installed manually:
 
-`sudo apt-get install python3-dateutil` or `pip install python-dateutil`
+`sudo apt-get install python3-dateutil` or `python3 -m pip install python-dateutil`
 
 # Install
-`pip3 install time-decode` or `pip3 install git+https://github.com/digitalsleuth/time_decode`
+`python3 -m pip install time-decode` or `python3 -m pip install git+https://github.com/digitalsleuth/time_decode`
 
 This python script provides the following conversions from existing timestamps:
 
@@ -37,6 +35,7 @@ This python script provides the following conversions from existing timestamps:
 - MS-DOS FAT Date + Time
 - Microsoft 128 bit SYSTEMTIME
 - Microsoft FILETIME
+- Microsoft Hotmail Time
 - Mozilla PRTime
 - OLE Automation Date/Time
 - iOS 11 Date/Time
