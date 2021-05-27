@@ -45,6 +45,14 @@ This python script provides the following conversions from existing timestamps:
 - iOS Binary Plist (Mac Absolute + milli/nano seconds)
 - GSM Timestamps
 - Virtual Machine Snapshot timestamp (vmsd createTimeHigh / createTimeLow)
+- TikTok URL value Timestamp
+- Twitter URL value Timestamp
+- Discord URL value Timestamp
+- Mastodon URL value Timestamp
+- Sonyflake URL value Timestamp (Sony version of Twitter Snowflake)
+- KSUID values
+- Metasploit Payload UUID
+- UUID (commonly referred to as GUID)
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values and MS-DOS FAT Date+Time are also in Local Time of the source generating the timestamp. All other times, unless expressly mentioned, are in UTC.
 
@@ -57,3 +65,5 @@ or for timezones use:
 
 The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
+
+References/Sources for all material can be found in the docstrings in the python script.
