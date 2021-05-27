@@ -34,6 +34,19 @@ GSM Timestamps:
     http://seven-bit-forensics.blogspot.com/2014/02/decoding-gsmsms-timestamps.html
 VMWare Snapshot timestamp:
     https://stuffphilwrites.com/2013/03/vmware-snapshot-forensics/
+TikTok and Twitter Timestamps:
+    https://dfir.blog/tinkering-with-tiktok-timestamps/
+Discord Timestamps:
+    https://discord.com/developers/docs/reference#snowflakes
+    Discord epoch is 1-1-2015 or 1420070400000
+KSUID Timestamp value:
+    https://github.com/segmentio/ksuid
+    https://github.com/obsidianforensics/unfurl
+Mastodon Social value:
+    https://github.com/tootsuite/mastodon
+Metasploit Payload UUID format:
+    https://github.com/rapid7/metasploit-framework/wiki/Payload-UUID
+    https://github.com/DidierStevens/Beta/blob/master/metatool.py
 """
 
 from datetime import datetime as dt, timedelta
@@ -41,8 +54,10 @@ import struct
 from binascii import hexlify, unhexlify
 from string import hexdigits
 import argparse
+import re
 import sys
 import base64
+import uuid
 from calendar import monthrange
 from dateutil import parser as duparser
 from colorama import init
@@ -50,8 +65,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '28 Mar 2021'
-__version__ = '3.0.0'
+__date__ = '26 May 2021'
+__version__ = '3.1.0'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 
@@ -77,7 +92,9 @@ class TimeDecoder(object):
                          self.from_fat, self.from_systime, self.from_filetime, self.from_hotmail,
                          self.from_prtime, self.from_ole_auto, self.from_ms1904,
                          self.from_ios_time, self.from_sym_time, self.from_gps_time,
-                         self.from_eitime, self.from_bplist, self.from_gsm, self.from_vm]
+                         self.from_eitime, self.from_bplist, self.from_gsm, self.from_vm,
+                         self.from_tiktok, self.from_twitter, self.from_discord, self.from_ksuid,
+                         self.from_mastodon, self.from_metasploit, self.from_sony, self.from_uuid]
         self.date_funcs = [self.to_unix_sec, self.to_unix_milli, self.to_win_64_hex,
                            self.to_win_64_hexle, self.to_chrome, self.to_ad, self.to_unix_hex_32be,
                            self.to_unix_hex_32le, self.to_cookie, self.to_ole_be, self.to_ole_le,
@@ -93,6 +110,8 @@ class TimeDecoder(object):
         self.in_msdos = self.in_systemtime = self.in_filetime = self.in_prtime = None
         self.in_ole_auto = self.in_ms1904 = self.in_iostime = self.in_symtime = self.in_hotmail = None
         self.in_gpstime = self.in_eitime = self.in_bplist = self.in_gsm = self.in_vm = None
+        self.in_tiktok = self.in_twitter = self.in_discord = self.in_ksuid = self.in_mastodon = None
+        self.in_metasploit = self.in_sony = self.in_uuid = None
 
         self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_hotmail = None
         self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = None
@@ -165,12 +184,20 @@ class TimeDecoder(object):
                          'eitime': 'Google EI time:',
                          'bplist': 'iOS Binary Plist time:',
                          'gsm': 'GSM time:',
-                         'vm': 'VMSD time:'}
+                         'vm': 'VMSD time:',
+                         'tiktok': 'TikTok time:',
+                         'twitter': 'Twitter time:',
+                         'discord': 'Discord time:',
+                         'ksuid': 'KSUID time:',
+                         'mastodon': 'Mastodon time:',
+                         'metasploit': 'Metasploit Payload UUID:',
+                         'sony': 'Sonyflake time:',
+                         'uu': 'UUID time:'}
 
     def run(self):
         """Process arguments and errors"""
         if len(sys.argv[1:]) == 0:
-            arg_parse.print_usage()
+            arg_parse.print_help()
             arg_parse.exit()
         try:
             if args.unix:
@@ -349,6 +376,54 @@ class TimeDecoder(object):
                     print(indiv_output)
             elif args.vm:
                 result, indiv_output, combined_output, reason = self.from_vm()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.tiktok:
+                result, indiv_output, combined_output, reason = self.from_tiktok()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.twitter:
+                result, indiv_output, combined_output, reason = self.from_twitter()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.discord:
+                result, indiv_output, combined_output, reason = self.from_discord()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.ksuid:
+                result, indiv_output, combined_output, reason = self.from_ksuid()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.mastodon:
+                result, indiv_output, combined_output, reason = self.from_mastodon()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.meta:
+                result, indiv_output, combined_output, reason = self.from_metasploit()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.sony:
+                result, indiv_output, combined_output, reason = self.from_sony()
+                if indiv_output is False:
+                    print(reason)
+                else:
+                    print(indiv_output)
+            elif args.uu:
+                result, indiv_output, combined_output, reason = self.from_uuid()
                 if indiv_output is False:
                     print(reason)
                 else:
@@ -763,7 +838,7 @@ class TimeDecoder(object):
                 delta = struct.unpack('>d', struct.pack('>Q', int(oleb, 16)))[0]
                 if int(delta) < 0:
                     self.in_ole_be = indiv_output = combined_output = False
-                    pass                                    
+                    pass
                 else:
                     dt_obj = self.epoch_1899 + timedelta(days=delta)
                     self.in_ole_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -808,7 +883,7 @@ class TimeDecoder(object):
                 delta = struct.unpack('>d', struct.pack('>Q', int(to_le, 16)))[0]
                 if int(delta) < 0:
                     self.in_ole_le = indiv_output = combined_output = False
-                    pass                    
+                    pass
                 else:
                     dt_obj = self.epoch_1899 + timedelta(days=delta)
                     self.in_ole_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -1519,8 +1594,8 @@ class TimeDecoder(object):
         reason = "[!] Google ei URL timestamps contain only URL-safe base64 characters: [A-Z][a-z][0-9][=-_]"
         ts_type = self.ts_types['eitime']
         try:
-            urlsafe_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
-            if not all(char in urlsafe_chars for char in eitime):
+            URLSAFE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
+            if not all(char in URLSAFE_CHARS for char in eitime):
                 self.in_eitime = indiv_output = combined_output = False
                 pass
             else:
@@ -1612,7 +1687,15 @@ class TimeDecoder(object):
             # If the timezone bitwise operation on this byte results in a timezone offset
             # of less than -12 or greater than 12, then the value is incorrect.
             # The values in tz_in_range are hex bytes which return proper timezones.
-            tz_in_range = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8']
+            tz_in_range = [
+                '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c', '0d', '0e', '0f',
+                '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25',
+                '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41',
+                '42', '43', '44', '45', '46', '47', '48', '80', '81', '82', '83', '84', '85', '86', '87', '88',
+                '89', '8a', '8b', '8c', '8d', '8e', '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98',
+                '99', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'b0', 'b1', 'b2', 'b3', 'b4',
+                'b5', 'b6', 'b7', 'b8', 'b9', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'
+                ]
             tz_check = gsm[12:14][::-1].lower()
             if not len(gsm) == 14 or not all(char in hexdigits for char in gsm) or tz_check not in tz_in_range:
                 self.in_gsm = indiv_output = combined_output = False
@@ -1745,6 +1828,183 @@ class TimeDecoder(object):
             self.out_vm = ts_output = False
         return self.out_vm, ts_output
 
+    def from_tiktok(self):
+        """Convert a TikTok URL value to a date/time"""
+        reason = "[!] TikTok timestamps are 19 digits long"
+        ts_type = self.ts_types['tiktok']
+        try:
+            if len(str(tiktok)) < 19 or not tiktok.isdigit():
+                self.in_tiktok = indiv_output = combined_output = False
+                pass
+            else:
+                unix_ts = (int(tiktok) >> 32)
+                self.in_tiktok = dt.utcfromtimestamp(float(unix_ts)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_tiktok))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_tiktok, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_tiktok = indiv_output = combined_output = False
+        return self.in_tiktok, indiv_output, combined_output, reason
+
+    def from_twitter(self):
+        """Convert a Twitter URL value to a date/time"""
+        reason = "[!] Twitter timestamps are 18 digits or longer"
+        ts_type = self.ts_types['twitter']
+        try:
+            if len(str(twitter)) < 18 or not twitter.isdigit():
+                self.in_twitter = indiv_output = combined_output = False
+                pass
+            else:
+                unix_ts = (int(twitter) >> 22) + 1288834974657
+                self.in_twitter = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_twitter))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_twitter, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_twitter = indiv_output = combined_output = False
+        return self.in_twitter, indiv_output, combined_output, reason
+
+    def from_discord(self):
+        """Convert a Discord URL value to a date/time"""
+        reason = "[!] Discord timestamps are 18 digits or longer"
+        ts_type = self.ts_types['discord']
+        try:
+            if len(str(discord)) < 18 or not discord.isdigit():
+                self.in_discord = indiv_output = combined_output = False
+                pass
+            else:
+                unix_ts = (int(discord) >> 22) + 1420070400000
+                self.in_discord = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_discord))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_discord, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_discord = indiv_output = combined_output = False
+        return self.in_discord, indiv_output, combined_output, reason
+
+    def from_ksuid(self):
+        """Extract a timestamp from a KSUID value"""
+        reason = "[!] KSUID values are 27 characters"
+        ts_type = self.ts_types['ksuid']
+        try:
+            KSUIDCHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+            if len(str(ksuid)) != 27 or not all(char in KSUIDCHARS for char in ksuid):
+                self.in_ksuid = indiv_output = combined_output = False
+                pass
+            else:
+                length, i, v = len(ksuid), 0, 0
+                ba = bytearray()
+                for val in ksuid:
+                    v += KSUIDCHARS.index(val) * (62 ** (length - (i + 1)))
+                    i += 1
+                while v > 0:
+                    ba.append(v & 0xFF)
+                    v //= 256
+                ba.reverse()
+                ts_bytes = bytes(ba)[0:4]
+                unix_ts = int.from_bytes(ts_bytes, 'big', signed=False) + 1400000000
+                self.in_ksuid = dt.utcfromtimestamp(float(unix_ts)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_ksuid))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_ksuid, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_ksuid = indiv_output = combined_output = False
+        return self.in_ksuid, indiv_output, combined_output, reason
+
+    def from_mastodon(self):
+        """Convert a Mastodon value to a date/time"""
+        reason = "[!] Mastodon timestamps are 18 digits or longer"
+        ts_type = self.ts_types['mastodon']
+        try:
+            if len(str(tiktok)) < 18 or not mastodon.isdigit():
+                self.in_mastodon = indiv_output = combined_output = False
+                pass
+            else:
+                unix_ts = (int(mastodon) >> 16)
+                self.in_mastodon = dt.utcfromtimestamp(float(unix_ts) /1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_mastodon))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_mastodon, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_mastodon = indiv_output = combined_output = False
+        return self.in_mastodon, indiv_output, combined_output, reason
+
+    def from_metasploit(self):
+        """Convert a Metasploit Payload UUID value to a date/time"""
+        reason = "[!] Metasploit Payload UUID's are at least 22 chars and base64 urlsafe encoded"
+        ts_type = self.ts_types['metasploit']
+        try:
+            URLSAFE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
+            format = '8sBBBBBBBB'
+            if len(str(meta)) < 22 or not all(char in URLSAFE_CHARS for char in meta):
+                self.in_metasploit = indiv_output = combined_output = False
+                pass
+            else:
+                b64decoded = base64.urlsafe_b64decode(meta[0:22] + '==')
+                if len(b64decoded) < struct.calcsize(format):
+                    raise Exception
+                puid, xor1, xor2, platform_xored, architecture_xored, ts1_xored, ts2_xored, ts3_xored, ts4_xored = struct.unpack(format, b64decoded)
+                unix_ts = struct.unpack('>I', bytes([ts1_xored ^ xor1, ts2_xored ^ xor2, ts3_xored ^ xor1, ts4_xored ^ xor2]))[0]
+                self.in_metasploit = dt.utcfromtimestamp(float(unix_ts)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_metasploit))
+                combined_output = str("{}{}\t{} UTC{}".format(self.left_color, ts_type, self.in_metasploit, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_metasploit = indiv_output = combined_output = False
+        return self.in_metasploit, indiv_output, combined_output, reason
+
+    def from_sony(self):
+        """Convert a Sonyflake value to a date/time"""
+        reason = "[!] Sonyflake values are at least 14 chars and contain only hex characters"
+        ts_type = self.ts_types['sony']
+        try:
+            if len(str(sony)) < 14 or not all(char in hexdigits for char in sony):
+                self.in_sony = indiv_output = combined_output = False
+                pass
+            else:
+                dec_value = int(sony, 16)
+                ts_value = dec_value >> 24
+                unix_ts = (ts_value + 140952960000) * 10
+                self.in_sony = dt.utcfromtimestamp(float(unix_ts) /1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                indiv_output = str("{} {}".format(ts_type, self.in_sony))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_sony, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_sony = indiv_output = combined_output = False
+        return self.in_sony, indiv_output, combined_output, reason
+
+    def from_uuid(self):
+        """Convert a UUID value to date/time"""
+        reason = "[!] UUID's are in the format 00000000-0000-0000-0000-000000000000"
+        ts_type = self.ts_types['uu']
+        try:
+            uuid_lower = uu.lower()
+            UUID_REGEX = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+            if not bool(UUID_REGEX.match(uuid_lower)):
+                self.in_uuid = indiv_output = combined_output = False
+                pass
+            else:
+                u = uuid.UUID(uuid_lower)
+                if u.version == 1:
+                    unix_ts = int((u.time / 10000) - 12219292800000)
+                    self.in_uuid = dt.utcfromtimestamp(float(unix_ts) /1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                else:
+                    pass
+                indiv_output = str("{} {}".format(ts_type, self.in_uuid))
+                combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_uuid, self.right_color))
+        except Exception:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
+            self.in_uuid = indiv_output = combined_output = False
+        return self.in_uuid, indiv_output, combined_output, reason
+
     def date_range(self, start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
         if start <= end:
@@ -1783,39 +2043,47 @@ class TimeDecoder(object):
 
 if __name__ == '__main__':
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter v' + str(__version__))
-    arg_parse.add_argument('--unix', metavar='<value>', help='convert from Unix Seconds')
-    arg_parse.add_argument('--umil', metavar='<value>', help='convert from Unix Milliseconds')
-    arg_parse.add_argument('--wh', metavar='<value>', help='convert from Windows 64-bit Hex BE')
-    arg_parse.add_argument('--whle', metavar='<value>', help='convert from Windows 64-bit Hex LE')
-    arg_parse.add_argument('--chrome', metavar='<value>', help='convert from Google Chrome time')
-    arg_parse.add_argument('--active', metavar='<value>', help='convert from Active Directory value')
-    arg_parse.add_argument('--uhbe', metavar='<value>', help='convert from Unix Hex 32-bit BE')
-    arg_parse.add_argument('--uhle', metavar='<value>', help='convert from Unix Hex 32-bit LE')
-    arg_parse.add_argument('--cookie', metavar='<value>', help='convert from Windows Cookie Date (Low Value,High Value)')
-    arg_parse.add_argument('--oleb', metavar='<value>', help='convert from Windows OLE 64-bit BE - remove 0x and spaces! Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
-    arg_parse.add_argument('--olel', metavar='<value>', help='convert from Windows OLE 64-bit LE')
-    arg_parse.add_argument('--mac', metavar='<value>', help='convert from Mac Absolute Time')
-    arg_parse.add_argument('--hfsdec', metavar='<value>', help='convert from Mac OS/HFS+ Decimal Time')
-    arg_parse.add_argument('--hfsbe', metavar='<value>', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)')
-    arg_parse.add_argument('--hfsle', metavar='<value>', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)')
-    arg_parse.add_argument('--fat', metavar='<value>', help='convert from FAT Date + Time (wFat)')
-    arg_parse.add_argument('--msdos', metavar='<value>', help='convert from 32-bit MS-DOS time - result is Local Time')
-    arg_parse.add_argument('--systime', metavar='<value>', help='convert from 128-bit SYSTEMTIME')
-    arg_parse.add_argument('--ft', metavar='<value>', help='convert from FILETIME timestamp')
-    arg_parse.add_argument('--hotmail', metavar='<value>', help='convert from a Hotmail timestamp')
-    arg_parse.add_argument('--pr', metavar='<value>', help='convert from Mozilla\'s PRTime')
-    arg_parse.add_argument('--auto', metavar='<value>', help='convert from OLE Automation Date format')
-    arg_parse.add_argument('--ms1904', metavar='<value>', help='convert from MS Excel 1904 Date format')
-    arg_parse.add_argument('--ios', metavar='<value>', help='convert from iOS 11 Timestamp')
-    arg_parse.add_argument('--sym', metavar='<value>', help='convert Symantec\'s 12-byte AV Timestamp')
-    arg_parse.add_argument('--gps', metavar='<value>', help='convert from a GPS Timestamp')
-    arg_parse.add_argument('--eitime', metavar='<value>', help='convert from a Google EI URL Timestamp')
-    arg_parse.add_argument('--bplist', metavar='<value>', help='convert from an iOS Binary Plist Timestamp')
-    arg_parse.add_argument('--gsm', metavar='<value>', help='convert from a GSM Timestamp')
-    arg_parse.add_argument('--vm', metavar='<value>', help='convert from a VMWare Snapshot (.vmsd) timestamp - enter as "high value,low value"')
-    arg_parse.add_argument('--guess', metavar='<value>', help='guess timestamp and output all reasonable possibilities')
-    arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"Y-M-D HH:MM:SS.m\" in 24h fmt - without argument gives current date/time', nargs='?', const=now)
+    arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter v' + str(__version__), formatter_class=argparse.RawTextHelpFormatter)
+    arg_parse.add_argument('--unix', metavar='', help='convert from Unix Seconds')
+    arg_parse.add_argument('--umil', metavar='', help='convert from Unix Milliseconds')
+    arg_parse.add_argument('--wh', metavar='', help='convert from Windows 64-bit Hex BE')
+    arg_parse.add_argument('--whle', metavar='', help='convert from Windows 64-bit Hex LE')
+    arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome time')
+    arg_parse.add_argument('--active', metavar='', help='convert from Active Directory value')
+    arg_parse.add_argument('--uhbe', metavar='', help='convert from Unix Hex 32-bit BE')
+    arg_parse.add_argument('--uhle', metavar='', help='convert from Unix Hex 32-bit LE')
+    arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low Value,High Value)')
+    arg_parse.add_argument('--oleb', metavar='', help='convert from Windows OLE 64-bit BE - remove 0x and spaces!\n- Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
+    arg_parse.add_argument('--olel', metavar='', help='convert from Windows OLE 64-bit LE')
+    arg_parse.add_argument('--mac', metavar='', help='convert from Mac Absolute Time')
+    arg_parse.add_argument('--hfsdec', metavar='', help='convert from Mac OS/HFS+ Decimal Time')
+    arg_parse.add_argument('--hfsbe', metavar='', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)')
+    arg_parse.add_argument('--hfsle', metavar='', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)')
+    arg_parse.add_argument('--fat', metavar='', help='convert from FAT Date + Time (wFat)')
+    arg_parse.add_argument('--msdos', metavar='', help='convert from 32-bit MS-DOS time - result is Local Time')
+    arg_parse.add_argument('--systime', metavar='', help='convert from 128-bit SYSTEMTIME')
+    arg_parse.add_argument('--ft', metavar='', help='convert from FILETIME timestamp')
+    arg_parse.add_argument('--hotmail', metavar='', help='convert from a Hotmail timestamp')
+    arg_parse.add_argument('--pr', metavar='', help='convert from Mozilla\'s PRTime')
+    arg_parse.add_argument('--auto', metavar='', help='convert from OLE Automation Date format')
+    arg_parse.add_argument('--ms1904', metavar='', help='convert from MS Excel 1904 Date format')
+    arg_parse.add_argument('--ios', metavar='', help='convert from iOS 11 timestamp')
+    arg_parse.add_argument('--sym', metavar='', help='convert from Symantec\'s 12-byte AV timestamp')
+    arg_parse.add_argument('--gps', metavar='', help='convert from a GPS timestamp')
+    arg_parse.add_argument('--eitime', metavar='', help='convert from a Google EI URL timestamp')
+    arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist timestamp')
+    arg_parse.add_argument('--gsm', metavar='', help='convert from a GSM timestamp')
+    arg_parse.add_argument('--vm', metavar='', help='convert from a VMWare Snapshot (.vmsd) timestamp - enter as "high value,low value"')
+    arg_parse.add_argument('--tiktok', metavar='', help='convert from a TikTok URL value')
+    arg_parse.add_argument('--twitter', metavar='', help='convert from a Twitter URL value')
+    arg_parse.add_argument('--discord', metavar='', help='convert from a Discord URL value')
+    arg_parse.add_argument('--ksuid', metavar='', help='convert from a KSUID value')
+    arg_parse.add_argument('--mastodon', metavar='', help='convert from a Mastodon URL value')
+    arg_parse.add_argument('--meta', metavar='', help='convert from a Metasploit Payload UUID')
+    arg_parse.add_argument('--sony', metavar='', help='convert from a Sonyflake URL value')
+    arg_parse.add_argument('--uu', metavar='', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
+    arg_parse.add_argument('--guess', metavar='', help='guess timestamp and output all reasonable possibilities')
+    arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n- Without argument gives current date/time', nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' + str(__version__))
     args = arg_parse.parse_args()
     all_args = vars(args)
