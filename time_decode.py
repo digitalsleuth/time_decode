@@ -65,8 +65,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '26 May 2021'
-__version__ = '3.1.0'
+__date__ = '27 May 2021'
+__version__ = '3.1.1'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 
@@ -1961,10 +1961,10 @@ class TimeDecoder(object):
 
     def from_sony(self):
         """Convert a Sonyflake value to a date/time"""
-        reason = "[!] Sonyflake values are at least 14 chars and contain only hex characters"
+        reason = "[!] Sonyflake values are 15 hex characters"
         ts_type = self.ts_types['sony']
         try:
-            if len(str(sony)) < 14 or not all(char in hexdigits for char in sony):
+            if len(str(sony)) != 15 or not all(char in hexdigits for char in sony):
                 self.in_sony = indiv_output = combined_output = False
                 pass
             else:
