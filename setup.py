@@ -23,6 +23,10 @@ setup(
         "python-dateutil",
         "colorama"
     ],
-    scripts=['time_decode.py'],
+    entry_points={
+        'console_scripts': [
+            'time-decode = time_decode.time_decode:main'
+        ]
+    },
     package_data={'': ['README.md, LICENSE']}
 )
