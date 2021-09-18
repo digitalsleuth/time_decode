@@ -72,7 +72,17 @@ __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 class TimeDecoder(object):
     """Run the decoding class"""
-    def __init__(self):
+    def __init__(self, args):
+        all_args = vars(args)
+
+        if args.guess:
+            for each_arg in all_args:
+                all_args[each_arg] = args.guess
+
+        for name, value in all_args.items():
+            if not hasattr(self, name):
+                setattr(self, name, value)
+
         self.epoch_1601 = dt(1601, 1, 1)
         self.epoch_1899 = dt(1899, 12, 30)
         self.epoch_1904 = dt(1904, 1, 1)
@@ -196,249 +206,246 @@ class TimeDecoder(object):
 
     def run(self):
         """Process arguments and errors"""
-        if len(sys.argv[1:]) == 0:
-            arg_parse.print_help()
-            arg_parse.exit()
         try:
-            if args.unix:
+            if self.guess:
+                self.from_all()
+            if self.unix:
                 result, indiv_output, combined_output, reason = self.from_unix_sec()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.umil:
+            elif self.umil:
                 result, indiv_output, combined_output, reason = self.from_unix_milli()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.wh:
+            elif self.wh:
                 result, indiv_output, combined_output, reason = self.from_win_64_hex()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.whle:
+            elif self.whle:
                 result, indiv_output, combined_output, reason = self.from_win_64_hexle()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.chrome:
+            elif self.chrome:
                 result, indiv_output, combined_output, reason = self.from_chrome()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.active:
+            elif self.active:
                 result, indiv_output, combined_output, reason = self.from_ad()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.uhbe:
+            elif self.uhbe:
                 result, indiv_output, combined_output, reason = self.from_unix_hex_32be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.uhle:
+            elif self.uhle:
                 result, indiv_output, combined_output, reason = self.from_unix_hex_32le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.cookie:
+            elif self.cookie:
                 result, indiv_output, combined_output, reason = self.from_cookie()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.oleb:
+            elif self.oleb:
                 result, indiv_output, combined_output, reason = self.from_ole_be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.olel:
+            elif self.olel:
                 result, indiv_output, combined_output, reason = self.from_ole_le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.mac:
+            elif self.mac:
                 result, indiv_output, combined_output, reason = self.from_mac()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.hfsdec:
+            elif self.hfsdec:
                 result, indiv_output, combined_output, reason = self.from_hfs_dec()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.hfsbe:
+            elif self.hfsbe:
                 result, indiv_output, combined_output, reason = self.from_hfs_be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.hfsle:
+            elif self.hfsle:
                 result, indiv_output, combined_output, reason = self.from_hfs_le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.fat:
+            elif self.fat:
                 result, indiv_output, combined_output, reason = self.from_fat()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.msdos:
+            elif self.msdos:
                 result, indiv_output, combined_output, reason = self.from_msdos()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.systime:
+            elif self.systime:
                 result, indiv_output, combined_output, reason = self.from_systime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.ft:
+            elif self.ft:
                 result, indiv_output, combined_output, reason = self.from_filetime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.hotmail:
+            elif self.hotmail:
                 result, indiv_output, combined_output, reason = self.from_hotmail()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.pr:
+            elif self.pr:
                 result, indiv_output, combined_output, reason = self.from_prtime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.auto:
+            elif self.auto:
                 result, indiv_output, combined_output, reason = self.from_ole_auto()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.ms1904:
+            elif self.ms1904:
                 result, indiv_output, combined_output, reason = self.from_ms1904()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.ios:
+            elif self.ios:
                 result, indiv_output, combined_output, reason = self.from_ios_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.sym:
+            elif self.sym:
                 result, indiv_output, combined_output, reason = self.from_sym_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.gps:
+            elif self.gps:
                 result, indiv_output, combined_output, reason = self.from_gps_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.eitime:
+            elif self.eitime:
                 result, indiv_output, combined_output, reason = self.from_eitime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.bplist:
+            elif self.bplist:
                 result, indiv_output, combined_output, reason = self.from_bplist()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.gsm:
+            elif self.gsm:
                 result, indiv_output, combined_output, reason = self.from_gsm()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.vm:
+            elif self.vm:
                 result, indiv_output, combined_output, reason = self.from_vm()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.tiktok:
+            elif self.tiktok:
                 result, indiv_output, combined_output, reason = self.from_tiktok()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.twitter:
+            elif self.twitter:
                 result, indiv_output, combined_output, reason = self.from_twitter()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.discord:
+            elif self.discord:
                 result, indiv_output, combined_output, reason = self.from_discord()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.ksuid:
+            elif self.ksuid:
                 result, indiv_output, combined_output, reason = self.from_ksuid()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.mastodon:
+            elif self.mastodon:
                 result, indiv_output, combined_output, reason = self.from_mastodon()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.meta:
+            elif self.meta:
                 result, indiv_output, combined_output, reason = self.from_metasploit()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.sony:
+            elif self.sony:
                 result, indiv_output, combined_output, reason = self.from_sony()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.uu:
+            elif self.uu:
                 result, indiv_output, combined_output, reason = self.from_uuid()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif args.timestamp:
+            elif self.timestamp:
                 self.to_timestamps()
-            elif args.guess:
-                self.from_all()
         except Exception:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(str(exc_type) + " - " + str(exc_obj) + " - line " + str(exc_tb.tb_lineno))
 
     def to_timestamps(self):
         """Convert provided date to all timestamps"""
-        print('\nConverting Date: ' + timestamp + '\n')
+        print('\nConverting Date: ' + self.timestamp + '\n')
         for func in self.date_funcs:
             func()
         self.timestamp_output()
@@ -448,11 +455,11 @@ class TimeDecoder(object):
         reason = "[!] Unix seconds timestamp is 10 digits in length"
         ts_type = self.ts_types['unix_sec']
         try:
-            if not len(unix) == 10 or not unix.isdigit():
+            if not len(self.unix) == 10 or not self.unix.isdigit():
                 self.in_unix_sec = indiv_output = combined_output = False
                 pass
             else:
-                self.in_unix_sec = dt.utcfromtimestamp(float(unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                self.in_unix_sec = dt.utcfromtimestamp(float(self.unix)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_unix_sec))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_unix_sec, self.right_color))
         except Exception:
@@ -465,10 +472,10 @@ class TimeDecoder(object):
         """Convert date to a Unix Seconds value"""
         ts_type = self.ts_types['unix_sec']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_unix_sec = str(int((dt_obj - self.epoch_1970).total_seconds()) - int(dt_tz))
@@ -484,11 +491,11 @@ class TimeDecoder(object):
         reason = "[!] Unix milliseconds timestamp is 13 digits in length"
         ts_type = self.ts_types['unix_milli']
         try:
-            if not len(umil) == 13 or not umil.isdigit():
+            if not len(self.umil) == 13 or not self.umil.isdigit():
                 self.in_unix_milli = indiv_output = combined_output = False
                 pass
             else:
-                self.in_unix_milli = dt.utcfromtimestamp(float(umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+                self.in_unix_milli = dt.utcfromtimestamp(float(self.umil) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_unix_milli))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_unix_milli, self.right_color))
         except Exception:
@@ -501,10 +508,10 @@ class TimeDecoder(object):
         """Convert date to a Unix Millisecond value"""
         ts_type = self.ts_types['unix_milli']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_unix_milli = str(int(((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000))
@@ -520,11 +527,11 @@ class TimeDecoder(object):
         reason = "[!] Windows 64-bit Hex Big-Endian timestamp is 16 hex characters (8 bytes)"
         ts_type = self.ts_types['windows_hex_64']
         try:
-            if not len(wh) == 16 or not all(char in hexdigits for char in wh):
+            if not len(self.wh) == 16 or not all(char in hexdigits for char in self.wh):
                 self.in_windows_hex_64 = indiv_output = combined_output = False
                 pass
             else:
-                base10_microseconds = int(wh, 16) / 10
+                base10_microseconds = int(self.wh, 16) / 10
                 if base10_microseconds >= 1e+17:
                     self.in_windows_hex_64 = indiv_output = combined_output = False
                     pass
@@ -543,10 +550,10 @@ class TimeDecoder(object):
         """Convert a date to a Windows 64 Hex Big-Endian value"""
         ts_type = self.ts_types['windows_hex_64']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
@@ -564,12 +571,12 @@ class TimeDecoder(object):
         reason = "[!] Windows 64-bit Hex Little-Endian timestamp is 16 hex characters (8 bytes)"
         ts_type = self.ts_types['windows_hex_le']
         try:
-            if not len(whle) == 16 or not all(char in hexdigits for char in whle):
+            if not len(self.whle) == 16 or not all(char in hexdigits for char in self.whle):
                 self.in_windows_hex_le = indiv_output = combined_output = False
                 pass
             else:
                 indiv_output = combined_output = False
-                endianness_change, = struct.unpack("<Q", unhexlify(whle))
+                endianness_change, = struct.unpack("<Q", unhexlify(self.whle))
                 converted_time = endianness_change / 10
                 try:
                     dt_obj = self.epoch_1601 + timedelta(microseconds=converted_time)
@@ -588,10 +595,10 @@ class TimeDecoder(object):
         """Convert a date to a Windows 64 Hex Little-Endian value"""
         ts_type = self.ts_types['windows_hex_le']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
@@ -609,11 +616,11 @@ class TimeDecoder(object):
         reason = "[!] Chrome/Webkit timestamp is 17 digits"
         ts_type = self.ts_types['chrome']
         try:
-            if not len(chrome) == 17 or not chrome.isdigit():
+            if not len(self.chrome) == 17 or not self.chrome.isdigit():
                 self.in_chrome = indiv_output = combined_output = False
                 pass
             else:
-                delta = timedelta(microseconds=int(chrome))
+                delta = timedelta(microseconds=int(self.chrome))
                 converted_time = self.epoch_1601 + delta
                 self.in_chrome = converted_time.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_chrome))
@@ -628,13 +635,13 @@ class TimeDecoder(object):
         """Convert a date to a Chrome Timestamp/Webkit value"""
         ts_type = self.ts_types['chrome']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             nano_seconds = ''
-            if '.' in timestamp:
-                nano_seconds = timestamp.split('.')[1].split(' ')[0]
+            if '.' in self.timestamp:
+                nano_seconds = self.timestamp.split('.')[1].split(' ')[0]
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             micro_seconds = (dt_obj - self.epoch_1601).microseconds
@@ -657,11 +664,11 @@ class TimeDecoder(object):
         reason = "[!] Active Directory/LDAP timestamps are 18 digits"
         ts_type = self.ts_types['ad']
         try:
-            if not len(active) == 18 or not active.isdigit():
+            if not len(self.active) == 18 or not self.active.isdigit():
                 self.in_ad = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = dt.utcfromtimestamp((float(int(active) - self.epoch_active) / self.hundreds_nano))
+                dt_obj = dt.utcfromtimestamp((float(int(self.active) - self.epoch_active) / self.hundreds_nano))
                 self.in_ad = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_ad))
                 combined_output = str("{}{}\t{} UTC{}".format(self.left_color, ts_type, self.in_ad, self.right_color))
@@ -676,12 +683,12 @@ class TimeDecoder(object):
         ts_type = self.ts_types['ad']
         try:
             nano_seconds = ''
-            if '.' in timestamp:
-                nano_seconds = timestamp.split('.')[1].split(' ')[0]
-            dt_obj = duparser.parse(timestamp)
+            if '.' in self.timestamp:
+                nano_seconds = self.timestamp.split('.')[1].split(' ')[0]
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             if len(nano_seconds) == 7:
@@ -709,11 +716,11 @@ class TimeDecoder(object):
         reason = "[!] Unix Hex 32-bit Big-Endian timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['unix_hex_32']
         try:
-            if not len(uhbe) == 8 or not all(char in hexdigits for char in uhbe):
+            if not len(self.uhbe) == 8 or not all(char in hexdigits for char in self.uhbe):
                 self.in_unix_hex_32 = indiv_output = combined_output = False
                 pass
             else:
-                to_dec = int(uhbe, 16)
+                to_dec = int(self.uhbe, 16)
                 self.in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_unix_hex_32))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_unix_hex_32, self.right_color))
@@ -727,10 +734,10 @@ class TimeDecoder(object):
         """Convert a date to a Unix Hex 32-bit Big-Endian timestamp"""
         ts_type = self.ts_types['unix_hex_32']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
@@ -747,11 +754,11 @@ class TimeDecoder(object):
         reason = "[!] Unix Hex 32-bit Little-Endian timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['unix_hex_32le']
         try:
-            if not len(uhle) == 8 or not all(char in hexdigits for char in uhle):
+            if not len(self.uhle) == 8 or not all(char in hexdigits for char in self.uhle):
                 self.in_unix_hex_32le = indiv_output = combined_output = False
                 pass
             else:
-                to_dec = struct.unpack("<L", unhexlify(uhle))[0]
+                to_dec = struct.unpack("<L", unhexlify(self.uhle))[0]
                 self.in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_unix_hex_32le))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_unix_hex_32le, self.right_color))
@@ -765,10 +772,10 @@ class TimeDecoder(object):
         """Convert a date to a Unix Hex 32-bit Little-Endian timestamp"""
         ts_type = self.ts_types['unix_hex_32le']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
@@ -785,11 +792,11 @@ class TimeDecoder(object):
         reason = "[!] Internet Explorer Cookie timestamps (txt cookies) consist of 2 integers values. Must be input with a comma between them."
         ts_type = self.ts_types['cookie']
         try:
-            if not ("," in cookie) or not (cookie.split(",")[0].isdigit() and cookie.split(",")[1].isdigit()):
+            if not ("," in self.cookie) or not (self.cookie.split(",")[0].isdigit() and self.cookie.split(",")[1].isdigit()):
                 self.in_cookie = indiv_output = combined_output = False
                 pass
             else:
-                low, high = [int(h, base=10) for h in cookie.split(',')]
+                low, high = [int(h, base=10) for h in self.cookie.split(',')]
                 calc = 10**-7 * (high * 2**32 + low) - 11644473600
                 if calc >= 1e+11:
                     self.in_cookie = indiv_output = combined_output = False
@@ -809,10 +816,10 @@ class TimeDecoder(object):
         """Convert a date to Internet Explorer timestamp values"""
         ts_type = self.ts_types['cookie']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))
@@ -831,11 +838,11 @@ class TimeDecoder(object):
         reason = "[!] OLE Big-Endian timestamps are 16 hex characters (8 bytes)"
         ts_type = self.ts_types['ole_be']
         try:
-            if not len(oleb) == 16 or not all(char in hexdigits for char in oleb):
+            if not len(self.oleb) == 16 or not all(char in hexdigits for char in self.oleb):
                 self.in_ole_be = indiv_output = combined_output = False
                 pass
             else:
-                delta = struct.unpack('>d', struct.pack('>Q', int(oleb, 16)))[0]
+                delta = struct.unpack('>d', struct.pack('>Q', int(self.oleb, 16)))[0]
                 if int(delta) < 0:
                     self.in_ole_be = indiv_output = combined_output = False
                     pass
@@ -854,10 +861,10 @@ class TimeDecoder(object):
         """Convert a date to an OLE Big-Endian timestamp"""
         ts_type = self.ts_types['ole_be']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
@@ -875,11 +882,11 @@ class TimeDecoder(object):
         reason = "[!] OLE Little-Endian timestamps are 16 hex characters (8 bytes)"
         ts_type = self.ts_types['ole_le']
         try:
-            if not len(olel) == 16 or not all(char in hexdigits for char in olel):
+            if not len(self.olel) == 16 or not all(char in hexdigits for char in self.olel):
                 self.in_ole_le = indiv_output = combined_output = False
                 pass
             else:
-                to_le = hexlify(struct.pack('<Q', int(olel, 16)))
+                to_le = hexlify(struct.pack('<Q', int(self.olel, 16)))
                 delta = struct.unpack('>d', struct.pack('>Q', int(to_le, 16)))[0]
                 if int(delta) < 0:
                     self.in_ole_le = indiv_output = combined_output = False
@@ -899,10 +906,10 @@ class TimeDecoder(object):
         """Convert a date to an OLE Little-Endian timestamp"""
         ts_type = self.ts_types['ole_le']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             delta = ((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400
@@ -920,11 +927,11 @@ class TimeDecoder(object):
         reason = "[!] Mac Absolute timestamps are 9 digits, commonly followed by a decimal and up to 6 digits for milliseconds"
         ts_type = self.ts_types['mac']
         try:
-            if "." not in mac or not ((len(mac.split(".")[0]) == 9) and (len(mac.split(".")[1]) in range(0, 7))) or not ''.join(mac.split(".")).isdigit():
+            if "." not in self.mac or not ((len(mac.split(".")[0]) == 9) and (len(self.mac.split(".")[1]) in range(0, 7))) or not ''.join(self.mac.split(".")).isdigit():
                 self.in_mac = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_2001 + timedelta(seconds=float(mac))
+                dt_obj = self.epoch_2001 + timedelta(seconds=float(self.mac))
                 self.in_mac = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_mac))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_mac, self.right_color))
@@ -938,10 +945,10 @@ class TimeDecoder(object):
         """Convert a date to a Mac Absolute timestamp"""
         ts_type = self.ts_types['mac']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_mac = str(int((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)))
@@ -957,11 +964,11 @@ class TimeDecoder(object):
         reason = "[!] Mac OS/HFS+ Decimal timestamps are 10 digits"
         ts_type = self.ts_types['hfs_dec']
         try:
-            if not len(hfsdec) == 10 or not hfsdec.isdigit() or int(hfsdec) >= 2082844800:
+            if not len(self.hfsdec) == 10 or not self.hfsdec.isdigit() or int(self.hfsdec) >= 2082844800:
                 self.in_hfs_dec = indiv_output = combined_output = False
                 pass
             else:
-                self.in_hfs_dec = dt.utcfromtimestamp(float(int(hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
+                self.in_hfs_dec = dt.utcfromtimestamp(float(int(self.hfsdec) - self.hfs_dec_subtract)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_hfs_dec))
                 combined_output = str("{}{}\t{} UTC{}".format(self.left_color, ts_type, self.in_hfs_dec, self.right_color))
         except Exception:
@@ -974,10 +981,10 @@ class TimeDecoder(object):
         """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
         ts_type = self.ts_types['hfs_dec']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_hfs_dec = str(int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)))
@@ -993,11 +1000,11 @@ class TimeDecoder(object):
         reason = "[!] HFS/HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['hfs_be']
         try:
-            if not len(hfsbe) == 8 or not all(char in hexdigits for char in hfsbe):
+            if not len(self.hfsbe) == 8 or not all(char in hexdigits for char in self.hfsbe):
                 self.in_hfs_be = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_1904 + timedelta(seconds=int(hfsbe, 16))
+                dt_obj = self.epoch_1904 + timedelta(seconds=int(self.hfsbe, 16))
                 self.in_hfs_be = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} HFS Local / HFS+ UTC".format(ts_type, self.in_hfs_be))
                 combined_output = str("{}{}\t\t{} HFS Local / HFS+ UTC{}".format(self.left_color, ts_type, self.in_hfs_be, self.right_color))
@@ -1011,10 +1018,10 @@ class TimeDecoder(object):
         """Convert a date to an HFS/HFS+ Big-Endian timestamp"""
         ts_type = self.ts_types['hfs_be']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
@@ -1031,11 +1038,11 @@ class TimeDecoder(object):
         reason = "[!] HFS/HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['hfs_le']
         try:
-            if not len(hfsle) == 8 or not all(char in hexdigits for char in hfsle):
+            if not len(self.hfsle) == 8 or not all(char in hexdigits for char in self.hfsle):
                 self.in_hfs_le = indiv_output = combined_output = False
                 pass
             else:
-                to_le = struct.unpack('>I', struct.pack('<I', int(hfsle, 16)))[0]
+                to_le = struct.unpack('>I', struct.pack('<I', int(self.hfsle, 16)))[0]
                 dt_obj = self.epoch_1904 + timedelta(seconds=to_le)
                 self.in_hfs_le = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} HFS Local / HFS+ UTC".format(ts_type, self.in_hfs_le))
@@ -1050,10 +1057,10 @@ class TimeDecoder(object):
         """Convert a date to an HFS/HFS+ Little-Endian timestamp"""
         ts_type = self.ts_types['hfs_le']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             conv = int((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz))
@@ -1070,11 +1077,11 @@ class TimeDecoder(object):
         reason = "[!] MS-DOS wFatDate wFatTime timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['fat']
         try:
-            if not len(fat) == 8 or not all(char in hexdigits for char in fat):
+            if not len(self.fat) == 8 or not all(char in hexdigits for char in self.fat):
                 self.in_fat = indiv_output = combined_output = False
                 pass
             else:
-                byte_swap = [fat[i:i+2] for i in range(0, len(fat), 2)]
+                byte_swap = [fat[i:i+2] for i in range(0, len(self.fat), 2)]
                 to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
                 binary = '{0:032b}'.format(int(to_le, 16))
                 stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
@@ -1110,7 +1117,7 @@ class TimeDecoder(object):
         """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
         ts_type = self.ts_types['fat']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             year = '{0:07b}'.format(dt_obj.year - 1980)
             month = '{0:04b}'.format(dt_obj.month)
             day = '{0:05b}'.format(dt_obj.day)
@@ -1132,11 +1139,11 @@ class TimeDecoder(object):
         reason = "[!] MS-DOS 32-bit timestamps are 8 hex characters (4 bytes)"
         ts_type = self.ts_types['msdos']
         try:
-            if not len(msdos) == 8 or not all(char in hexdigits for char in msdos):
+            if not len(self.msdos) == 8 or not all(char in hexdigits for char in self.msdos):
                 self.in_msdos = indiv_output = combined_output = False
                 pass
             else:
-                swap = ''.join([msdos[i:i+2] for i in range(0, len(msdos), 2)][::-1])
+                swap = ''.join([self.msdos[i:i+2] for i in range(0, len(self.msdos), 2)][::-1])
                 binary = '{0:032b}'.format(int(swap, 16))
                 stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
                 for val in stamp[:]:
@@ -1172,7 +1179,7 @@ class TimeDecoder(object):
         """Convert a date to an MS-DOS timestamp"""
         ts_type = self.ts_types['msdos']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             year = '{0:07b}'.format(dt_obj.year - 1980)
             month = '{0:04b}'.format(dt_obj.month)
             day = '{0:05b}'.format(dt_obj.day)
@@ -1193,11 +1200,11 @@ class TimeDecoder(object):
         reason = "[!] Microsoft 128-bit SYSTEMTIME timestamps are 32 hex characters (16 bytes)"
         ts_type = self.ts_types['systemtime']
         try:
-            if not len(systime) == 32 or not all(char in hexdigits for char in systime):
+            if not len(self.systime) == 32 or not all(char in hexdigits for char in self.systime):
                 self.in_systemtime = indiv_output = combined_output = False
                 pass
             else:
-                to_le = ''.join([systime[i:i+2] for i in range(0, len(systime), 2)][::-1])
+                to_le = ''.join([self.systime[i:i+2] for i in range(0, len(self.systime), 2)][::-1])
                 converted = [to_le[i:i + 4] for i in range(0, len(to_le), 4)][::-1]
                 stamp = []
                 for i in converted:
@@ -1217,10 +1224,10 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft 128-bit SYSTEMTIME timestamp"""
         ts_type = self.ts_types['systemtime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             micro = int(dt_obj.microsecond / 1000)
@@ -1250,11 +1257,11 @@ class TimeDecoder(object):
         reason = "[!] Microsoft FILETIME timestamps are 2 sets of 8 hex characters (4 bytes), separated by a colon"
         ts_type = self.ts_types['filetime']
         try:
-            if not (":" in ft) or not (all(char in hexdigits for char in ft[0:8]) and all(char in hexdigits for char in ft[9:])):
+            if not (":" in self.ft) or not (all(char in hexdigits for char in self.ft[0:8]) and all(char in hexdigits for char in self.ft[9:])):
                 self.in_filetime = indiv_output = combined_output = False
                 pass
             else:
-                part2, part1 = [int(h, base=16) for h in ft.split(':')]
+                part2, part1 = [int(h, base=16) for h in self.ft.split(':')]
                 converted_time = struct.unpack('>Q', struct.pack('>LL', part1, part2))[0]
                 if converted_time >= 1e+18:
                     self.in_filetime = indiv_output = combined_output = False
@@ -1274,10 +1281,10 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft FILETIME timestamp"""
         ts_type = self.ts_types['filetime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
@@ -1296,11 +1303,11 @@ class TimeDecoder(object):
         reason = "[!] Microsoft Hotmail timestamps are 2 sets of 8 hex characters (4 bytes), separated by a colon"
         ts_type = self.ts_types['hotmail']
         try:
-            if ":" not in hotmail or not (all(char in hexdigits for char in hotmail[0:8]) and all(char in hexdigits for char in hotmail[9:])):
+            if ":" not in self.hotmail or not (all(char in hexdigits for char in self.hotmail[0:8]) and all(char in hexdigits for char in self.hotmail[9:])):
                 self.in_hotmail = indiv_output = combined_output = False
                 pass
             else:
-                hotmail_replace = hotmail.replace(':', '')
+                hotmail_replace = self.hotmail.replace(':', '')
                 byte_swap = ''.join([hotmail_replace[i:i+2] for i in range(0, len(hotmail_replace), 2)][::-1])
                 part2 = int(byte_swap[:8], base=16)
                 part1 = int(byte_swap[8:], base=16)
@@ -1323,10 +1330,10 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft Hotmail timestamp"""
         ts_type = self.ts_types['hotmail']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             minus_epoch = dt_obj - self.epoch_1601
@@ -1346,11 +1353,11 @@ class TimeDecoder(object):
         reason = "[!] Mozilla PRTime timestamps are 16 digits"
         ts_type = self.ts_types['prtime']
         try:
-            if not len(pr) == 16 or not pr.isdigit():
+            if not len(self.pr) == 16 or not self.pr.isdigit():
                 self.in_prtime = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_1970 + timedelta(microseconds=int(pr))
+                dt_obj = self.epoch_1970 + timedelta(microseconds=int(self.pr))
                 self.in_prtime = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_prtime))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_prtime, self.right_color))
@@ -1364,10 +1371,10 @@ class TimeDecoder(object):
         """Convert a date to Mozilla's PRTime timestamp"""
         ts_type = self.ts_types['prtime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_prtime = str(int(((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz)) * 1000000))
@@ -1383,11 +1390,11 @@ class TimeDecoder(object):
         reason = "[!] OLE Automation timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
         ts_type = self.ts_types['ole_auto']
         try:
-            if "." not in auto or not ((len(auto.split(".")[0]) == 5) and (len(auto.split(".")[1]) in range(9, 13))) or not ''.join(auto.split(".")).isdigit():
+            if "." not in self.auto or not ((len(self.auto.split(".")[0]) == 5) and (len(self.auto.split(".")[1]) in range(9, 13))) or not ''.join(self.auto.split(".")).isdigit():
                 self.in_ole_auto = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_1899 + timedelta(days=float(auto))
+                dt_obj = self.epoch_1899 + timedelta(days=float(self.auto))
                 self.in_ole_auto = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_ole_auto))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_ole_auto, self.right_color))
@@ -1401,10 +1408,10 @@ class TimeDecoder(object):
         """Convert a date to an OLE Automation timestamp"""
         ts_type = self.ts_types['ole_auto']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_ole_auto = "{0:.12f}".format(((dt_obj - self.epoch_1899).total_seconds() - int(dt_tz)) / 86400)
@@ -1420,11 +1427,11 @@ class TimeDecoder(object):
         reason = "[!] Microsoft Excel 1904 timestamps are 2 integers, separated by a dot. The left is 5 digits, the right is between 9-12 digits"
         ts_type = self.ts_types['ms1904']
         try:
-            if "." not in ms1904 or not ((len(ms1904.split(".")[0]) == 5) and (len(ms1904.split(".")[1]) in range(9, 13))) or not ''.join(ms1904.split(".")).isdigit():
+            if "." not in self.ms1904 or not ((len(self.ms1904.split(".")[0]) == 5) and (len(self.ms1904.split(".")[1]) in range(9, 13))) or not ''.join(self.ms1904.split(".")).isdigit():
                 self.in_ms1904 = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_1904 + timedelta(days=float(ms1904))
+                dt_obj = self.epoch_1904 + timedelta(days=float(self.ms1904))
                 self.in_ms1904 = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_ms1904))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_ms1904, self.right_color))
@@ -1438,10 +1445,10 @@ class TimeDecoder(object):
         """Convert a date to a Microsoft Excel 1904 timestamp"""
         ts_type = self.ts_types['ms1904']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_ms1904 = "{0:.12f}".format(((dt_obj - self.epoch_1904).total_seconds() - int(dt_tz)) / 86400)
@@ -1457,11 +1464,11 @@ class TimeDecoder(object):
         reason = "[!] iOS 11 timestamps are typically 15-18 digits"
         ts_type = self.ts_types['iostime']
         try:
-            if not len(ios) in range(15, 19) or not ios.isdigit():
+            if not len(self.ios) in range(15, 19) or not self.ios.isdigit():
                 self.in_iostime = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = (int(ios) / int(self.nano_2001)) + 978307200
+                dt_obj = (int(self.ios) / int(self.nano_2001)) + 978307200
                 self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {} UTC".format(ts_type, self.in_iostime))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_iostime, self.right_color))
@@ -1475,10 +1482,10 @@ class TimeDecoder(object):
         """Convert a date to an iOS 11 timestamp"""
         ts_type = self.ts_types['iostime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_iostime = str(int(((dt_obj - self.epoch_2001).total_seconds() - int(dt_tz)) * self.nano_2001))
@@ -1494,11 +1501,11 @@ class TimeDecoder(object):
         reason = "[!] Symantec 6-byte hex timestamps are 12 hex characters"
         ts_type = self.ts_types['symtime']
         try:
-            if not len(sym) == 12 or not all(char in hexdigits for char in sym):
+            if not len(self.sym) == 12 or not all(char in hexdigits for char in self.sym):
                 self.in_symtime = indiv_output = combined_output = False
                 pass
             else:
-                hex_to_dec = [int(sym[i:i+2], 16) for i in range(0, len(sym), 2)]
+                hex_to_dec = [int(self.sym[i:i+2], 16) for i in range(0, len(self.sym), 2)]
                 hex_to_dec[0] = hex_to_dec[0] + 1970
                 hex_to_dec[1] = hex_to_dec[1] + 1
                 dt_obj = dt(hex_to_dec[0], hex_to_dec[1], hex_to_dec[2], hex_to_dec[3], hex_to_dec[4], hex_to_dec[5])
@@ -1515,7 +1522,7 @@ class TimeDecoder(object):
         """Convert a date to Symantec's 6-byte hex timestamp"""
         ts_type = self.ts_types['symtime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             sym_year = '{0:x}'.format(dt_obj.year - 1970).zfill(2)
             sym_month = '{0:x}'.format(dt_obj.month - 1).zfill(2)
             sym_day = '{0:x}'.format(dt_obj.day).zfill(2)
@@ -1535,12 +1542,12 @@ class TimeDecoder(object):
         reason = "[!] GPS timestamps are 10 digits"
         ts_type = self.ts_types['gpstime']
         try:
-            if not len(gps) == 10 or not gps.isdigit():
+            if not len(self.gps) == 10 or not self.gps.isdigit():
                 self.in_gpstime = indiv_output = combined_output = False
                 pass
             else:
                 leapseconds = self.leapseconds
-                gps_stamp = self.epoch_1980 + timedelta(seconds=(float(gps)))
+                gps_stamp = self.epoch_1980 + timedelta(seconds=(float(self.gps)))
                 tai_convert = gps_stamp + timedelta(seconds=19)
                 epoch_convert = (tai_convert - self.epoch_1970).total_seconds()
                 check_date = dt.utcfromtimestamp(epoch_convert)
@@ -1565,10 +1572,10 @@ class TimeDecoder(object):
         ts_type = self.ts_types['gpstime']
         try:
             leapseconds = self.leapseconds
-            check_date = duparser.parse(timestamp)
+            check_date = duparser.parse(self.timestamp)
             if hasattr(check_date.tzinfo, '_offset'):
                 dt_tz = check_date.tzinfo._offset.total_seconds()
-                check_date = duparser.parse(timestamp, ignoretz=True)
+                check_date = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             for entry in leapseconds:
@@ -1595,16 +1602,16 @@ class TimeDecoder(object):
         ts_type = self.ts_types['eitime']
         try:
             URLSAFE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
-            if not all(char in URLSAFE_CHARS for char in eitime):
+            if not all(char in URLSAFE_CHARS for char in self.eitime):
                 self.in_eitime = indiv_output = combined_output = False
                 pass
             else:
-                padding_check = (len(eitime) % 4)
+                padding_check = (len(self.eitime) % 4)
                 if padding_check != 0:
                     padding_reqd = (4 - padding_check)
-                    result_eitime = eitime + (padding_reqd * '=')
+                    result_eitime = self.eitime + (padding_reqd * '=')
                 else:
-                    result_eitime = eitime
+                    result_eitime = self.eitime
                 try:
                     decoded_eitime = base64.urlsafe_b64decode(result_eitime).hex()[:8]
                     unix_timestamp, = struct.unpack("<L", unhexlify(decoded_eitime))
@@ -1624,10 +1631,10 @@ class TimeDecoder(object):
         """ Try to convert a value to an ei URL timestamp"""
         ts_type = self.ts_types['eitime']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             unix_time = int((dt_obj - self.epoch_1970).total_seconds() + int(dt_tz))
@@ -1646,11 +1653,11 @@ class TimeDecoder(object):
         reason = "[!] Binary Plist timestamps are 9 digits"
         ts_type = self.ts_types['bplist']
         try:
-            if not len(bplist) == 9 or not bplist.isdigit():
+            if not len(self.bplist) == 9 or not self.bplist.isdigit():
                 self.in_bplist = indiv_output = combined_output = False
                 pass
             else:
-                dt_obj = self.epoch_2001 + timedelta(seconds=float(bplist))
+                dt_obj = self.epoch_2001 + timedelta(seconds=float(self.bplist))
                 self.in_bplist = dt_obj.strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {}".format(ts_type, self.in_bplist))
                 combined_output = str("{}{}\t\t{} UTC{}".format(self.left_color, ts_type, self.in_bplist, self.right_color))
@@ -1664,10 +1671,10 @@ class TimeDecoder(object):
         """Convert a date to a Binary Plist timestamp"""
         ts_type = self.ts_types['bplist']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             self.out_bplist = str(int((dt_obj - self.epoch_2001).total_seconds()) - int(dt_tz))
@@ -1696,12 +1703,12 @@ class TimeDecoder(object):
                 '99', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'b0', 'b1', 'b2', 'b3', 'b4',
                 'b5', 'b6', 'b7', 'b8', 'b9', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'
                 ]
-            tz_check = gsm[12:14][::-1].lower()
-            if not len(gsm) == 14 or not all(char in hexdigits for char in gsm) or tz_check not in tz_in_range:
+            tz_check = self.gsm[12:14][::-1].lower()
+            if not len(self.gsm) == 14 or not all(char in hexdigits for char in self.gsm) or tz_check not in tz_in_range:
                 self.in_gsm = indiv_output = combined_output = False
                 pass
             else:
-                swap = [gsm[i:i+2] for i in range(0, len(gsm), 2)]
+                swap = [self.gsm[i:i+2] for i in range(0, len(self.gsm), 2)]
                 for value in swap[:]:
                     le = value[::-1]
                     swap.remove(value)
@@ -1737,7 +1744,7 @@ class TimeDecoder(object):
         """Convert a timestamp to a GSM timestamp"""
         ts_type = self.ts_types['gsm']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
             else:
@@ -1786,12 +1793,12 @@ class TimeDecoder(object):
         reason = "[!] VMSD timestamps are a 6-digit \'High\' value followed by a signed/unsigned integer at least 9 digits"
         ts_type = self.ts_types['vm']
         try:
-            if "," not in vm:
+            if "," not in self.vm:
                 self.in_vm = indiv_output = combined_output = False
                 pass
             else:
-                cTimeHigh = int(vm.split(',')[0])
-                cTimeLow = int(vm.split(',')[1])
+                cTimeHigh = int(self.vm.split(',')[0])
+                cTimeLow = int(self.vm.split(',')[1])
                 vmsd = float((cTimeHigh * 2**32) + struct.unpack('I', struct.pack('i', cTimeLow))[0]) / 1000000
                 if vmsd >= 1e+13:
                     self.in_vm = indiv_output = combined_output = False
@@ -1810,10 +1817,10 @@ class TimeDecoder(object):
         """Convert date to a .vmsd createTime* value"""
         ts_type = self.ts_types['vm']
         try:
-            dt_obj = duparser.parse(timestamp)
+            dt_obj = duparser.parse(self.timestamp)
             if hasattr(dt_obj.tzinfo, '_offset'):
                 dt_tz = dt_obj.tzinfo._offset.total_seconds()
-                dt_obj = duparser.parse(timestamp, ignoretz=True)
+                dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             else:
                 dt_tz = 0
             unix_seconds = (int((dt_obj - self.epoch_1970).total_seconds() - int(dt_tz))*1000000)
@@ -1833,11 +1840,11 @@ class TimeDecoder(object):
         reason = "[!] TikTok timestamps are 19 digits long"
         ts_type = self.ts_types['tiktok']
         try:
-            if len(str(tiktok)) < 19 or not tiktok.isdigit():
+            if len(str(self.tiktok)) < 19 or not self.tiktok.isdigit():
                 self.in_tiktok = indiv_output = combined_output = False
                 pass
             else:
-                unix_ts = (int(tiktok) >> 32)
+                unix_ts = (int(self.tiktok) >> 32)
                 self.in_tiktok = dt.utcfromtimestamp(float(unix_ts)).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {}".format(ts_type, self.in_tiktok))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_tiktok, self.right_color))
@@ -1852,11 +1859,11 @@ class TimeDecoder(object):
         reason = "[!] Twitter timestamps are 18 digits or longer"
         ts_type = self.ts_types['twitter']
         try:
-            if len(str(twitter)) < 18 or not twitter.isdigit():
+            if len(str(self.twitter)) < 18 or not self.twitter.isdigit():
                 self.in_twitter = indiv_output = combined_output = False
                 pass
             else:
-                unix_ts = (int(twitter) >> 22) + 1288834974657
+                unix_ts = (int(self.twitter) >> 22) + 1288834974657
                 self.in_twitter = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {}".format(ts_type, self.in_twitter))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_twitter, self.right_color))
@@ -1871,11 +1878,11 @@ class TimeDecoder(object):
         reason = "[!] Discord timestamps are 18 digits or longer"
         ts_type = self.ts_types['discord']
         try:
-            if len(str(discord)) < 18 or not discord.isdigit():
+            if len(str(self.discord)) < 18 or not self.discord.isdigit():
                 self.in_discord = indiv_output = combined_output = False
                 pass
             else:
-                unix_ts = (int(discord) >> 22) + 1420070400000
+                unix_ts = (int(self.discord) >> 22) + 1420070400000
                 self.in_discord = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {}".format(ts_type, self.in_discord))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_discord, self.right_color))
@@ -1891,13 +1898,13 @@ class TimeDecoder(object):
         ts_type = self.ts_types['ksuid']
         try:
             KSUIDCHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-            if len(str(ksuid)) != 27 or not all(char in KSUIDCHARS for char in ksuid):
+            if len(str(self.ksuid)) != 27 or not all(char in KSUIDCHARS for char in self.ksuid):
                 self.in_ksuid = indiv_output = combined_output = False
                 pass
             else:
-                length, i, v = len(ksuid), 0, 0
+                length, i, v = len(self.ksuid), 0, 0
                 ba = bytearray()
-                for val in ksuid:
+                for val in self.ksuid:
                     v += KSUIDCHARS.index(val) * (62 ** (length - (i + 1)))
                     i += 1
                 while v > 0:
@@ -1920,11 +1927,11 @@ class TimeDecoder(object):
         reason = "[!] Mastodon timestamps are 18 digits or longer"
         ts_type = self.ts_types['mastodon']
         try:
-            if len(str(mastodon)) < 18 or not mastodon.isdigit():
+            if len(str(self.mastodon)) < 18 or not self.mastodon.isdigit():
                 self.in_mastodon = indiv_output = combined_output = False
                 pass
             else:
-                unix_ts = (int(mastodon) >> 16)
+                unix_ts = (int(self.mastodon) >> 16)
                 self.in_mastodon = dt.utcfromtimestamp(float(unix_ts) /1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
                 indiv_output = str("{} {}".format(ts_type, self.in_mastodon))
                 combined_output = str("{}{}\t\t\t{} UTC{}".format(self.left_color, ts_type, self.in_mastodon, self.right_color))
@@ -1941,11 +1948,11 @@ class TimeDecoder(object):
         try:
             URLSAFE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_'
             format = '8sBBBBBBBB'
-            if len(str(meta)) < 22 or not all(char in URLSAFE_CHARS for char in meta):
+            if len(str(self.meta)) < 22 or not all(char in URLSAFE_CHARS for char in self.meta):
                 self.in_metasploit = indiv_output = combined_output = False
                 pass
             else:
-                b64decoded = base64.urlsafe_b64decode(meta[0:22] + '==')
+                b64decoded = base64.urlsafe_b64decode(self.meta[0:22] + '==')
                 if len(b64decoded) < struct.calcsize(format):
                     raise Exception
                 puid, xor1, xor2, platform_xored, architecture_xored, ts1_xored, ts2_xored, ts3_xored, ts4_xored = struct.unpack(format, b64decoded)
@@ -1964,11 +1971,11 @@ class TimeDecoder(object):
         reason = "[!] Sonyflake values are 15 hex characters"
         ts_type = self.ts_types['sony']
         try:
-            if len(str(sony)) != 15 or not all(char in hexdigits for char in sony):
+            if len(str(self.sony)) != 15 or not all(char in hexdigits for char in self.sony):
                 self.in_sony = indiv_output = combined_output = False
                 pass
             else:
-                dec_value = int(sony, 16)
+                dec_value = int(self.sony, 16)
                 ts_value = dec_value >> 24
                 unix_ts = (ts_value + 140952960000) * 10
                 self.in_sony = dt.utcfromtimestamp(float(unix_ts) /1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -1985,7 +1992,7 @@ class TimeDecoder(object):
         reason = "[!] UUID's are in the format 00000000-0000-0000-0000-000000000000"
         ts_type = self.ts_types['uu']
         try:
-            uuid_lower = uu.lower()
+            uuid_lower = self.uu.lower()
             UUID_REGEX = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
             if not bool(UUID_REGEX.match(uuid_lower)):
                 self.in_uuid = indiv_output = combined_output = False
@@ -2017,7 +2024,7 @@ class TimeDecoder(object):
         """Find date from provided timestamp"""
         this_year = int(dt.now().strftime('%Y'))
         states = []
-        print('\nGuessing Date from Timestamp: ' + sys.argv[2] + '\r')
+        #print('\nGuessing Date from Timestamp: ' + self.timestamp + '\r')
         print('Outputs which do not result in a date/time value are not displayed.\r')
         print('{}Most likely results (results within +/- 5 years) are highlighted.\n{}'.format(self.left_color, self.right_color))
         for func in self.ts_funcs:
@@ -2041,7 +2048,7 @@ class TimeDecoder(object):
         print('\r')
 
 
-if __name__ == '__main__':
+def main():
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter v' + str(__version__), formatter_class=argparse.RawTextHelpFormatter)
     arg_parse.add_argument('--unix', metavar='', help='convert from Unix Seconds')
@@ -2085,18 +2092,15 @@ if __name__ == '__main__':
     arg_parse.add_argument('--guess', metavar='', help='guess timestamp and output all reasonable possibilities')
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n- Without argument gives current date/time', nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' + str(__version__))
-    args = arg_parse.parse_args()
-    all_args = vars(args)
-    if args.guess:
-        local_args = {}
-        for each_arg in all_args:
-            local_args[each_arg] = all_args[each_arg]
-        for each_local in local_args:
-            local_args[each_local] = args.guess
-        locals().update(local_args)
-        timestamp = None
-    else:
-        locals().update(all_args)
 
-    td = TimeDecoder()
+    if len(sys.argv[1:]) == 0:
+        arg_parse.print_help()
+        arg_parse.exit()
+
+    args = arg_parse.parse_args()
+    td = TimeDecoder(args)
     td.run()
+
+
+if __name__ == '__main__':
+    main()
