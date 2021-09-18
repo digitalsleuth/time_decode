@@ -209,235 +209,237 @@ class TimeDecoder(object):
         try:
             if self.guess:
                 self.from_all()
+                return
+
             if self.unix:
                 result, indiv_output, combined_output, reason = self.from_unix_sec()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.umil:
+            if self.umil:
                 result, indiv_output, combined_output, reason = self.from_unix_milli()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.wh:
+            if self.wh:
                 result, indiv_output, combined_output, reason = self.from_win_64_hex()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.whle:
+            if self.whle:
                 result, indiv_output, combined_output, reason = self.from_win_64_hexle()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.chrome:
+            if self.chrome:
                 result, indiv_output, combined_output, reason = self.from_chrome()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.active:
+            if self.active:
                 result, indiv_output, combined_output, reason = self.from_ad()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.uhbe:
+            if self.uhbe:
                 result, indiv_output, combined_output, reason = self.from_unix_hex_32be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.uhle:
+            if self.uhle:
                 result, indiv_output, combined_output, reason = self.from_unix_hex_32le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.cookie:
+            if self.cookie:
                 result, indiv_output, combined_output, reason = self.from_cookie()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.oleb:
+            if self.oleb:
                 result, indiv_output, combined_output, reason = self.from_ole_be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.olel:
+            if self.olel:
                 result, indiv_output, combined_output, reason = self.from_ole_le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.mac:
+            if self.mac:
                 result, indiv_output, combined_output, reason = self.from_mac()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.hfsdec:
+            if self.hfsdec:
                 result, indiv_output, combined_output, reason = self.from_hfs_dec()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.hfsbe:
+            if self.hfsbe:
                 result, indiv_output, combined_output, reason = self.from_hfs_be()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.hfsle:
+            if self.hfsle:
                 result, indiv_output, combined_output, reason = self.from_hfs_le()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.fat:
+            if self.fat:
                 result, indiv_output, combined_output, reason = self.from_fat()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.msdos:
+            if self.msdos:
                 result, indiv_output, combined_output, reason = self.from_msdos()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.systime:
+            if self.systime:
                 result, indiv_output, combined_output, reason = self.from_systime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.ft:
+            if self.ft:
                 result, indiv_output, combined_output, reason = self.from_filetime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.hotmail:
+            if self.hotmail:
                 result, indiv_output, combined_output, reason = self.from_hotmail()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.pr:
+            if self.pr:
                 result, indiv_output, combined_output, reason = self.from_prtime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.auto:
+            if self.auto:
                 result, indiv_output, combined_output, reason = self.from_ole_auto()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.ms1904:
+            if self.ms1904:
                 result, indiv_output, combined_output, reason = self.from_ms1904()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.ios:
+            if self.ios:
                 result, indiv_output, combined_output, reason = self.from_ios_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.sym:
+            if self.sym:
                 result, indiv_output, combined_output, reason = self.from_sym_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.gps:
+            if self.gps:
                 result, indiv_output, combined_output, reason = self.from_gps_time()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.eitime:
+            if self.eitime:
                 result, indiv_output, combined_output, reason = self.from_eitime()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.bplist:
+            if self.bplist:
                 result, indiv_output, combined_output, reason = self.from_bplist()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.gsm:
+            if self.gsm:
                 result, indiv_output, combined_output, reason = self.from_gsm()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.vm:
+            if self.vm:
                 result, indiv_output, combined_output, reason = self.from_vm()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.tiktok:
+            if self.tiktok:
                 result, indiv_output, combined_output, reason = self.from_tiktok()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.twitter:
+            if self.twitter:
                 result, indiv_output, combined_output, reason = self.from_twitter()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.discord:
+            if self.discord:
                 result, indiv_output, combined_output, reason = self.from_discord()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.ksuid:
+            if self.ksuid:
                 result, indiv_output, combined_output, reason = self.from_ksuid()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.mastodon:
+            if self.mastodon:
                 result, indiv_output, combined_output, reason = self.from_mastodon()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.meta:
+            if self.meta:
                 result, indiv_output, combined_output, reason = self.from_metasploit()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.sony:
+            if self.sony:
                 result, indiv_output, combined_output, reason = self.from_sony()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.uu:
+            if self.uu:
                 result, indiv_output, combined_output, reason = self.from_uuid()
                 if indiv_output is False:
                     print(reason)
                 else:
                     print(indiv_output)
-            elif self.timestamp:
+            if self.timestamp:
                 self.to_timestamps()
         except Exception:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -2051,45 +2053,45 @@ class TimeDecoder(object):
 def main():
     now = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     arg_parse = argparse.ArgumentParser(description='Time Decoder and Converter v' + str(__version__), formatter_class=argparse.RawTextHelpFormatter)
-    arg_parse.add_argument('--unix', metavar='', help='convert from Unix Seconds')
-    arg_parse.add_argument('--umil', metavar='', help='convert from Unix Milliseconds')
-    arg_parse.add_argument('--wh', metavar='', help='convert from Windows 64-bit Hex BE')
-    arg_parse.add_argument('--whle', metavar='', help='convert from Windows 64-bit Hex LE')
-    arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome time')
-    arg_parse.add_argument('--active', metavar='', help='convert from Active Directory value')
-    arg_parse.add_argument('--uhbe', metavar='', help='convert from Unix Hex 32-bit BE')
-    arg_parse.add_argument('--uhle', metavar='', help='convert from Unix Hex 32-bit LE')
-    arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low Value,High Value)')
-    arg_parse.add_argument('--oleb', metavar='', help='convert from Windows OLE 64-bit BE - remove 0x and spaces!\n- Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
-    arg_parse.add_argument('--olel', metavar='', help='convert from Windows OLE 64-bit LE')
-    arg_parse.add_argument('--mac', metavar='', help='convert from Mac Absolute Time')
-    arg_parse.add_argument('--hfsdec', metavar='', help='convert from Mac OS/HFS+ Decimal Time')
-    arg_parse.add_argument('--hfsbe', metavar='', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)')
-    arg_parse.add_argument('--hfsle', metavar='', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)')
-    arg_parse.add_argument('--fat', metavar='', help='convert from FAT Date + Time (wFat)')
-    arg_parse.add_argument('--msdos', metavar='', help='convert from 32-bit MS-DOS time - result is Local Time')
-    arg_parse.add_argument('--systime', metavar='', help='convert from 128-bit SYSTEMTIME')
-    arg_parse.add_argument('--ft', metavar='', help='convert from FILETIME timestamp')
-    arg_parse.add_argument('--hotmail', metavar='', help='convert from a Hotmail timestamp')
-    arg_parse.add_argument('--pr', metavar='', help='convert from Mozilla\'s PRTime')
-    arg_parse.add_argument('--auto', metavar='', help='convert from OLE Automation Date format')
-    arg_parse.add_argument('--ms1904', metavar='', help='convert from MS Excel 1904 Date format')
-    arg_parse.add_argument('--ios', metavar='', help='convert from iOS 11 timestamp')
-    arg_parse.add_argument('--sym', metavar='', help='convert from Symantec\'s 12-byte AV timestamp')
-    arg_parse.add_argument('--gps', metavar='', help='convert from a GPS timestamp')
-    arg_parse.add_argument('--eitime', metavar='', help='convert from a Google EI URL timestamp')
-    arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist timestamp')
-    arg_parse.add_argument('--gsm', metavar='', help='convert from a GSM timestamp')
-    arg_parse.add_argument('--vm', metavar='', help='convert from a VMWare Snapshot (.vmsd) timestamp - enter as "high value,low value"')
-    arg_parse.add_argument('--tiktok', metavar='', help='convert from a TikTok URL value')
-    arg_parse.add_argument('--twitter', metavar='', help='convert from a Twitter URL value')
-    arg_parse.add_argument('--discord', metavar='', help='convert from a Discord URL value')
-    arg_parse.add_argument('--ksuid', metavar='', help='convert from a KSUID value')
-    arg_parse.add_argument('--mastodon', metavar='', help='convert from a Mastodon URL value')
-    arg_parse.add_argument('--meta', metavar='', help='convert from a Metasploit Payload UUID')
-    arg_parse.add_argument('--sony', metavar='', help='convert from a Sonyflake URL value')
-    arg_parse.add_argument('--uu', metavar='', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
-    arg_parse.add_argument('--guess', metavar='', help='guess timestamp and output all reasonable possibilities')
+    arg_parse.add_argument('--unix', help='convert from Unix Seconds')
+    arg_parse.add_argument('--umil', help='convert from Unix Milliseconds')
+    arg_parse.add_argument('--wh', help='convert from Windows 64-bit Hex BE')
+    arg_parse.add_argument('--whle', help='convert from Windows 64-bit Hex LE')
+    arg_parse.add_argument('--chrome', help='convert from Google Chrome time')
+    arg_parse.add_argument('--active', help='convert from Active Directory value')
+    arg_parse.add_argument('--uhbe', help='convert from Unix Hex 32-bit BE')
+    arg_parse.add_argument('--uhle', help='convert from Unix Hex 32-bit LE')
+    arg_parse.add_argument('--cookie', help='convert from Windows Cookie Date (Low Value,High Value)')
+    arg_parse.add_argument('--oleb', help='convert from Windows OLE 64-bit BE - remove 0x and spaces!\n- Example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
+    arg_parse.add_argument('--olel', help='convert from Windows OLE 64-bit LE')
+    arg_parse.add_argument('--mac', help='convert from Mac Absolute Time')
+    arg_parse.add_argument('--hfsdec', help='convert from Mac OS/HFS+ Decimal Time')
+    arg_parse.add_argument('--hfsbe', help='convert from HFS(+) BE times (HFS = Local, HFS+ = UTC)')
+    arg_parse.add_argument('--hfsle', help='convert from HFS(+) LE times (HFS = Local, HFS+ = UTC)')
+    arg_parse.add_argument('--fat', help='convert from FAT Date + Time (wFat)')
+    arg_parse.add_argument('--msdos', help='convert from 32-bit MS-DOS time - result is Local Time')
+    arg_parse.add_argument('--systime', help='convert from 128-bit SYSTEMTIME')
+    arg_parse.add_argument('--ft', help='convert from FILETIME timestamp')
+    arg_parse.add_argument('--hotmail', help='convert from a Hotmail timestamp')
+    arg_parse.add_argument('--pr', help='convert from Mozilla\'s PRTime')
+    arg_parse.add_argument('--auto', help='convert from OLE Automation Date format')
+    arg_parse.add_argument('--ms1904', help='convert from MS Excel 1904 Date format')
+    arg_parse.add_argument('--ios', help='convert from iOS 11 timestamp')
+    arg_parse.add_argument('--sym', help='convert from Symantec\'s 12-byte AV timestamp')
+    arg_parse.add_argument('--gps', help='convert from a GPS timestamp')
+    arg_parse.add_argument('--eitime', help='convert from a Google EI URL timestamp')
+    arg_parse.add_argument('--bplist', help='convert from an iOS Binary Plist timestamp')
+    arg_parse.add_argument('--gsm', help='convert from a GSM timestamp')
+    arg_parse.add_argument('--vm', help='convert from a VMWare Snapshot (.vmsd) timestamp - enter as "high value,low value"')
+    arg_parse.add_argument('--tiktok', help='convert from a TikTok URL value')
+    arg_parse.add_argument('--twitter', help='convert from a Twitter URL value')
+    arg_parse.add_argument('--discord', help='convert from a Discord URL value')
+    arg_parse.add_argument('--ksuid', help='convert from a KSUID value')
+    arg_parse.add_argument('--mastodon', help='convert from a Mastodon URL value')
+    arg_parse.add_argument('--meta', help='convert from a Metasploit Payload UUID')
+    arg_parse.add_argument('--sony', help='convert from a Sonyflake URL value')
+    arg_parse.add_argument('--uu', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
+    arg_parse.add_argument('--guess', help='guess timestamp and output all reasonable possibilities')
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n- Without argument gives current date/time', nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' + str(__version__))
 
