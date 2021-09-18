@@ -1920,7 +1920,7 @@ class TimeDecoder(object):
         reason = "[!] Mastodon timestamps are 18 digits or longer"
         ts_type = self.ts_types['mastodon']
         try:
-            if len(str(tiktok)) < 18 or not mastodon.isdigit():
+            if len(str(mastodon)) < 18 or not mastodon.isdigit():
                 self.in_mastodon = indiv_output = combined_output = False
                 pass
             else:
