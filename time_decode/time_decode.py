@@ -65,8 +65,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '27 May 2021'
-__version__ = '3.1.1'
+__date__ = '18 Sep 2021'
+__version__ = '3.2.0'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 
@@ -2026,7 +2026,6 @@ class TimeDecoder(object):
         """Find date from provided timestamp"""
         this_year = int(dt.now().strftime('%Y'))
         states = []
-        #print('\nGuessing Date from Timestamp: ' + self.timestamp + '\r')
         print('Outputs which do not result in a date/time value are not displayed.\r')
         print('{}Most likely results (results within +/- 5 years) are highlighted.\n{}'.format(self.left_color, self.right_color))
         for func in self.ts_funcs:
@@ -2091,7 +2090,7 @@ def main():
     arg_parse.add_argument('--meta', help='convert from a Metasploit Payload UUID')
     arg_parse.add_argument('--sony', help='convert from a Sonyflake URL value')
     arg_parse.add_argument('--uu', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
-    arg_parse.add_argument('--guess', help='guess timestamp and output all reasonable possibilities')
+    arg_parse.add_argument('--guess', metavar='TS_VALUE', help='guess timestamp and output all reasonable possibilities')
     arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp - enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n- Without argument gives current date/time', nargs='?', const=now)
     arg_parse.add_argument('--version', '-v', action='version', version='%(prog)s ' + str(__version__))
 
