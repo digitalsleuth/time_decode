@@ -650,7 +650,7 @@ class TimeDecoder(object):
             chrome_time = ((dt_obj - self.epoch_1601).total_seconds() - int(dt_tz))
             chrome_micro = str(chrome_time).split('.')[1]
             if (len(nano_seconds) == 6 and len(chrome_micro) < 6) or len(nano_seconds) > 6 or len(nano_seconds) == 6:
-                chrome_time = str(chrome_time).replace(str(chrome_time).split('.')[1], str(micro_seconds))
+                chrome_time = str(chrome_time).replace(str(chrome_time).split('.')[1], str(micro_seconds).zfill(6))
                 self.out_chrome = str(chrome_time).replace('.', '')
             else:
                 self.out_chrome = str(int(chrome_time * 1000000))
