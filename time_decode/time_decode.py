@@ -1083,7 +1083,7 @@ class TimeDecoder(object):
                 self.in_fat = indiv_output = combined_output = False
                 pass
             else:
-                byte_swap = [fat[i:i+2] for i in range(0, len(self.fat), 2)]
+                byte_swap = [self.fat[i:i+2] for i in range(0, len(self.fat), 2)]
                 to_le = byte_swap[1]+byte_swap[0]+byte_swap[3]+byte_swap[2]
                 binary = '{0:032b}'.format(int(to_le, 16))
                 stamp = [binary[:7], binary[7:11], binary[11:16], binary[16:21], binary[21:27], binary[27:32]]
