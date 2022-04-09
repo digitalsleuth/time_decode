@@ -65,8 +65,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '18 Sep 2021'
-__version__ = '3.2.0'
+__date__ = '9 Apr 2022'
+__version__ = '3.2.1'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 
