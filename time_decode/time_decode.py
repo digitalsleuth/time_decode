@@ -65,8 +65,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '9 Apr 2022'
-__version__ = '3.2.1'
+__date__ = '12 Apr 2022'
+__version__ = '3.2.2'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 
 
@@ -929,7 +929,7 @@ class TimeDecoder(object):
         reason = "[!] Mac Absolute timestamps are 9 digits, commonly followed by a decimal and up to 6 digits for milliseconds"
         ts_type = self.ts_types['mac']
         try:
-            if "." not in self.mac or not ((len(mac.split(".")[0]) == 9) and (len(self.mac.split(".")[1]) in range(0, 7))) or not ''.join(self.mac.split(".")).isdigit():
+            if "." not in self.mac or not ((len(self.mac.split(".")[0]) == 9) and (len(self.mac.split(".")[1]) in range(0, 7))) or not ''.join(self.mac.split(".")).isdigit():
                 self.in_mac = indiv_output = combined_output = False
                 pass
             else:
