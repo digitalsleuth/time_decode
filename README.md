@@ -16,52 +16,65 @@ For python3, dateutil does not come pre-installed as a module. It will need to b
 
 This python script provides the following conversions from existing timestamps:
 
-- Unix Seconds
-- Unix Milliseconds
-- Windows 64 bit Hex (in Big Endian)
-- Windows 64 bit Hex (in Little Endian)
-- Google Chrome Time
-- Active Directory/LDAP time
-- Unix Hex 32 bit (in Big Endian)
-- Unix Hex 32 bit (in Little Endian)
-- Cookie Time (Low Value,High Value)
-- Windows OLE 64 bit double (in Big Endian)
-- Windows OLE 64 bit double (in Little Endian)
+- 128-bit SYSTEMTIME
+- 32-bit MS-DOS time, result is Local
+- Active Directory value
+- Bitwise decimal 10-digit
+- DHCP6 DUID
+- Discord URL
+- FAT Date + Time (wFat)
+- FILETIME
+- GMail Boundary
+- GMail Message ID
+- Google Chrome value
+- Google EI URL (thanks to http://cheeky4n6monkey.blogspot.com/2014/10/google-eid.html)
+- GPS
+- GSM
+- HFS(+) BE, HFS Local, HFS+ UTC
+- HFS(+) LE, HFS Local, HFS+ UTC
+- Hotmail
+- iOS 11
+- iOS Binary Plist (Mac Absolute + milli/nano seconds)
+- KSUID 27-character
+- KSUID 9-digit
 - Mac Absolute Time
 - Mac OS/HFS+ Decimal Time
-- HFS/HFS+ Time (in Big Endian)
-- HFS/HFS+ Time (in Little Endian)
-- MS-DOS 32 bit Hex
-- MS-DOS FAT Date + Time
-- Microsoft 128 bit SYSTEMTIME
-- Microsoft FILETIME
-- Microsoft Hotmail Time
-- Mozilla PRTime
-- OLE Automation Date/Time
-- iOS 11 Date/Time
-- Symantec AV timestamp
-- GPS timestamps
-- Google EI URL timestamp (thanks to http://cheeky4n6monkey.blogspot.com/2014/10/google-eid.html)
-- iOS Binary Plist (Mac Absolute + milli/nano seconds)
-- GSM Timestamps
-- Virtual Machine Snapshot timestamp (vmsd createTimeHigh / createTimeLow)
-- TikTok URL value Timestamp
-- Twitter URL value Timestamp
-- Discord URL value Timestamp
-- Mastodon URL value Timestamp
-- Sonyflake URL value Timestamp (Sony version of Twitter Snowflake)
-- KSUID values
+- Mastodon URL
 - Metasploit Payload UUID
-- UUID (commonly referred to as GUID)
+- Motorola's 6-byte
+- Mozilla's PRTime
+- MS Excel 1904 Date
+- .NET DateTime
+- Nokia 4-byte
+- Nokia 4-byte LE
+- Nokia S40 7-byte
+- Nokia S40 7-byte LE
+- OLE Automation Date
+- Samsung/LG 4-byte
+- Sonyflake URL (Sony version of Twitter Snowflake)
+- Symantec's 6-byte AV
+- TikTok URL
+- Twitter URL
+- Unix Hex 32-bit BE
+- Unix Hex 32-bit LE
+- Unix Milliseconds
+- Unix Seconds
+- UUID
+- VMWare Snapshot (.vmsd)
+- Windows 64-bit Hex BE
+- Windows 64-bit Hex LE
+- Windows Cookie Date (Low,High)
+- Windows OLE 64-bit BE (SRUM as well)
+- Windows OLE 64-bit LE
 
 Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bit Hex values and MS-DOS FAT Date+Time are also in Local Time of the source generating the timestamp. All other times, unless expressly mentioned, are in UTC.
 
 I have added a feature to 'guess' in what format the timestamp is that you've provided. This will run the timestamp you provide against all methods, and provide an output if human-readable.
 There is also the ability to convert a date-time to all of the aforementioned timestamps. Simply use the following command:
 
-`time_decode.py --timestamp "2017-06-02 13:14:15.678"`
+`time-decode --timestamp "2017-06-02 13:14:15.678"`
 or for timezones use:
-`time_decode.py --timestamp "2017-06-02 13:14:15 -5"`
+`time-decode --timestamp "2017-06-02 13:14:15 -5"`
 
 The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
