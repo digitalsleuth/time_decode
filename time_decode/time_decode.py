@@ -81,13 +81,13 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '3 Jun 2022'
-__version__ = '4.0.0'
+__date__ = '22 Jul 2022'
+__version__ = '4.1.0'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 __fmt__ = '%Y-%m-%d %H:%M:%S.%f'
 __red__ = "\033[1;31m"
 __clr__ = "\033[1;m"
-__types__ = 50
+__types__ = 51
 
 class Error(Exception):
     """Catch Exception"""
@@ -159,32 +159,33 @@ class TimeDecoder():
             self.nokia: self.from_nokia, self.nokiale: self.from_nokiale,
             self.ns40: self.from_ns40, self.ns40le: self.from_ns40le,
             self.bitdec: self.from_bitdec, self.bitdate: self.from_bitdate,
-            self.kstime: self.from_kstime
+            self.kstime: self.from_kstime, self.exfat: self.from_exfat
         }
         self.from_funcs = [
-            self.from_unix_sec, self.from_unix_milli, self.from_win_64_hex, self.from_win_64_hexle,
-            self.from_chrome, self.from_ad, self.from_unix_hex_32be, self.from_unix_hex_32le,
-            self.from_cookie, self.from_ole_be, self.from_ole_le, self.from_mac, self.from_hfs_dec,
-            self.from_hfs_be, self.from_hfs_le, self.from_msdos, self.from_fat, self.from_systime,
-            self.from_filetime, self.from_hotmail, self.from_prtime, self.from_ole_auto,
-            self.from_ms1904, self.from_ios_time, self.from_sym_time, self.from_gps_time,
-            self.from_eitime, self.from_bplist, self.from_gsm, self.from_vm, self.from_tiktok,
-            self.from_twitter, self.from_discord, self.from_ksuid, self.from_mastodon,
-            self.from_metasploit, self.from_sony, self.from_uuid, self.from_dhcp6,
-            self.from_dotnet, self.from_gbound, self.from_gmsgid, self.from_moto, self.from_nokia,
-            self.from_nokiale, self.from_ns40, self.from_ns40le, self.from_bitdec,
-            self.from_bitdate, self.from_kstime
+            self.from_ad, self.from_bitdate, self.from_bitdec, self.from_dhcp6, self.from_discord,
+            self.from_exfat, self.from_fat, self.from_gbound, self.from_gmsgid, self.from_chrome,
+            self.from_eitime, self.from_gps_time, self.from_gsm, self.from_hfs_be, self.from_hfs_le,
+            self.from_ios_time, self.from_bplist, self.from_ksuid, self.from_kstime, self.from_mac,
+            self.from_hfs_dec, self.from_mastodon, self.from_metasploit, self.from_systime,
+            self.from_filetime, self.from_hotmail, self.from_dotnet, self.from_moto,
+            self.from_prtime, self.from_msdos, self.from_ms1904, self.from_ns40, self.from_ns40le,
+            self.from_nokia, self.from_nokiale, self.from_ole_auto, self.from_sony,
+            self.from_sym_time, self.from_tiktok, self.from_twitter, self.from_unix_hex_32be,
+            self.from_unix_hex_32le, self.from_unix_sec, self.from_unix_milli, self.from_uuid,
+            self.from_vm, self.from_win_64_hex, self.from_win_64_hexle, self.from_cookie,
+            self.from_ole_be, self.from_ole_le
         ]
         self.to_funcs = [
-            self.to_unix_sec, self.to_unix_milli, self.to_win_64_hex, self.to_win_64_hexle,
-            self.to_chrome, self.to_ad, self.to_unix_hex_32be, self.to_unix_hex_32le,
-            self.to_cookie, self.to_ole_be, self.to_ole_le, self.to_mac, self.to_hfs_dec,
-            self.to_hfs_be, self.to_hfs_le, self.to_msdos, self.to_fat, self.to_systime,
-            self.to_filetime, self.to_hotmail, self.to_prtime, self.to_ole_auto, self.to_ms1904,
-            self.to_ios_time, self.to_sym_time, self.to_gps_time, self.to_eitime, self.to_bplist,
-            self.to_gsm, self.to_vm, self.to_mastodon, self.to_dhcp6, self.to_dotnet,
-            self.to_gbound, self.to_gmsgid, self.to_moto, self.to_nokia, self.to_nokiale,
-            self.to_ns40, self.to_ns40le, self.to_bitdec, self.to_bitdate, self.to_kstime
+            self.to_ad, self.to_bitdate, self.to_bitdec, self.to_dhcp6, self.to_exfat,
+            self.to_fat, self.to_gbound, self.to_gmsgid, self.to_chrome, self.to_eitime,
+            self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le, self.to_ios_time,
+            self.to_bplist, self.to_kstime, self.to_mac, self.to_hfs_dec, self.to_mastodon,
+            self.to_systime, self.to_filetime, self.to_hotmail, self.to_dotnet, self.to_moto,
+            self.to_prtime, self.to_msdos, self.to_ms1904, self.to_ns40, self.to_ns40le,
+            self.to_nokia, self.to_nokiale, self.to_ole_auto, self.to_sym_time,
+            self.to_unix_hex_32be, self.to_unix_hex_32le, self.to_unix_sec, self.to_unix_milli,
+            self.to_vm, self.to_win_64_hex, self.to_win_64_hexle, self.to_cookie,
+            self.to_ole_be, self.to_ole_le
         ]
         self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = None
         self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = None
@@ -197,7 +198,7 @@ class TimeDecoder():
         self.in_ksuid = self.in_mastodon = self.in_metasploit = self.in_sony = None
         self.in_uuid = self.in_dhcp6 = self.in_dotnet = self.in_gbound = self.in_gmsgid = None
         self.in_moto = self.in_nokia = self.in_nokiale = self.in_ns40 = self.in_ns40le = None
-        self.in_bitdec = self.in_bitdate = self.in_kstime = None
+        self.in_bitdec = self.in_bitdate = self.in_kstime = self.in_exfat = None
 
         self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_hotmail = None
         self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = None
@@ -209,6 +210,7 @@ class TimeDecoder():
         self.out_dhcp6 = self.out_mastodon = self.out_dotnet = self.out_gbound = None
         self.out_gmsgid = self.out_moto = self.out_nokia = self.out_nokiale = self.out_ns40 = None
         self.out_ns40le = self.out_bitdec = self.out_bitdate = self.out_kstime = None
+        self.out_exfat = None
 
         self.leapseconds = {
             10: [dt(1972, 1, 1), dt(1972, 7, 1)],
@@ -292,7 +294,8 @@ class TimeDecoder():
             'ns40le': 'Nokia S40 time LE:',
             'bitdec': 'Bitwise Decimal time:',
             'bitdate': 'BitDate time:',
-            'kstime': 'KSUID Decimal:'
+            'kstime': 'KSUID Decimal:',
+            'exfat': 'exFAT time:'
         }
 
     def run(self):
@@ -1039,6 +1042,64 @@ class TimeDecoder():
             ErrorHandler.handle(sys.exc_info())
             self.out_msdos = ts_output = False
         return self.out_msdos, ts_output
+
+    def from_exfat(self):
+        """Convert an exFAT timestamp (LE) to a date"""
+        reason = "[!] exFAT 32-bit timestamps are 8 hex characters (4 bytes)"
+        ts_type = self.ts_types['exfat']
+        try:
+            if not len(self.exfat) == 8 or not all(char in hexdigits for char in self.exfat):
+                self.in_exfat = indiv_output = combined_output = False
+            else:
+                binary = f'{int(self.exfat, 16):032b}'
+                stamp = [binary[:7], binary[7:11], binary[11:16],
+                         binary[16:21], binary[21:27], binary[27:32]]
+                for val in stamp[:]:
+                    dec = int(val, 2)
+                    stamp.remove(val)
+                    stamp.append(dec)
+                exfat_year = stamp[0] + 1980
+                exfat_month = stamp[1]
+                exfat_day = stamp[2]
+                exfat_hour = stamp[3]
+                exfat_min = stamp[4]
+                exfat_sec = stamp[5] * 2
+                if exfat_year not in range(1970, 2100) \
+                   or exfat_month not in range(1, 13) \
+                   or exfat_day not in range(1, 32) \
+                   or exfat_hour not in range(0, 24) \
+                   or exfat_min not in range(0, 60) \
+                   or exfat_sec not in range(0, 60) \
+                   or exfat_day not in range(1, monthrange(exfat_year, exfat_month)[1]):
+                    self.in_exfat = indiv_output = combined_output = False
+                else:
+                    dt_obj = dt(exfat_year, exfat_month, exfat_day, exfat_hour, exfat_min, exfat_sec)
+                    self.in_exfat = dt_obj.strftime(__fmt__)
+                    indiv_output = str(f"{ts_type} {self.in_exfat} Local")
+                    combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_exfat} Local{__clr__}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.in_exfat = indiv_output = combined_output = False
+        return self.in_exfat, indiv_output, combined_output, reason
+
+    def to_exfat(self):
+        """Convert a date to an exFAT timestamp (LE)"""
+        ts_type = self.ts_types['exfat']
+        try:
+            dt_obj = duparser.parse(self.timestamp)
+            year = f'{(dt_obj.year - 1980):07b}'
+            month = f'{dt_obj.month:04b}'
+            day = f'{dt_obj.day:05b}'
+            hour = f'{dt_obj.hour:05b}'
+            minute = f'{dt_obj.minute:06b}'
+            seconds = f'{int(dt_obj.second / 2):05b}'
+            self.out_exfat = str(struct.pack('>I',
+                                     int(year + month + day + hour + minute + seconds, 2)).hex())
+            ts_output = str(f"{ts_type}\t\t\t{self.out_exfat}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.out_exfat = ts_output = False
+        return self.out_exfat, ts_output
 
     def from_systime(self):
         """Convert a Microsoft 128-bit SYSTEMTIME timestamp to a date"""
@@ -2307,8 +2368,11 @@ class TimeDecoder():
                 bitdate_day = int(to_binary[16:21], 2)
                 bitdate_hr = int(to_binary[21:26], 2)
                 bitdate_min = int(to_binary[26:32], 2)
-                self.in_bitdate = (dt(bitdate_yr, bitdate_mon, bitdate_day,
-                                      bitdate_hr, bitdate_min).strftime(__fmt__))
+                try:
+                    self.in_bitdate = (dt(bitdate_yr, bitdate_mon, bitdate_day,
+                                          bitdate_hr, bitdate_min).strftime(__fmt__))
+                except ValueError:
+                    pass
                 indiv_output = str(f"{ts_type} {self.in_bitdate}")
                 combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_bitdate} Local{__clr__}")
         except Exception:
@@ -2416,62 +2480,63 @@ def main():
                                                     f'{str(__version__)} - supporting '
                                                     f'{str(__types__)} timestamps!',
                                         formatter_class=argparse.RawTextHelpFormatter)
-    arg_parse.add_argument('--unix', metavar='', help='convert from Unix Seconds')
-    arg_parse.add_argument('--umil', metavar='', help='convert from Unix Milliseconds')
-    arg_parse.add_argument('--wh', metavar='', help='convert from Windows 64-bit Hex BE')
-    arg_parse.add_argument('--whle', metavar='', help='convert from Windows 64-bit Hex LE')
-    arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome value')
+    arg_parse.add_argument('--guess', metavar='', help='guess format and output possibilities')
+    arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp\n'
+                           'enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n'
+                           'Without argument gives current date/time\n', nargs='?', const=now)
     arg_parse.add_argument('--active', metavar='', help='convert from Active Directory value')
-    arg_parse.add_argument('--uhbe', metavar='', help='convert from Unix Hex 32-bit BE')
-    arg_parse.add_argument('--uhle', metavar='', help='convert from Unix Hex 32-bit LE')
-    arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low,High)')
-    arg_parse.add_argument('--oleb', metavar='', help='convert from Windows OLE 64-bit BE, remove 0x & space\n'
-                           '- example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
-    arg_parse.add_argument('--olel', metavar='', help='convert from Windows OLE 64-bit LE')
-    arg_parse.add_argument('--mac', metavar='', help='convert from Mac Absolute Time')
-    arg_parse.add_argument('--hfsdec', metavar='', help='convert from Mac OS/HFS+ Decimal Time')
-    arg_parse.add_argument('--hfsbe', metavar='', help='convert from HFS(+) BE, HFS Local, HFS+ UTC')
-    arg_parse.add_argument('--hfsle', metavar='', help='convert from HFS(+) LE, HFS Local, HFS+ UTC')
-    arg_parse.add_argument('--fat', metavar='', help='convert from FAT Date + Time (wFat)')
-    arg_parse.add_argument('--msdos', metavar='', help='convert from 32-bit MS-DOS time, result is Local')
-    arg_parse.add_argument('--systime', metavar='', help='convert from 128-bit SYSTEMTIME value')
-    arg_parse.add_argument('--ft', metavar='', help='convert from FILETIME value')
-    arg_parse.add_argument('--hotmail', metavar='', help='convert from a Hotmail value')
-    arg_parse.add_argument('--pr', metavar='', help='convert from Mozilla\'s PRTime')
     arg_parse.add_argument('--auto', metavar='', help='convert from OLE Automation Date format')
-    arg_parse.add_argument('--ms1904', metavar='', help='convert from MS Excel 1904 Date format')
-    arg_parse.add_argument('--ios', metavar='', help='convert from iOS 11 value')
-    arg_parse.add_argument('--sym', metavar='', help='convert from Symantec\'s 6-byte AV value')
-    arg_parse.add_argument('--gps', metavar='', help='convert from a GPS value')
-    arg_parse.add_argument('--eitime', metavar='', help='convert from a Google EI URL value')
+    arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
+    arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
     arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist value')
-    arg_parse.add_argument('--gsm', metavar='', help='convert from a GSM value')
-    arg_parse.add_argument('--vm', metavar='', help='convert from a VMWare Snapshot (.vmsd) value\n'
-                           '- enter as "high value,low value"')
-    arg_parse.add_argument('--tiktok', metavar='', help='convert from a TikTok URL value')
-    arg_parse.add_argument('--twitter', metavar='', help='convert from a Twitter URL value')
-    arg_parse.add_argument('--discord', metavar='', help='convert from a Discord URL value')
-    arg_parse.add_argument('--ksuid', metavar='', help='convert from a KSUID 27-character value')
-    arg_parse.add_argument('--kstime', metavar='', help='convert from a KSUID 9-digit value')
-    arg_parse.add_argument('--mastodon', metavar='', help='convert from a Mastodon URL value')
-    arg_parse.add_argument('--meta', metavar='', help='convert from a Metasploit Payload UUID')
-    arg_parse.add_argument('--sony', metavar='', help='convert from a Sonyflake URL value')
-    arg_parse.add_argument('--uu', metavar='', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
+    arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome value')
+    arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low,High)')
     arg_parse.add_argument('--dhcp6', metavar='', help='convert from a DHCP6 DUID value')
+    arg_parse.add_argument('--discord', metavar='', help='convert from a Discord URL value')
     arg_parse.add_argument('--dotnet', metavar='', help='convert from a .NET DateTime value')
+    arg_parse.add_argument('--eitime', metavar='', help='convert from a Google EI URL value')
+    arg_parse.add_argument('--exfat', metavar='', help='convert from an exFAT 4-byte value')
+    arg_parse.add_argument('--fat', metavar='', help='convert from FAT Date + Time (wFat)')
+    arg_parse.add_argument('--ft', metavar='', help='convert from FILETIME value')
     arg_parse.add_argument('--gbound', metavar='', help='convert from a GMail Boundary value')
     arg_parse.add_argument('--gmsgid', metavar='', help='convert from a GMail Message ID value')
+    arg_parse.add_argument('--gps', metavar='', help='convert from a GPS value')
+    arg_parse.add_argument('--gsm', metavar='', help='convert from a GSM value')
+    arg_parse.add_argument('--hfsbe', metavar='', help='convert from HFS(+) BE, HFS Local, HFS+ UTC')
+    arg_parse.add_argument('--hfsle', metavar='', help='convert from HFS(+) LE, HFS Local, HFS+ UTC')
+    arg_parse.add_argument('--hfsdec', metavar='', help='convert from Mac OS/HFS+ Decimal Time')
+    arg_parse.add_argument('--hotmail', metavar='', help='convert from a Hotmail value')
+    arg_parse.add_argument('--ios', metavar='', help='convert from iOS 11 value')
+    arg_parse.add_argument('--kstime', metavar='', help='convert from a KSUID 9-digit value')
+    arg_parse.add_argument('--ksuid', metavar='', help='convert from a KSUID 27-character value')
+    arg_parse.add_argument('--mac', metavar='', help='convert from Mac Absolute Time')
+    arg_parse.add_argument('--mastodon', metavar='', help='convert from a Mastodon URL value')
+    arg_parse.add_argument('--meta', metavar='', help='convert from a Metasploit Payload UUID')
     arg_parse.add_argument('--moto', metavar='', help='convert from Motorola\'s 6-byte value')
+    arg_parse.add_argument('--ms1904', metavar='', help='convert from MS Excel 1904 Date format')
+    arg_parse.add_argument('--msdos', metavar='', help='convert from 32-bit MS-DOS time, result is Local')
     arg_parse.add_argument('--nokia', metavar='', help='convert from a Nokia 4-byte value')
     arg_parse.add_argument('--nokiale', metavar='', help='convert from a Nokia 4-byte LE value')
     arg_parse.add_argument('--ns40', metavar='', help='convert from a Nokia S40 7-byte value')
     arg_parse.add_argument('--ns40le', metavar='', help='convert from a Nokia S40 7-byte LE value')
-    arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
-    arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
-    arg_parse.add_argument('--guess', metavar='', help='guess format and output possibilities')
-    arg_parse.add_argument('--timestamp', metavar='DATE', help='convert date to every timestamp\n'
-                           'enter date as \"YYYY-MM-DD HH:MM:SS.f\" in 24h fmt.\n'
-                           'Without argument gives current date/time', nargs='?', const=now)
+    arg_parse.add_argument('--oleb', metavar='', help='convert from Windows OLE 64-bit BE, remove 0x & space\n'
+                           '- example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
+    arg_parse.add_argument('--olel', metavar='', help='convert from Windows OLE 64-bit LE')
+    arg_parse.add_argument('--pr', metavar='', help='convert from Mozilla\'s PRTime')
+    arg_parse.add_argument('--sony', metavar='', help='convert from a Sonyflake URL value')
+    arg_parse.add_argument('--sym', metavar='', help='convert from Symantec\'s 6-byte AV value')
+    arg_parse.add_argument('--systime', metavar='', help='convert from 128-bit SYSTEMTIME value')
+    arg_parse.add_argument('--tiktok', metavar='', help='convert from a TikTok URL value')
+    arg_parse.add_argument('--twitter', metavar='', help='convert from a Twitter URL value')
+    arg_parse.add_argument('--uhbe', metavar='', help='convert from Unix Hex 32-bit BE')
+    arg_parse.add_argument('--uhle', metavar='', help='convert from Unix Hex 32-bit LE')
+    arg_parse.add_argument('--unix', metavar='', help='convert from Unix Seconds')
+    arg_parse.add_argument('--umil', metavar='', help='convert from Unix Milliseconds')
+    arg_parse.add_argument('--uu', metavar='', help='convert from a UUID: 00000000-0000-0000-0000-000000000000')
+    arg_parse.add_argument('--vm', metavar='', help='convert from a VMWare Snapshot (.vmsd) value\n'
+                           '- enter as "high value,low value"')
+    arg_parse.add_argument('--wh', metavar='', help='convert from Windows 64-bit Hex BE')
+    arg_parse.add_argument('--whle', metavar='', help='convert from Windows 64-bit Hex LE')
     arg_parse.add_argument('--version', '-v', action='version', version=arg_parse.description)
 
     if len(sys.argv[1:]) == 0:

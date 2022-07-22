@@ -22,6 +22,7 @@ This python script provides the following conversions from existing timestamps:
 - Bitwise decimal 10-digit
 - DHCP6 DUID
 - Discord URL
+- exFAT
 - FAT Date + Time (wFat)
 - FILETIME
 - GMail Boundary
