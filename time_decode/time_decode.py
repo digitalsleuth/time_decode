@@ -82,7 +82,7 @@ init(autoreset=True)
 
 __author__ = 'Corey Forman'
 __date__ = '22 Jul 2022'
-__version__ = '4.1.0'
+__version__ = '4.1.1'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 __fmt__ = '%Y-%m-%d %H:%M:%S.%f'
 __red__ = "\033[1;31m"
@@ -2123,7 +2123,10 @@ class TimeDecoder():
                 int_diff = to_int ^ 4294967295
                 int_diff = ~ int_diff + 1
                 unix_ts = int_diff + (self.epochs[2050] - self.epochs[1970]).total_seconds()
-                self.in_nokia = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                if unix_ts < 0:
+                    pass
+                else:
+                    self.in_nokia = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
                 indiv_output = str(f"{ts_type} {self.in_nokia}")
                 combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_nokia} UTC{__clr__}")
         except Exception:
@@ -2165,7 +2168,10 @@ class TimeDecoder():
                 int_diff = to_int ^ 4294967295
                 int_diff = ~ int_diff + 1
                 unix_ts = int_diff + (self.epochs[2050] - self.epochs[1970]).total_seconds()
-                self.in_nokiale = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                if unix_ts < 0:
+                    pass
+                else:
+                    self.in_nokiale = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
                 indiv_output = str(f"{ts_type} {self.in_nokiale}")
                 combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_nokiale} UTC{__clr__}")
         except Exception:
