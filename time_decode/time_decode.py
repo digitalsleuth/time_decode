@@ -81,8 +81,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '22 Jul 2022'
-__version__ = '4.1.1'
+__date__ = '23 Jul 2022'
+__version__ = '4.1.2'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 __fmt__ = '%Y-%m-%d %H:%M:%S.%f'
 __red__ = "\033[1;31m"
@@ -821,10 +821,11 @@ class TimeDecoder():
             if len(str(self.hfsdec)) != 10 or not (self.hfsdec).isdigit():
                 self.in_hfs_dec = indiv_output = combined_output = False
             else:
-                self.in_hfs_dec = dt.utcfromtimestamp(float
-                                                      (int(self.hfsdec)
-                                                       - self.epochs['hfs_dec_sub'])
-                                                      ).strftime(__fmt__)
+                minus_epoch = float(int(self.hfsdec) - self.epochs['hfs_dec_sub'])
+                if minus_epoch < 0:
+                    pass
+                else:
+                    self.in_hfs_dec = dt.utcfromtimestamp(minus_epoch).strftime(__fmt__)
                 indiv_output = str(f"{ts_type} {self.in_hfs_dec} UTC")
                 combined_output = str(f"{__red__}{ts_type}\t{self.in_hfs_dec} UTC{__clr__}")
         except Exception:
@@ -2330,7 +2331,10 @@ class TimeDecoder():
                 bd_day = (full_ts >> 11) & 31
                 bd_hr = (full_ts >> 6) & 31
                 bd_min = full_ts & 63
-                self.in_bitdec = dt(bd_yr, bd_mon, bd_day, bd_hr, bd_min).strftime(__fmt__)
+                try:
+                    self.in_bitdec = dt(bd_yr, bd_mon, bd_day, bd_hr, bd_min).strftime(__fmt__)
+                except ValueError:
+                    pass
                 indiv_output = str(f"{ts_type} {self.in_bitdec}")
                 combined_output = str(f"{__red__}{ts_type}\t\t{self.in_bitdec}  ?{__clr__}")
         except Exception:
