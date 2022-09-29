@@ -63,6 +63,8 @@ Bitwise Decimal Timestamp
     Source of TS unknown, but since it's seemingly rare, it may be useful
 BitDate
     https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
+Cocoa
+    https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/DatesAndTimes/Articles/dtDates.html
 """
 
 from datetime import datetime as dt, timedelta
@@ -132,7 +134,8 @@ class TimeDecoder():
             'nano_2001': 1000000000,
             'active': 116444736000000000,
             'hfs_dec_sub': 2082844800,
-            'kstime': 1400000000
+            'kstime': 1400000000,
+            'cocoa': 978303600
         }
         self.single_funcs = {
             self.unix: self.from_unix_sec, self.umil: self.from_unix_milli,
@@ -159,7 +162,8 @@ class TimeDecoder():
             self.nokia: self.from_nokia, self.nokiale: self.from_nokiale,
             self.ns40: self.from_ns40, self.ns40le: self.from_ns40le,
             self.bitdec: self.from_bitdec, self.bitdate: self.from_bitdate,
-            self.kstime: self.from_kstime, self.exfat: self.from_exfat
+            self.kstime: self.from_kstime, self.exfat: self.from_exfat,
+            self.cocoa: self.from_cocoa
         }
         self.from_funcs = [
             self.from_ad, self.from_bitdate, self.from_bitdec, self.from_dhcp6, self.from_discord,
@@ -173,10 +177,10 @@ class TimeDecoder():
             self.from_sym_time, self.from_tiktok, self.from_twitter, self.from_unix_hex_32be,
             self.from_unix_hex_32le, self.from_unix_sec, self.from_unix_milli, self.from_uuid,
             self.from_vm, self.from_win_64_hex, self.from_win_64_hexle, self.from_cookie,
-            self.from_ole_be, self.from_ole_le
+            self.from_ole_be, self.from_ole_le, self.from_cocoa
         ]
         self.to_funcs = [
-            self.to_ad, self.to_bitdate, self.to_bitdec, self.to_dhcp6, self.to_exfat,
+            self.to_ad, self.to_bitdate, self.to_bitdec, self.to_cocoa, self.to_dhcp6, self.to_exfat,
             self.to_fat, self.to_gbound, self.to_gmsgid, self.to_chrome, self.to_eitime,
             self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le, self.to_ios_time,
             self.to_bplist, self.to_kstime, self.to_mac, self.to_hfs_dec, self.to_mastodon,
@@ -198,7 +202,7 @@ class TimeDecoder():
         self.in_ksuid = self.in_mastodon = self.in_metasploit = self.in_sony = None
         self.in_uuid = self.in_dhcp6 = self.in_dotnet = self.in_gbound = self.in_gmsgid = None
         self.in_moto = self.in_nokia = self.in_nokiale = self.in_ns40 = self.in_ns40le = None
-        self.in_bitdec = self.in_bitdate = self.in_kstime = self.in_exfat = None
+        self.in_bitdec = self.in_bitdate = self.in_kstime = self.in_exfat = self.in_cocoa = None
 
         self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_hotmail = None
         self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = None
@@ -210,7 +214,7 @@ class TimeDecoder():
         self.out_dhcp6 = self.out_mastodon = self.out_dotnet = self.out_gbound = None
         self.out_gmsgid = self.out_moto = self.out_nokia = self.out_nokiale = self.out_ns40 = None
         self.out_ns40le = self.out_bitdec = self.out_bitdate = self.out_kstime = None
-        self.out_exfat = None
+        self.out_exfat = self.out_cocoa = None
 
         self.leapseconds = {
             10: [dt(1972, 1, 1), dt(1972, 7, 1)],
@@ -253,6 +257,7 @@ class TimeDecoder():
             'ad': 'Active Directory/LDAP dt:',
             'unix_hex_32': 'Unix Hex 32-bit BE:',
             'unix_hex_32le': 'Unix Hex 32-bit LE:',
+            'cocoa': 'Cocoa Core Data:',
             'cookie': 'Windows Cookie Date:',
             'ole_be': 'Windows OLE 64-bit double BE:',
             'ole_le': 'Windows OLE 64-bit double LE:',
@@ -2449,6 +2454,42 @@ class TimeDecoder():
             self.out_kstime = ts_output = False
         return self.out_kstime, ts_output
 
+    def from_cocoa(self):
+        """Convert a Cocoa timestamp value to a date/time"""
+        reason = "[!] Cocoa error during conversion"
+        ts_type = self.ts_types['cocoa']
+        try:
+            if not len(self.cocoa) >= 9 or not self.cocoa.isdigit():
+                self.in_cocoa = indiv_output = combined_output = False
+            else:
+                cocoa_start = self.epochs[2001]
+                cocoa_as_unix = cocoa_start.timestamp() + timedelta(seconds=float(self.cocoa))
+                self.in_cocoa = dt.utcfromtimestamp(cocoa_as_unix).strftime(__fmt__)
+                indiv_output = str(f"{ts_type} {self.in_cocoa}")
+                combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_cocoa} UTC{__clr__}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.in_cocoa = indiv_output = combined_output = False
+        return self.in_cocoa, indiv_output, combined_output, reason
+
+    def to_cocoa(self):
+        """Convert date to a Cocoa timestamp"""
+        ts_type = self.ts_types['cocoa']
+        try:
+            dt_obj = duparser.parse(self.timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+            else:
+                dt_tz = 0
+            dt_obj = duparser.parse(self.timestamp, ignoretz=True)
+            unix_ts = str(int((dt_obj - self.epochs[1970]).total_seconds()) - int(dt_tz))
+            self.out_cocoa = str(int(unix_ts) - int(self.epochs['cocoa']))
+            ts_output = str(f"{ts_type}\t\t\t{self.out_cocoa}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.out_cocoa = ts_output = False
+        return self.out_cocoa, ts_output
+
     @staticmethod
     def date_range(start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
@@ -2499,6 +2540,7 @@ def main():
     arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
     arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
     arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist value')
+    arg_parse.add_argument('--cocoa', metavar='', help='convert from cocoa')
     arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome value')
     arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low,High)')
     arg_parse.add_argument('--dhcp6', metavar='', help='convert from a DHCP6 DUID value')
