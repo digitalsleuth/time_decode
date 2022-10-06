@@ -257,7 +257,6 @@ class TimeDecoder():
             'ad': 'Active Directory/LDAP dt:',
             'unix_hex_32': 'Unix Hex 32-bit BE:',
             'unix_hex_32le': 'Unix Hex 32-bit LE:',
-            'cocoa': 'Cocoa Core Data:',
             'cookie': 'Windows Cookie Date:',
             'ole_be': 'Windows OLE 64-bit double BE:',
             'ole_le': 'Windows OLE 64-bit double LE:',
@@ -277,7 +276,7 @@ class TimeDecoder():
             'symtime': 'Symantec AV time:',
             'gpstime': 'GPS time:',
             'eitime': 'Google EI time:',
-            'bplist': 'iOS Binary Plist time:',
+            'bplist': 'iOS Binary Plist/Cocoa time:',
             'gsm': 'GSM time:',
             'vm': 'VMSD time:',
             'tiktok': 'TikTok time:',
@@ -1552,10 +1551,11 @@ class TimeDecoder():
             self.out_eitime = ts_output = False
         return self.out_eitime, ts_output
 
-    def from_bplist(self):
+    def from_bplist(self, ts_type=None):
         """Convert a Binary Plist timestamp to a date"""
-        reason = "[!] Binary Plist timestamps are 9 digits"
-        ts_type = self.ts_types['bplist']
+        reason = "[!] Binary Plist/Cocoa timestamps are 9 digits"
+        if not ts_type:
+            ts_type = self.ts_types['bplist']
         try:
             if not len(self.bplist) == 9 or not self.bplist.isdigit():
                 self.in_bplist = indiv_output = combined_output = False
@@ -1580,7 +1580,7 @@ class TimeDecoder():
                 dt_tz = 0
             dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             self.out_bplist = str(int((dt_obj - self.epochs[2001]).total_seconds()) - int(dt_tz))
-            ts_output = str(f"{ts_type}\t\t{self.out_bplist}")
+            ts_output = str(f"{ts_type}\t{self.out_bplist}")
         except Exception:
             ErrorHandler.handle(sys.exc_info())
             self.out_bplist = ts_output = False
@@ -2456,40 +2456,12 @@ class TimeDecoder():
 
     def from_cocoa(self):
         """Convert a Cocoa timestamp value to a date/time"""
-        reason = "[!] Cocoa error during conversion"
-        ts_type = self.ts_types['cocoa']
-        try:
-            if not len(self.cocoa) >= 9 or not self.cocoa.isdigit():
-                self.in_cocoa = indiv_output = combined_output = False
-            else:
-                cocoa_start = self.epochs[2001]
-                cocoa_as_unix = cocoa_start.timestamp() + timedelta(seconds=float(self.cocoa))
-                self.in_cocoa = dt.utcfromtimestamp(cocoa_as_unix).strftime(__fmt__)
-                indiv_output = str(f"{ts_type} {self.in_cocoa}")
-                combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_cocoa} UTC{__clr__}")
-        except Exception:
-            ErrorHandler.handle(sys.exc_info())
-            self.in_cocoa = indiv_output = combined_output = False
-        return self.in_cocoa, indiv_output, combined_output, reason
+        return self.from_bplist()
 
     def to_cocoa(self):
         """Convert date to a Cocoa timestamp"""
-        ts_type = self.ts_types['cocoa']
-        try:
-            dt_obj = duparser.parse(self.timestamp)
-            if hasattr(dt_obj.tzinfo, '_offset'):
-                dt_tz = dt_obj.tzinfo._offset.total_seconds()
-            else:
-                dt_tz = 0
-            dt_obj = duparser.parse(self.timestamp, ignoretz=True)
-            unix_ts = str(int((dt_obj - self.epochs[1970]).total_seconds()) - int(dt_tz))
-            self.out_cocoa = str(int(unix_ts) - int(self.epochs['cocoa']))
-            ts_output = str(f"{ts_type}\t\t\t{self.out_cocoa}")
-        except Exception:
-            ErrorHandler.handle(sys.exc_info())
-            self.out_cocoa = ts_output = False
-        return self.out_cocoa, ts_output
-
+        return self.to_bplist()
+    
     @staticmethod
     def date_range(start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
