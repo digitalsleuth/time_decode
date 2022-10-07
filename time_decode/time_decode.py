@@ -2510,7 +2510,7 @@ def main():
     arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
     arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
     arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist value')
-    arg_parse.add_argument('--cocoa', metavar='', help='convert from Cocoa')
+    arg_parse.add_argument('--cocoa', metavar='', help='convert from Cocoa Core')
     arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome value')
     arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low,High)')
     arg_parse.add_argument('--dhcp6', metavar='', help='convert from a DHCP6 DUID value')
