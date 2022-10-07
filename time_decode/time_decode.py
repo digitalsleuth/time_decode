@@ -23,9 +23,10 @@ Microsoft FILETIME:
     https://support.microsoft.com/en-ca/help/188768/info-working-with-the-filetime-structure
 Microsoft Active Directory/LDAP Timestamp:
     https://docs.microsoft.com/en-us/windows/win32/adschema/a-lastlogontimestamp
-bplist timestamp / Mac Absolute
+bplist timestamp / Mac Absolute / Cocoa Core
     https://developer.apple.com/documentation/corefoundation/cfabsolutetime
     https://developer.apple.com/documentation/foundation/nsdate
+    https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/DatesAndTimes/Articles/dtDates.html
 GSM Timestamps:
     https://en.wikipedia.org/wiki/GSM_03.40
     http://seven-bit-forensics.blogspot.com/2014/02/decoding-gsmsms-timestamps.html
@@ -63,8 +64,6 @@ Bitwise Decimal Timestamp
     Source of TS unknown, but since it's seemingly rare, it may be useful
 BitDate
     https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
-Cocoa
-    https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/DatesAndTimes/Articles/dtDates.html
 """
 
 from datetime import datetime as dt, timedelta
@@ -135,7 +134,6 @@ class TimeDecoder():
             'active': 116444736000000000,
             'hfs_dec_sub': 2082844800,
             'kstime': 1400000000,
-            'cocoa': 978303600
         }
         self.single_funcs = {
             self.unix: self.from_unix_sec, self.umil: self.from_unix_milli,
@@ -2512,7 +2510,7 @@ def main():
     arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
     arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
     arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist value')
-    arg_parse.add_argument('--cocoa', metavar='', help='convert from cocoa')
+    arg_parse.add_argument('--cocoa', metavar='', help='convert from Cocoa')
     arg_parse.add_argument('--chrome', metavar='', help='convert from Google Chrome value')
     arg_parse.add_argument('--cookie', metavar='', help='convert from Windows Cookie Date (Low,High)')
     arg_parse.add_argument('--dhcp6', metavar='', help='convert from a DHCP6 DUID value')
