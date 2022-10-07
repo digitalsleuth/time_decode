@@ -17,7 +17,7 @@
 - HFS(+) LE, HFS Local, HFS+ UTC
 - Hotmail
 - iOS 11
-- iOS Binary Plist
+- iOS Binary Plist/Cocoa Core
 - KSUID 27-character
 - KSUID 9-digit
 - Mac Absolute Time

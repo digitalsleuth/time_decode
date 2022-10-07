@@ -35,7 +35,7 @@ This python script provides the following conversions from existing timestamps:
 - HFS(+) LE, HFS Local, HFS+ UTC
 - Hotmail
 - iOS 11
-- iOS Binary Plist (Mac Absolute + milli/nano seconds)
+- iOS Binary Plist/Cocoa Core (Mac Absolute + milli/nano seconds)
 - KSUID 27-character
 - KSUID 9-digit
 - Mac Absolute Time
