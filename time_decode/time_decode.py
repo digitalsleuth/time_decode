@@ -1551,11 +1551,11 @@ class TimeDecoder():
             self.out_eitime = ts_output = False
         return self.out_eitime, ts_output
 
-    def from_bplist(self, ts_type=None):
+    def from_bplist(self):
         """Convert a Binary Plist timestamp to a date"""
         reason = "[!] Binary Plist/Cocoa timestamps are 9 digits"
-        if not ts_type:
-            ts_type = self.ts_types['bplist']
+        ts_type = self.ts_types['bplist']
+
         try:
             if not len(self.bplist) == 9 or not self.bplist.isdigit():
                 self.in_bplist = indiv_output = combined_output = False
@@ -2461,7 +2461,7 @@ class TimeDecoder():
     def to_cocoa(self):
         """Convert date to a Cocoa timestamp"""
         return self.to_bplist()
-    
+
     @staticmethod
     def date_range(start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
