@@ -20,6 +20,8 @@ This python script provides the following conversions from existing timestamps:
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
 - Bitwise decimal 10-digit
+- BPlist (as NSDate)
+- Cocoa Core (as NSDate)
 - DHCP6 DUID
 - Discord URL
 - exFAT
@@ -34,11 +36,10 @@ This python script provides the following conversions from existing timestamps:
 - HFS(+) BE, HFS Local, HFS+ UTC
 - HFS(+) LE, HFS Local, HFS+ UTC
 - Hotmail
-- iOS 11
-- iOS Binary Plist (Mac Absolute + milli/nano seconds)
+- iOS 11+ (as NSDate)
 - KSUID 27-character
 - KSUID 9-digit
-- Mac Absolute Time
+- Mac Absolute Time (as NSDate)
 - Mac OS/HFS+ Decimal Time
 - Mastodon URL
 - Metasploit Payload UUID
@@ -80,4 +81,4 @@ or for timezones use:
 The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
 
-References/Sources for all material can be found in the docstrings in the python script.
+References/Sources for all material can also be found in the docstrings in the python script.

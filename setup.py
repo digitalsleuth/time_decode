@@ -6,7 +6,7 @@ with open("README.md", encoding='utf8') as readme:
 
 setup(
     name="time_decode",
-    version="4.1.2",
+    version="4.2",
     author="Corey Forman",
     license="MIT",
     url="https://github.com/digitalsleuth/time_decode",

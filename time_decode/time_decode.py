@@ -23,7 +23,7 @@ Microsoft FILETIME:
     https://support.microsoft.com/en-ca/help/188768/info-working-with-the-filetime-structure
 Microsoft Active Directory/LDAP Timestamp:
     https://docs.microsoft.com/en-us/windows/win32/adschema/a-lastlogontimestamp
-bplist timestamp / Mac Absolute
+bplist timestamp / Mac Absolute / iOS / Cocoa
     https://developer.apple.com/documentation/corefoundation/cfabsolutetime
     https://developer.apple.com/documentation/foundation/nsdate
 GSM Timestamps:
@@ -81,8 +81,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '23 Jul 2022'
-__version__ = '4.1.2'
+__date__ = '2 Nov 2022'
+__version__ = '4.2'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 __fmt__ = '%Y-%m-%d %H:%M:%S.%f'
 __red__ = "\033[1;31m"
@@ -140,15 +140,14 @@ class TimeDecoder():
             self.chrome: self.from_chrome, self.active: self.from_ad,
             self.uhbe: self.from_unix_hex_32be, self.uhle: self.from_unix_hex_32le,
             self.cookie: self.from_cookie, self.oleb: self.from_ole_be,
-            self.olel: self.from_ole_le, self.mac: self.from_mac,
+            self.olel: self.from_ole_le, self.nsdate: self.from_nsdate,
             self.hfsdec: self.from_hfs_dec, self.hfsbe: self.from_hfs_be,
             self.hfsle: self.from_hfs_le, self.fat: self.from_fat,
             self.msdos: self.from_msdos, self.systime: self.from_systime,
             self.ft: self.from_filetime, self.hotmail: self.from_hotmail,
             self.pr: self.from_prtime, self.auto: self.from_ole_auto,
-            self.ms1904: self.from_ms1904, self.ios: self.from_ios_time,
-            self.sym: self.from_sym_time, self.gps: self.from_gps_time,
-            self.eitime: self.from_eitime, self.bplist: self.from_bplist,
+            self.ms1904: self.from_ms1904, self.sym: self.from_sym_time,
+            self.gps: self.from_gps_time, self.eitime: self.from_eitime,
             self.gsm: self.from_gsm, self.vm: self.from_vm, self.tiktok: self.from_tiktok,
             self.twitter: self.from_twitter, self.discord: self.from_discord,
             self.ksuid: self.from_ksuid, self.mastodon: self.from_mastodon,
@@ -165,7 +164,7 @@ class TimeDecoder():
             self.from_ad, self.from_bitdate, self.from_bitdec, self.from_dhcp6, self.from_discord,
             self.from_exfat, self.from_fat, self.from_gbound, self.from_gmsgid, self.from_chrome,
             self.from_eitime, self.from_gps_time, self.from_gsm, self.from_hfs_be, self.from_hfs_le,
-            self.from_ios_time, self.from_bplist, self.from_ksuid, self.from_kstime, self.from_mac,
+            self.from_nsdate, self.from_ksuid, self.from_kstime,
             self.from_hfs_dec, self.from_mastodon, self.from_metasploit, self.from_systime,
             self.from_filetime, self.from_hotmail, self.from_dotnet, self.from_moto,
             self.from_prtime, self.from_msdos, self.from_ms1904, self.from_ns40, self.from_ns40le,
@@ -178,16 +177,16 @@ class TimeDecoder():
         self.to_funcs = [
             self.to_ad, self.to_bitdate, self.to_bitdec, self.to_dhcp6, self.to_exfat,
             self.to_fat, self.to_gbound, self.to_gmsgid, self.to_chrome, self.to_eitime,
-            self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le, self.to_ios_time,
-            self.to_bplist, self.to_kstime, self.to_mac, self.to_hfs_dec, self.to_mastodon,
-            self.to_systime, self.to_filetime, self.to_hotmail, self.to_dotnet, self.to_moto,
-            self.to_prtime, self.to_msdos, self.to_ms1904, self.to_ns40, self.to_ns40le,
-            self.to_nokia, self.to_nokiale, self.to_ole_auto, self.to_sym_time,
+            self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le, self.to_kstime,
+            self.to_hfs_dec, self.to_mastodon, self.to_systime, self.to_filetime, self.to_hotmail,
+            self.to_dotnet, self.to_moto, self.to_prtime, self.to_msdos, self.to_ms1904,
+            self.to_ns40, self.to_ns40le, self.to_nokia, self.to_nokiale, self.to_bplist,
+            self.to_ios_time, self.to_mac, self.to_ole_auto, self.to_sym_time,
             self.to_unix_hex_32be, self.to_unix_hex_32le, self.to_unix_sec, self.to_unix_milli,
             self.to_vm, self.to_win_64_hex, self.to_win_64_hexle, self.to_cookie,
             self.to_ole_be, self.to_ole_le
         ]
-        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = None
+        self.in_unix_sec = self.in_unix_milli = self.in_windows_hex_64 = self.in_nsdate = None
         self.in_windows_hex_le = self.in_chrome = self.in_ad = self.in_unix_hex_32 = None
         self.in_unix_hex_32le = self.in_cookie = self.in_ole_be = self.in_ole_le = None
         self.in_mac = self.in_hfs_dec = self.in_hfs_be = self.in_hfs_le = self.in_fat = None
@@ -256,7 +255,7 @@ class TimeDecoder():
             'cookie': 'Windows Cookie Date:',
             'ole_be': 'Windows OLE 64-bit double BE:',
             'ole_le': 'Windows OLE 64-bit double LE:',
-            'mac': 'Mac Absolute Time:',
+            'mac': 'NSDate - Mac Absolute time:',
             'hfs_dec': 'Mac OS/HFS+ Decimal Time:',
             'hfs_be': 'HFS/HFS+ 32-bit Hex BE:',
             'hfs_le': 'HFS/HFS+ 32-bit Hex LE:',
@@ -268,11 +267,11 @@ class TimeDecoder():
             'prtime': 'Mozilla PRTime:',
             'ole_auto': 'OLE Automation Date:',
             'ms1904': 'MS Excel 1904 Date:',
-            'iostime': 'iOS 11 Date:',
+            'iostime': 'NSDate - iOS 11+:',
             'symtime': 'Symantec AV time:',
             'gpstime': 'GPS time:',
             'eitime': 'Google EI time:',
-            'bplist': 'iOS Binary Plist time:',
+            'bplist': 'NSDate - Binary Plist / Cocoa:',
             'gsm': 'GSM time:',
             'vm': 'VMSD time:',
             'tiktok': 'TikTok time:',
@@ -776,25 +775,40 @@ class TimeDecoder():
             self.out_ole_le = ts_output = False
         return self.out_ole_le, ts_output
 
-    def from_mac(self):
-        """Convert a Mac Absolute timestamp to a date - Also used for Safari plist timestamps"""
-        reason = "[!] Mac Absolute values are 9 digits, a decimal, and up to 6 digits for ms"
-        ts_type = self.ts_types['mac']
+    def from_nsdate(self):
+        """Convert an Apple NSDate timestamp (Mac Absolute, BPlist, Cocoa, iOS) to a date"""
+        reason = "[!] NSDates are either 9, 9.6, or 15-19 digits in length"
+        val_type = ''
         try:
-            if "." not in self.mac or not \
-                ((len(self.mac.split(".")[0]) == 9) and
-                 (len(self.mac.split(".")[1]) in range(0, 7))) or not \
-                 ''.join(self.mac.split(".")).isdigit():
-                self.in_mac = indiv_output = combined_output = False
+            if "." in self.nsdate and \
+                ((len(self.nsdate.split(".")[0]) == 9) and
+                 (len(self.nsdate.split(".")[1]) in range(0,7))) and \
+                 ''.join(self.nsdate.split(".")).isdigit():
+                ts_type = self.ts_types['mac']
+                val_type = 'mac'
+            elif len(self.nsdate) == 9 and self.nsdate.isdigit():
+                ts_type = self.ts_types['bplist']
+                val_type = 'bplist'
+            elif len(self.nsdate) in range(15, 19) and self.nsdate.isdigit():
+                ts_type = self.ts_types['iostime']
+                val_type = 'iostime'
             else:
-                dt_obj = self.epochs[2001] + timedelta(seconds=float(self.mac))
-                self.in_mac = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type} {self.in_mac} UTC")
-                combined_output = str(f"{__red__}{ts_type}\t\t{self.in_mac} UTC{__clr__}")
+                self.in_nsdate = indiv_output = combined_output = False
+                pass
+            if val_type in ('mac', 'bplist'):
+                dt_obj = self.epochs[2001] + timedelta(seconds=float(self.nsdate))
+                self.in_nsdate = dt_obj.strftime(__fmt__)
+                indiv_output = str(f"{ts_type} {self.in_nsdate}")
+                combined_output = str(f"{__red__}{ts_type}\t{self.in_nsdate} UTC{__clr__}")
+            elif val_type == 'iostime':
+                dt_obj = (int(self.nsdate) / int(self.epochs['nano_2001'])) + 978307200
+                self.in_nsdate = dt.utcfromtimestamp(dt_obj).strftime(__fmt__)
+                indiv_output = str(f"{ts_type} {self.in_nsdate} UTC")
+                combined_output = str(f"{__red__}{ts_type}\t\t{self.in_nsdate} UTC{__clr__}")
         except Exception:
             ErrorHandler.handle(sys.exc_info())
-            self.in_mac = indiv_output = combined_output = False
-        return self.in_mac, indiv_output, combined_output, reason
+            self.in_nsdate = indiv_output = combined_output = False
+        return self.in_nsdate, indiv_output, combined_output, reason
 
     def to_mac(self):
         """Convert a date to a Mac Absolute timestamp"""
@@ -806,8 +820,10 @@ class TimeDecoder():
             else:
                 dt_tz = 0
             dt_obj = duparser.parse(self.timestamp, ignoretz=True)
-            self.out_mac = str(int((dt_obj - self.epochs[2001]).total_seconds() - int(dt_tz)))
-            ts_output = str(f"{ts_type}\t\t{self.out_mac}")
+            mac_ts = int(((dt_obj - self.epochs[2001]).total_seconds()
+                           - int(dt_tz)) * self.epochs["nano_2001"]) / 1000000000
+            self.out_mac = str(f'{mac_ts:.6f}')
+            ts_output = str(f"{ts_type}\t{self.out_mac}")
         except Exception:
             ErrorHandler.handle(sys.exc_info())
             self.out_mac = ts_output = False
@@ -1362,23 +1378,6 @@ class TimeDecoder():
             self.out_ms1904 = ts_output = False
         return self.out_ms1904, ts_output
 
-    def from_ios_time(self):
-        """Convert an iOS 11 timestamp to a date"""
-        reason = "[!] iOS 11 timestamps are typically 15-18 digits"
-        ts_type = self.ts_types['iostime']
-        try:
-            if not len(self.ios) in range(15, 19) or not self.ios.isdigit():
-                self.in_iostime = indiv_output = combined_output = False
-            else:
-                dt_obj = (int(self.ios) / int(self.epochs['nano_2001'])) + 978307200
-                self.in_iostime = dt.utcfromtimestamp(dt_obj).strftime(__fmt__)
-                indiv_output = str(f"{ts_type} {self.in_iostime} UTC")
-                combined_output = str(f"{__red__}{ts_type}\t\t\t{self.in_iostime} UTC{__clr__}")
-        except Exception:
-            ErrorHandler.handle(sys.exc_info())
-            self.in_iostime = indiv_output = combined_output = False
-        return self.in_iostime, indiv_output, combined_output, reason
-
     def to_ios_time(self):
         """Convert a date to an iOS 11 timestamp"""
         ts_type = self.ts_types['iostime']
@@ -1391,7 +1390,7 @@ class TimeDecoder():
             dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             self.out_iostime = str(int(((dt_obj - self.epochs[2001]).total_seconds() -
                                         int(dt_tz)) * self.epochs['nano_2001']))
-            ts_output = str(f"{ts_type}\t\t\t{self.out_iostime}")
+            ts_output = str(f"{ts_type}\t\t{self.out_iostime}")
         except Exception:
             ErrorHandler.handle(sys.exc_info())
             self.out_iostime = ts_output = False
@@ -1547,23 +1546,6 @@ class TimeDecoder():
             self.out_eitime = ts_output = False
         return self.out_eitime, ts_output
 
-    def from_bplist(self):
-        """Convert a Binary Plist timestamp to a date"""
-        reason = "[!] Binary Plist timestamps are 9 digits"
-        ts_type = self.ts_types['bplist']
-        try:
-            if not len(self.bplist) == 9 or not self.bplist.isdigit():
-                self.in_bplist = indiv_output = combined_output = False
-            else:
-                dt_obj = self.epochs[2001] + timedelta(seconds=float(self.bplist))
-                self.in_bplist = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type} {self.in_bplist}")
-                combined_output = str(f"{__red__}{ts_type}\t\t{self.in_bplist} UTC{__clr__}")
-        except Exception:
-            ErrorHandler.handle(sys.exc_info())
-            self.in_bplist = indiv_output = combined_output = False
-        return self.in_bplist, indiv_output, combined_output, reason
-
     def to_bplist(self):
         """Convert a date to a Binary Plist timestamp"""
         ts_type = self.ts_types['bplist']
@@ -1575,7 +1557,7 @@ class TimeDecoder():
                 dt_tz = 0
             dt_obj = duparser.parse(self.timestamp, ignoretz=True)
             self.out_bplist = str(int((dt_obj - self.epochs[2001]).total_seconds()) - int(dt_tz))
-            ts_output = str(f"{ts_type}\t\t{self.out_bplist}")
+            ts_output = str(f"{ts_type}\t{self.out_bplist}")
         except Exception:
             ErrorHandler.handle(sys.exc_info())
             self.out_bplist = ts_output = False
@@ -2529,6 +2511,7 @@ def main():
     arg_parse.add_argument('--nokiale', metavar='', help='convert from a Nokia 4-byte LE value')
     arg_parse.add_argument('--ns40', metavar='', help='convert from a Nokia S40 7-byte value')
     arg_parse.add_argument('--ns40le', metavar='', help='convert from a Nokia S40 7-byte LE value')
+    arg_parse.add_argument('--nsdate', metavar='', help='convert from an Apple NSDate (iOS, BPList, Cocoa, Mac Absolute)')
     arg_parse.add_argument('--oleb', metavar='', help='convert from Windows OLE 64-bit BE, remove 0x & space\n'
                            '- example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb')
     arg_parse.add_argument('--olel', metavar='', help='convert from Windows OLE 64-bit LE')

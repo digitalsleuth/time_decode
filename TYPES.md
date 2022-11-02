@@ -2,6 +2,8 @@
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
 - Bitwise decimal 10-digit
+- BPlist (as NSDate)
+- Cocoa Core (as NSDate)
 - DHCP6 DUID
 - Discord URL
 - exFAT
@@ -16,11 +18,10 @@
 - HFS(+) BE, HFS Local, HFS+ UTC
 - HFS(+) LE, HFS Local, HFS+ UTC
 - Hotmail
-- iOS 11
-- iOS Binary Plist
+- iOS 11+ (as NSDate)
 - KSUID 27-character
 - KSUID 9-digit
-- Mac Absolute Time
+- Mac Absolute Time (as NSDate)
 - Mac OS/HFS+ Decimal Time
 - Mastodon URL
 - Metasploit Payload UUID
