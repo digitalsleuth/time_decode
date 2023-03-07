@@ -81,13 +81,13 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = 'Corey Forman'
-__date__ = '2 Nov 2022'
-__version__ = '4.2'
+__date__ = '7 Mar 2023'
+__version__ = '5.0'
 __description__ = 'Python 3 CLI Date Time Conversion Tool'
 __fmt__ = '%Y-%m-%d %H:%M:%S.%f'
 __red__ = "\033[1;31m"
 __clr__ = "\033[1;m"
-__types__ = 51
+__types__ = 52
 
 class Error(Exception):
     """Catch Exception"""
@@ -158,13 +158,14 @@ class TimeDecoder():
             self.nokia: self.from_nokia, self.nokiale: self.from_nokiale,
             self.ns40: self.from_ns40, self.ns40le: self.from_ns40le,
             self.bitdec: self.from_bitdec, self.bitdate: self.from_bitdate,
-            self.kstime: self.from_kstime, self.exfat: self.from_exfat
+            self.kstime: self.from_kstime, self.exfat: self.from_exfat,
+            self.biomehex: self.from_biomehex
         }
         self.from_funcs = [
-            self.from_ad, self.from_bitdate, self.from_bitdec, self.from_dhcp6, self.from_discord,
-            self.from_exfat, self.from_fat, self.from_gbound, self.from_gmsgid, self.from_chrome,
-            self.from_eitime, self.from_gps_time, self.from_gsm, self.from_hfs_be, self.from_hfs_le,
-            self.from_nsdate, self.from_ksuid, self.from_kstime,
+            self.from_ad, self.from_biomehex, self.from_bitdate, self.from_bitdec, self.from_dhcp6,
+            self.from_discord, self.from_exfat, self.from_fat, self.from_gbound, self.from_gmsgid,
+            self.from_chrome, self.from_eitime, self.from_gps_time, self.from_gsm, self.from_hfs_be,
+            self.from_hfs_le, self.from_nsdate, self.from_ksuid, self.from_kstime,
             self.from_hfs_dec, self.from_mastodon, self.from_metasploit, self.from_systime,
             self.from_filetime, self.from_hotmail, self.from_dotnet, self.from_moto,
             self.from_prtime, self.from_msdos, self.from_ms1904, self.from_ns40, self.from_ns40le,
@@ -175,13 +176,13 @@ class TimeDecoder():
             self.from_ole_be, self.from_ole_le
         ]
         self.to_funcs = [
-            self.to_ad, self.to_bitdate, self.to_bitdec, self.to_dhcp6, self.to_exfat,
-            self.to_fat, self.to_gbound, self.to_gmsgid, self.to_chrome, self.to_eitime,
-            self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le, self.to_kstime,
-            self.to_hfs_dec, self.to_mastodon, self.to_systime, self.to_filetime, self.to_hotmail,
-            self.to_dotnet, self.to_moto, self.to_prtime, self.to_msdos, self.to_ms1904,
-            self.to_ns40, self.to_ns40le, self.to_nokia, self.to_nokiale, self.to_bplist,
-            self.to_ios_time, self.to_mac, self.to_ole_auto, self.to_sym_time,
+            self.to_ad, self.to_biomehex, self.to_bitdate, self.to_bitdec, self.to_dhcp6,
+            self.to_exfat, self.to_fat, self.to_gbound, self.to_gmsgid, self.to_chrome,
+            self.to_eitime, self.to_gps_time, self.to_gsm, self.to_hfs_be, self.to_hfs_le,
+            self.to_kstime, self.to_hfs_dec, self.to_mastodon, self.to_systime, self.to_filetime,
+            self.to_hotmail, self.to_dotnet, self.to_moto, self.to_prtime, self.to_msdos,
+            self.to_ms1904, self.to_ns40, self.to_ns40le, self.to_nokia, self.to_nokiale,
+            self.to_bplist, self.to_ios_time, self.to_mac, self.to_ole_auto, self.to_sym_time,
             self.to_unix_hex_32be, self.to_unix_hex_32le, self.to_unix_sec, self.to_unix_milli,
             self.to_vm, self.to_win_64_hex, self.to_win_64_hexle, self.to_cookie,
             self.to_ole_be, self.to_ole_le
@@ -197,7 +198,7 @@ class TimeDecoder():
         self.in_ksuid = self.in_mastodon = self.in_metasploit = self.in_sony = None
         self.in_uuid = self.in_dhcp6 = self.in_dotnet = self.in_gbound = self.in_gmsgid = None
         self.in_moto = self.in_nokia = self.in_nokiale = self.in_ns40 = self.in_ns40le = None
-        self.in_bitdec = self.in_bitdate = self.in_kstime = self.in_exfat = None
+        self.in_bitdec = self.in_bitdate = self.in_kstime = self.in_exfat = self.in_biomehex = None
 
         self.out_unix_sec = self.out_unix_milli = self.out_windows_hex_64 = self.out_hotmail = None
         self.out_windows_hex_le = self.out_chrome = self.out_adtime = self.out_unix_hex_32 = None
@@ -209,7 +210,7 @@ class TimeDecoder():
         self.out_dhcp6 = self.out_mastodon = self.out_dotnet = self.out_gbound = None
         self.out_gmsgid = self.out_moto = self.out_nokia = self.out_nokiale = self.out_ns40 = None
         self.out_ns40le = self.out_bitdec = self.out_bitdate = self.out_kstime = None
-        self.out_exfat = None
+        self.out_exfat = self.out_biomehex = None
 
         self.leapseconds = {
             10: [dt(1972, 1, 1), dt(1972, 7, 1)],
@@ -294,7 +295,8 @@ class TimeDecoder():
             'bitdec': 'Bitwise Decimal time:',
             'bitdate': 'BitDate time:',
             'kstime': 'KSUID Decimal:',
-            'exfat': 'exFAT time:'
+            'exfat': 'exFAT time:',
+            'biomehex': 'Apple Biome hex time:'
         }
 
     def run(self):
@@ -2431,6 +2433,47 @@ class TimeDecoder():
             self.out_kstime = ts_output = False
         return self.out_kstime, ts_output
 
+    def from_biomehex(self):
+        """Convert an Apple Biome Hex value to a date - from Little Endian"""
+        reason = "[!] Apple Biome Hex value is 8 bytes (16 chars) long"
+        ts_type = self.ts_types['biomehex']
+        try:
+            biomehex = str(self.biomehex)
+            if len(biomehex) != 16 or not all(char in hexdigits for char in biomehex):
+                self.in_biomehex = indiv_output = combined_output = False
+            else:
+                if biomehex[:2] == '41':
+                    biomehex = ''.join([biomehex[i:i+2] for i in range(0, len(biomehex), 2)][::-1])
+                byte_val = bytes.fromhex(str(biomehex))
+                nsdate_val = struct.unpack('<d', byte_val)[0]
+                dt_obj = self.epochs[2001] + timedelta(seconds=float(nsdate_val))
+                self.in_biomehex = dt_obj.strftime(__fmt__)
+                indiv_output = str(f"{ts_type} {self.in_biomehex} UTC")
+                combined_output = str(f"{__red__}{ts_type}\t\t{self.in_biomehex} UTC{__clr__}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.in_biomehex = indiv_output = combined_output = False
+        return self.in_biomehex, indiv_output, combined_output, reason
+
+    def to_biomehex(self):
+        """Convert a date/time to an Apple Biome Hex value"""
+        ts_type = self.ts_types['biomehex']
+        try:
+            dt_obj = duparser.parse(self.timestamp)
+            if hasattr(dt_obj.tzinfo, '_offset'):
+                dt_tz = dt_obj.tzinfo._offset.total_seconds()
+            else:
+                dt_tz = 0
+            dt_obj = duparser.parse(self.timestamp, ignoretz=True)
+            bplist_stamp = str(float((dt_obj - self.epochs[2001]).total_seconds()) - int(dt_tz))
+            byte_biome = struct.pack('>d', float(bplist_stamp))
+            self.out_biomehex = bytes.hex(byte_biome)
+            ts_output = str(f"{ts_type}\t\t{self.out_biomehex}")
+        except Exception:
+            ErrorHandler.handle(sys.exc_info())
+            self.out_biomehex = ts_output = False
+        return self.out_biomehex, ts_output
+
     @staticmethod
     def date_range(start, end, check_date):
         """Check if date is in range of start and end, return True if it is"""
@@ -2478,6 +2521,7 @@ def main():
                            'Without argument gives current date/time\n', nargs='?', const=now)
     arg_parse.add_argument('--active', metavar='', help='convert from Active Directory value')
     arg_parse.add_argument('--auto', metavar='', help='convert from OLE Automation Date format')
+    arg_parse.add_argument('--biomehex', metavar='', help='convert from an Apple Biome hex value')
     arg_parse.add_argument('--bitdate', metavar='', help='convert from a Samsung/LG 4-byte value')
     arg_parse.add_argument('--bitdec', metavar='', help='convert from a bitwise decimal 10-digit value')
     arg_parse.add_argument('--bplist', metavar='', help='convert from an iOS Binary Plist value')

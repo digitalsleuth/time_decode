@@ -1,6 +1,7 @@
 - 128-bit SYSTEMTIME
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
+- Apple Biome hex value
 - Bitwise decimal 10-digit
 - BPlist (as NSDate)
 - Cocoa Core (as NSDate)
