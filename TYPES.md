@@ -2,6 +2,7 @@
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
 - Apple Biome hex value
+- Apple Biome 64-bit decimal value
 - Bitwise decimal 10-digit
 - BPlist (as NSDate)
 - Cocoa Core (as NSDate)
@@ -35,6 +36,7 @@
 - Nokia S40 7-byte
 - Nokia S40 7-byte LE
 - OLE Automation Date
+- S32 Encoded (BlueSky Social)
 - Samsung/LG 4-byte
 - Sonyflake URL
 - Symantec's 6-byte AV

@@ -20,6 +20,7 @@ This python script provides the following conversions from existing timestamps:
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
 - Apple Biome hex format
+- Apple Biome 64-bit decimal format
 - Bitwise decimal 10-digit
 - BPlist (as NSDate)
 - Cocoa Core (as NSDate)
@@ -53,6 +54,7 @@ This python script provides the following conversions from existing timestamps:
 - Nokia S40 7-byte
 - Nokia S40 7-byte LE
 - OLE Automation Date
+- S32 Encoded (BlueSky Social timestamp)
 - Samsung/LG 4-byte
 - Sonyflake URL (Sony version of Twitter Snowflake)
 - Symantec's 6-byte AV
@@ -75,9 +77,9 @@ Note that HFS times are in Local Time, where HFS+ times are in UTC. MS-DOS 32 bi
 I have added a feature to 'guess' in what format the timestamp is that you've provided. This will run the timestamp you provide against all methods, and provide an output if human-readable.
 There is also the ability to convert a date-time to all of the aforementioned timestamps. Simply use the following command:
 
-`time-decode --timestamp "2023-03-07 13:14:15.678"`
+`time-decode --timestamp "2023-04-27 16:14:15.678"`
 or for timezones use:
-`time-decode --timestamp "2023-03-07 13:14:15 -5"`
+`time-decode --timestamp "2023-04-27 16:14:15 -5"`
 
 The date/time you enter should be in the "YYYY-mm-dd HH:MM:SS.sss" format with the double-quote included, but does not require milli/micro/nano seconds to work. (Double-quote required for Windows Python)
 If anyone has any other timestamps they think should be added to this tool, please let me know.
