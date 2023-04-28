@@ -87,8 +87,8 @@ from colorama import init
 init(autoreset=True)
 
 __author__ = "Corey Forman"
-__date__ = "27 Apr 2023"
-__version__ = "6.0"
+__date__ = "28 Apr 2023"
+__version__ = "6.1.0"
 __description__ = "Python 3 CLI Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -318,7 +318,8 @@ def analyze(args):
                 print("[!] No valid dates found. Check your input and try again")
             else:
                 print(
-                    "[+] Outputs which do NOT result in a date/time value are NOT displayed\r"
+                    f"[+] Guessing timestamp format for {args.guess}\n"
+                    f"[+] Outputs which do NOT result in a date/time value are NOT displayed\r"
                 )
                 if len(full_list) == 1:
                     dt_text = "date"
@@ -2258,6 +2259,7 @@ def from_uuid(timestamp):
                 unix_ts = int((u_data.time / 10000) - 12219292800000)
                 in_uuid = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
             else:
+                in_uuid = indiv_output = combined_output = False
                 pass
             indiv_output = str(f"{ts_type}: {in_uuid}")
             combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_uuid} UTC{__clr__}")
@@ -2500,11 +2502,12 @@ def from_nokia(timestamp):
             int_diff = ~int_diff + 1
             unix_ts = int_diff + (epochs[2050] - epochs[1970]).total_seconds()
             if unix_ts < 0:
+                in_nokia = indiv_output = combined_output = False
                 pass
             else:
                 in_nokia = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_nokia}")
-            combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_nokia} UTC{__clr__}")
+                indiv_output = str(f"{ts_type}: {in_nokia}")
+                combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_nokia} UTC{__clr__}")
     except Exception:
         handle(sys.exc_info())
         in_nokia = indiv_output = combined_output = False
@@ -2548,11 +2551,12 @@ def from_nokiale(timestamp):
             int_diff = ~int_diff + 1
             unix_ts = int_diff + (epochs[2050] - epochs[1970]).total_seconds()
             if unix_ts < 0:
+                in_nokiale = indiv_output = combined_output = False
                 pass
             else:
                 in_nokiale = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_nokiale}")
-            combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_nokiale} UTC{__clr__}")
+                indiv_output = str(f"{ts_type}: {in_nokiale}")
+                combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_nokiale} UTC{__clr__}")
     except Exception:
         handle(sys.exc_info())
         in_nokiale = indiv_output = combined_output = False
@@ -2791,6 +2795,7 @@ def from_bitdate(timestamp):
                     bitdate_yr, bitdate_mon, bitdate_day, bitdate_hr, bitdate_min
                 ).strftime(__fmt__)
             except ValueError:
+                in_bitdate = indiv_output = combined_output = False
                 pass
             indiv_output = str(f"{ts_type}: {in_bitdate}")
             combined_output = str(
@@ -3209,18 +3214,22 @@ def main():
     arg_parse = argparse.ArgumentParser(
         description=f"Time Decoder and Converter v"
         f"{str(__version__)} - supporting "
-        f"{str(__types__)} timestamps!",
+        f"{str(__types__)} timestamps!\n\n"
+        f"Some timestamps are only part of the entire value, and as such, full\n"
+        f"timestamps may not be generated based on only the date/time portion.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     arg_parse.add_argument(
-        "--guess", metavar="", help="guess format and output possibilities"
+        "--guess",
+        metavar="TIMESTAMP",
+        help="guess the timestamp format and output possibilities"
     )
     arg_parse.add_argument(
         "--timestamp",
         metavar="DATE",
         help="convert date to every timestamp\n"
-        'enter date as "YYYY-MM-DD HH:MM:SS.f" in 24h fmt.\n'
-        "Without argument gives current date/time\n",
+        'enter date as "YYYY-MM-DD HH:MM:SS.f" in 24h fmt\n'
+        "Without DATE argument, will convert current date/time\n",
         nargs="?",
         const=now,
     )
@@ -3269,7 +3278,7 @@ def main():
     arg_parse.add_argument(
         "--fat", metavar="", help="convert from FAT Date + Time (wFat)"
     )
-    arg_parse.add_argument("--ft", metavar="", help="convert from FILETIME value")
+    arg_parse.add_argument("--ft", metavar="", help="convert from a FILETIME value")
     arg_parse.add_argument(
         "--gbound", metavar="", help="convert from a GMail Boundary value"
     )
@@ -3279,16 +3288,16 @@ def main():
     arg_parse.add_argument("--gps", metavar="", help="convert from a GPS value")
     arg_parse.add_argument("--gsm", metavar="", help="convert from a GSM value")
     arg_parse.add_argument(
-        "--hfsbe", metavar="", help="convert from HFS(+) BE, HFS Local, HFS+ UTC"
+        "--hfsbe", metavar="", help="convert from HFS(+) BE (HFS=Local, HFS+=UTC)"
     )
     arg_parse.add_argument(
-        "--hfsle", metavar="", help="convert from HFS(+) LE, HFS Local, HFS+ UTC"
+        "--hfsle", metavar="", help="convert from HFS(+) LE (HFS=Local, HFS+=UTC)"
     )
     arg_parse.add_argument(
-        "--hfsdec", metavar="", help="convert from Mac OS/HFS+ Decimal Time"
+        "--hfsdec", metavar="", help="convert from a Mac OS/HFS+ Decimal value"
     )
     arg_parse.add_argument("--hotmail", metavar="", help="convert from a Hotmail value")
-    arg_parse.add_argument("--ios", metavar="", help="convert from iOS 11 value")
+    arg_parse.add_argument("--ios", metavar="", help="convert from an iOS 11 value")
     arg_parse.add_argument(
         "--kstime", metavar="", help="convert from a KSUID 9-digit value"
     )
@@ -3331,15 +3340,15 @@ def main():
     arg_parse.add_argument(
         "--oleb",
         metavar="",
-        help="convert from Windows OLE 64-bit BE, remove 0x & space\n"
+        help="convert from a Windows OLE 64-bit BE value, remove 0x & space\n"
         "- example from SRUM: 0x40e33f5d 0x97dfe8fb should be 40e33f5d97dfe8fb",
     )
     arg_parse.add_argument(
-        "--olel", metavar="", help="convert from Windows OLE 64-bit LE"
+        "--olel", metavar="", help="convert from a Windows OLE 64-bit LE value"
     )
     arg_parse.add_argument("--pr", metavar="", help="convert from Mozilla's PRTime")
     arg_parse.add_argument(
-        "--s32", metavar="", help="convert from an S32-encoded timestamp"
+        "--s32", metavar="", help="convert from an S32-encoded value"
     )
     arg_parse.add_argument(
         "--sony", metavar="", help="convert from a Sonyflake URL value"
@@ -3348,7 +3357,7 @@ def main():
         "--sym", metavar="", help="convert from Symantec's 6-byte AV value"
     )
     arg_parse.add_argument(
-        "--systime", metavar="", help="convert from 128-bit SYSTEMTIME value"
+        "--systime", metavar="", help="convert from a 128-bit SYSTEMTIME value"
     )
     arg_parse.add_argument(
         "--tiktok", metavar="", help="convert from a TikTok URL value"
