@@ -1,4 +1,4 @@
-![PyPI - Version](https://img.shields.io/pypi/v/time_decode?logo=python&label=Latest%20pypi%20Release)
+![PyPI - Version](https://img.shields.io/pypi/v/time_decode?logo=python&label=Latest%20pypi%20Release&labelColor=white)
 
 # Time Decode
 A Python 3 timestamp and date decoder/encoder. 
