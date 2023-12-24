@@ -1,3 +1,5 @@
+![PyPI - Version](https://img.shields.io/pypi/v/time_decode?logo=python&label=Latest%20pypi%20Release)
+
 # Time Decode
 A Python 3 timestamp and date decoder/encoder. 
 
@@ -54,7 +56,7 @@ This python script provides the following conversions from existing timestamps:
 - Nokia S40 7-byte
 - Nokia S40 7-byte LE
 - OLE Automation Date
-- S32 Encoded (BlueSky Social timestamp)
+- S32 Encoded (Bluesky Social timestamp)
 - Samsung/LG 4-byte
 - Sonyflake URL (Sony version of Twitter Snowflake)
 - Symantec's 6-byte AV
