@@ -1,4 +1,5 @@
 *.egg-info
+binaries
 dist
 debian
 __pycache__
