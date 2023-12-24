@@ -29,5 +29,5 @@ setup(
             'time-decode = time_decode.time_decode:main'
         ]
     },
-    package_data={'': ['README.md, LICENSE']}
+    package_data={'': ['README.md, LICENSE, REFERENCES.md']}
 )
