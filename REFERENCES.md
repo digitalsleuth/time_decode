@@ -41,24 +41,24 @@
 - https://github.com/rapid7/metasploit-framework/wiki/Payload-UUID
 - https://github.com/DidierStevens/Beta/blob/master/metatool.py
 ### DHCPv6 DUID:
-   https://tools.ietf.org/html/rfc3315#page-19
-Microsoft .NET DateTime Struct (not .NET Framework)
-    https://docs.microsoft.com/en-us/dotnet/api/system.datetime?view=net-6.0
-GMail Boundary Timestamp
-    https://www.metaspike.com/gmail-mime-boundary-delimiter-timestamps/
-GMail Message ID Timestamp
-    https://www.metaspike.com/dates-gmail-message-id-thread-id-timestamps/
-Nokia Timestamp
-    http://www.doubleblak.com/m/blogPosts.php?id=7#nokia
-Nokia S40 Timestamp
-    https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
-Bitwise Decimal Timestamp
-    https://stackoverflow.com/questions/19185106/unknown-timestamp-reference-date/19553622#19553622
-    Source of TS unknown, but since it's seemingly rare, it may be useful
-BitDate
-    https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
-Apple Biome data
-    https://blog.d204n6.com/2022/09/ios-16-now-you-c-it-now-you-dont.html
-S32 encoding and decoding - BlueSky Social Network
-    https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/tid.ts
-    https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/util.ts
+- https://tools.ietf.org/html/rfc3315#page-19
+### Microsoft .NET DateTime Struct (not .NET Framework)
+- https://docs.microsoft.com/en-us/dotnet/api/system.datetime?view=net-6.0
+### GMail Boundary Timestamp
+- https://www.metaspike.com/gmail-mime-boundary-delimiter-timestamps/
+### GMail Message ID Timestamp
+- https://www.metaspike.com/dates-gmail-message-id-thread-id-timestamps/
+### Nokia Timestamp
+- http://www.doubleblak.com/m/blogPosts.php?id=7#nokia
+### Nokia S40 Timestamp
+- https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
+### Bitwise Decimal Timestamp
+- https://stackoverflow.com/questions/19185106/unknown-timestamp-reference-date/19553622#19553622
+- Source of TS unknown, but since it's seemingly rare, it may be useful
+### BitDate
+- https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
+### Apple Biome data
+- https://blog.d204n6.com/2022/09/ios-16-now-you-c-it-now-you-dont.html
+### S32 encoding and decoding - BlueSky Social Network
+- https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/tid.ts
+- https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/util.ts
