@@ -1,5 +1,9 @@
 *.egg-info
 binaries
+build
 dist
 debian
 __pycache__
+*.spec
+td.ico
+version.txt

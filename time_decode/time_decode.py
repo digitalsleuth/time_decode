@@ -49,8 +49,8 @@ from PyQt6.QtWidgets import (
 init(autoreset=True)
 
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "23 Dec 2023"
-__version__ = "7.0.0"
+__date__ = "14 Jan 2024"
+__version__ = "7.0.2"
 __description__ = "Python 3 CLI Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -272,6 +272,9 @@ class ExampleWindow(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.timestampTable.setStyleSheet("border: none")
+        self.timestampTable.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        )
         layout.addWidget(self.timestampTable)
         layout.addWidget(self.examplesLabel)
         self.setLayout(layout)
@@ -291,7 +294,7 @@ class AboutWindow(QWidget):
         layout.addWidget(self.logoLabel, 0, 2)
         self.setStyleSheet("background-color: white; color: black;")
         self.setFixedHeight(100)
-        self.setFixedWidth(335)
+        self.setFixedWidth(350)
         self.setLayout(layout)
 
 
@@ -299,14 +302,14 @@ class UiDialog:
     def setupUi(self, Dialog):
         if not Dialog.objectName():
             Dialog.setObjectName(__appname__)
-        d_width = 500
+        d_width = 560
         d_height = 100
         Dialog.setFixedWidth(d_width)
         Dialog.setMinimumHeight(d_height)
         Dialog.setStyleSheet(
             """
-            QMainWindow { 
-                background-color: white; color: black; 
+            QMainWindow {
+                background-color: white; color: black;
             }
         """
         )
@@ -348,15 +351,13 @@ class UiDialog:
         self.timestampFormats.view().setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        types = []
-        for type in ts_types:
-            types.append(ts_types[type][0])
-        types.sort(key=str.casefold)
-        for type in types:
-            self.timestampFormats.addItem(type)
-        structures = []
-        for structure in ts_types:
-            structures.append(f"{ts_types[structure][1]}: {ts_types[structure][2]}")
+        types = {}
+        for this_type in ts_types:
+            types[ts_types[this_type][0]] = ts_types[this_type][1]
+        types = dict(sorted(types.items(), key=lambda item: item[0].casefold()))
+        for k, v in enumerate(types.items()):
+            self.timestampFormats.addItem(v[0])
+            self.timestampFormats.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
         self.outputTable = QTableWidget(Dialog)
         self.outputTable.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
@@ -367,7 +368,7 @@ class UiDialog:
         )
         self.outputTable.setVisible(False)
         self.outputTable.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
         )
         self.outputTable.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
@@ -376,24 +377,24 @@ class UiDialog:
         self.guessButton.setObjectName("guessButton")
         self.guessButton.setEnabled(True)
         self.guessButton.setHidden(False)
-        self.guessButton.setGeometry(QRect(405, 28, 70, 24))
+        self.guessButton.setGeometry(QRect(440, 28, 70, 24))
         self.guessButton.setStyleSheet("background-color: white; color: black;")
         self.guessButton.clicked.connect(self.guess_decode)
         self.toallButton = QPushButton(Dialog)
         self.toallButton.setObjectName("toallButton")
         self.toallButton.setEnabled(False)
         self.toallButton.setHidden(True)
-        self.toallButton.setGeometry(QRect(405, 28, 70, 24))
+        self.toallButton.setGeometry(QRect(440, 28, 70, 24))
         self.toallButton.setStyleSheet("background-color: white; color: black;")
         self.toallButton.clicked.connect(self.encode_toall)
         self.encodeRadio = QRadioButton(Dialog)
         self.encodeRadio.setObjectName("encodeRadio")
-        self.encodeRadio.setGeometry(QRect(320, 30, 70, 20))
+        self.encodeRadio.setGeometry(QRect(340, 30, 72, 20))
         self.encodeRadio.setStyleSheet("background-color: white; color: black;")
         self.encodeRadio.toggled.connect(self._encode_select)
         self.decodeRadio = QRadioButton(Dialog)
         self.decodeRadio.setObjectName("decodeRadio")
-        self.decodeRadio.setGeometry(QRect(245, 30, 70, 20))
+        self.decodeRadio.setGeometry(QRect(245, 30, 72, 20))
         self.decodeRadio.setChecked(True)
         self.decodeRadio.setStyleSheet("background-color: white; color: black;")
         self.decodeRadio.toggled.connect(self._decode_select)
@@ -453,7 +454,8 @@ class UiDialog:
 
     def _reset_table(self):
         self.adjustSize()
-        self.setFixedWidth(500)
+        self.setFixedWidth(560)
+        self.setFixedHeight(100)
         self.outputTable.setVisible(False)
         self.outputTable.clearContents()
         self.outputTable.setColumnCount(0)
@@ -479,7 +481,6 @@ class UiDialog:
 
     def display_output(self, ts_list):
         self._reset_table()
-        self.setFixedWidth(540)
         self.outputTable.setVisible(True)
         self.outputTable.setColumnCount(2)
         self.outputTable.setAlternatingRowColors(True)
@@ -503,7 +504,7 @@ class UiDialog:
             )
         self.outputTable.horizontalHeader().setFixedHeight(1)
         self.outputTable.verticalHeader().setFixedWidth(1)
-        self.outputTable.setFixedWidth(530)
+        self.outputTable.setFixedWidth(540)
         self.outputTable.setColumnWidth(0, 220)
         self.outputTable.setColumnWidth(1, 300)
         self.outputTable.resizeRowsToContents()
@@ -512,8 +513,14 @@ class UiDialog:
             self.outputTable.rowHeight(row)
             for row in range(self.outputTable.rowCount())
         )
-        self.outputTable.setFixedHeight(total_row_height + 1)
-        self.resize(self.width(), self.height() + int(total_row_height + 1))
+        self.outputTable.setFixedHeight(400)
+        if total_row_height > 500:
+            self.setFixedHeight(500)
+            self.outputTable.verticalScrollBar().show()
+        else:
+            self.setFixedHeight(self.height() + int(total_row_height + 1))
+            self.outputTable.verticalScrollBar().hide()
+        self.setFixedWidth(560)
 
     def go_function(self):
         results = {}
@@ -663,7 +670,7 @@ class UiDialog:
                     ts_types[structure][1],
                     ts_types[structure][2],
                 )
-            structures = sorted(structures.items(), key=lambda item: item[1][0].lower())
+            structures = sorted(structures.items(), key=lambda item: item[1][0].casefold())
             self.examplesWindow = ExampleWindow()
             self.examplesWindow.examplesLabel.setGeometry(QRect(0, 0, 200, 24))
             self.examplesWindow.examplesLabel.setText(
@@ -679,12 +686,14 @@ class UiDialog:
                 self.examplesWindow.timestampTable.insertRow(row)
                 widget0 = QTableWidgetItem(example[1][0])
                 widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                widget0.setToolTip(example[0])
                 widget1 = QTableWidgetItem(example[1][1])
                 widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.examplesWindow.timestampTable.setItem(row, 0, widget0)
                 self.examplesWindow.timestampTable.item(row, 0).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
+                self.examplesWindow.timestampTable.item(row, 0)
                 self.examplesWindow.timestampTable.setItem(row, 1, widget1)
                 self.examplesWindow.timestampTable.item(row, 1).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -704,8 +713,8 @@ class UiDialog:
             self.examplesWindow.timestampTable.setShowGrid(True)
             self.examplesWindow.timestampTable.setAlternatingRowColors(True)
             self.examplesWindow.setFixedSize(
-                self.examplesWindow.timestampTable.horizontalHeader().length() + 24,
-                self.examplesWindow.timestampTable.verticalHeader().length() + 48,
+                self.examplesWindow.timestampTable.horizontalHeader().length() + 48,
+                400,
             )
             self.examplesWindow.show()
         else:
@@ -2062,16 +2071,19 @@ def from_systemtime(timestamp):
             for i in converted:
                 dec = int(i, 16)
                 stamp.append(dec)
-            dt_obj = dt(
-                stamp[0],
-                stamp[1],
-                stamp[3],
-                stamp[4],
-                stamp[5],
-                stamp[6],
-                stamp[7] * 1000,
-            )
-            in_systemtime = dt_obj.strftime(__fmt__)
+            if (stamp[0] > 3000) or (stamp[1] > 12) or (stamp[2] > 31):
+                in_systemtime = indiv_output = combined_output = False
+            else:
+                dt_obj = dt(
+                    stamp[0],
+                    stamp[1],
+                    stamp[3],
+                    stamp[4],
+                    stamp[5],
+                    stamp[6],
+                    stamp[7] * 1000,
+                )
+                in_systemtime = dt_obj.strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_systemtime} UTC")
             combined_output = str(f"{__red__}{ts_type}:\t{in_systemtime} UTC{__clr__}")
     except Exception:
@@ -2844,7 +2856,10 @@ def from_tiktok(timestamp):
             in_tiktok = indiv_output = combined_output = False
         else:
             unix_ts = int(timestamp) >> 32
-            in_tiktok = dt.utcfromtimestamp(float(unix_ts)).strftime(__fmt__)
+            if unix_ts > 32536850399:
+                in_tiktok = indiv_output = combined_output = False
+            else:
+                in_tiktok = dt.utcfromtimestamp(float(unix_ts)).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_tiktok}")
             combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_tiktok} UTC{__clr__}")
     except Exception:
@@ -2861,7 +2876,10 @@ def from_twitter(timestamp):
             in_twitter = indiv_output = combined_output = False
         else:
             unix_ts = (int(timestamp) >> 22) + 1288834974657
-            in_twitter = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
+            if unix_ts > 32536850399:
+                in_twitter = indiv_output = combined_output = False
+            else:
+                in_twitter = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_twitter}")
             combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_twitter} UTC{__clr__}")
     except Exception:
@@ -2878,7 +2896,10 @@ def from_discord(timestamp):
             in_discord = indiv_output = combined_output = False
         else:
             unix_ts = (int(timestamp) >> 22) + 1420070400000
-            in_discord = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
+            if unix_ts > 32536850399:
+                in_discord = indiv_output = combined_output = False
+            else:
+                in_discord = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_discord}")
             combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_discord} UTC{__clr__}")
     except Exception:
@@ -3107,7 +3128,10 @@ def from_dotnet(timestamp):
         else:
             dotnet_offset = int((epochs[1970] - epochs[1]).total_seconds()) * 10000000
             dotnet_to_umil = (int(timestamp) - dotnet_offset) / 10000000
-            in_dotnet = dt.utcfromtimestamp(dotnet_to_umil).strftime(__fmt__)
+            if dotnet_to_umil < 0:
+                in_dotnet = indiv_output = combined_output = False
+            else:
+                in_dotnet = dt.utcfromtimestamp(dotnet_to_umil).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_dotnet} UTC")
             combined_output = str(f"{__red__}{ts_type}:\t{in_dotnet} UTC{__clr__}")
     except Exception:
@@ -3447,7 +3471,7 @@ def from_ns40le(timestamp):
     """Convert a little-endian Nokia S40 7-byte value to a date/time"""
     ts_type, reason, _ = ts_types["ns40le"]
     try:
-        if len(str(timestamp)) != 14 or not all(
+        if not len(str(timestamp)) == 14 or not all(
             char in hexdigits for char in timestamp
         ):
             in_ns40le = indiv_output = combined_output = False
@@ -3466,6 +3490,8 @@ def from_ns40le(timestamp):
                 ns40_val[str(each_key)] = int(ns40_val[str(each_key)], 16)
             if ns40_val["yr"] > 9999:
                 in_ns40le = indiv_output = combined_output = False
+            if (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
+                in_ns40 = indiv_output = combined_output = False            
             else:
                 in_ns40le = dt(
                     ns40_val["yr"],

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["debian*", "binaries*", "build*", "dist*"]
+
+[project]
+name = "time-decode"
+version = "7.0.2"
+dependencies = [
+    "PyQt6",
+    "python-dateutil",
+    "colorama"
+]
+requires-python = ">=3.6"
+authors = [
+  {name = "Corey Forman (digitalsleuth)", email = "github@digitalsleuth.ca"}
+]
+maintainers = [
+  {name = "Corey Forman (digitalsleuth)", email = "github@digitalsleuth.ca"}
+]
+description = "Python 3 timestamp decode/encode tool"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["digital forensics", "dfir", "timestamp", "decode", "encode"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+
+[project.urls]
+Homepage = "https://github.com/digitalsleuth/time_decode"
+References = "https://github.com/digitalsleuth/time_decode/blob/master/REFERENCES.md"
+
+[project.scripts]
+time-decode = "time_decode.time_decode:main"
