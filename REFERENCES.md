@@ -62,3 +62,7 @@
 ### S32 encoding and decoding - BlueSky Social Network
 - https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/tid.ts
 - https://github.com/bluesky-social/atproto/blob/main/packages/common-web/src/util.ts
+### Apache Cookie values
+- https://github.com/apache/httpd/blob/trunk/modules/metadata/mod_usertrack.c#L99
+### LEB128 hex value (thanks to Justin Lazenby for identifying this one!)
+- https://en.wikipedia.org/wiki/LEB128

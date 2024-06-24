@@ -21,6 +21,7 @@ This python script provides the following conversions from existing timestamps:
 - 128-bit SYSTEMTIME
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
+- Apache Cookie
 - Apple Biome 64-bit decimal format
 - Apple Biome hex format
 - Bitwise decimal 10-digit
@@ -43,6 +44,7 @@ This python script provides the following conversions from existing timestamps:
 - iOS 11+ (as NSDate)
 - KSUID 27-character
 - KSUID 9-digit
+- LEB128 hex value
 - Mac Absolute Time (as NSDate)
 - Mac OS/HFS+ Decimal Time
 - Mastodon URL

@@ -49,8 +49,8 @@ from PyQt6.QtWidgets import (
 init(autoreset=True)
 
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "14 Jan 2024"
-__version__ = "7.0.2"
+__date__ = "24 Jun 2024"
+__version__ = "7.1.0"
 __description__ = "Python 3 CLI Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -1012,6 +1012,16 @@ ts_types = {
         "S32 encoded (Bluesky) timestamps are 9 characters long",
         "3kzgbkpsk",
     ],
+    "apache": [
+        "Apache Cookie Hex time",
+        "Apache Cookie hex timestamps are 13 hex characters long",
+        "5faa420b70880",
+    ],
+    "leb128_hex": [
+        "LEB128 Hex time",
+        "LEB128 Hex timestamps are variable-length and even-length",
+        "8ed1b7b8fd30",
+    ],
 }
 __types__ = len(ts_types)
 
@@ -1377,7 +1387,7 @@ def from_ad(timestamp):
             )
             in_ad = dt_obj.strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_ad} UTC")
-            combined_output = str(f"{__red__}{ts_type}:\t{in_ad} UTC{__clr__}")
+            combined_output = str(f"{__red__}{ts_type}:\t\t{in_ad} UTC{__clr__}")
     except Exception:
         handle(sys.exc_info())
         in_ad = indiv_output = combined_output = False
@@ -3822,12 +3832,102 @@ def to_s32(dt_val):
             unix_mil = math.floor(unix_mil / 32)
             result = S32_CHARS[index] + result
         out_s32 = result
-        ts_output = str(f"{ts_type}:\t\t{out_s32}")
+        ts_output = str(f"{ts_type}:\t{out_s32}")
     except Exception:
         handle(sys.exc_info())
         out_s32 = ts_output = False
     return out_s32, ts_output
 
+def from_apache(timestamp):
+    """Convert an Apache hex timestamp to a date/time value"""
+    """This value has 13 hex characters, and does not fit a byte boundary"""
+    ts_type, reason, _ = ts_types["apache"]
+    try:
+        timestamp = str(timestamp)
+        if len(timestamp) != 13 or not all(char in hexdigits for char in timestamp):
+            in_apache = indiv_output = combined_output = False
+        else:
+            dec_val = int(timestamp, 16)
+            dt_obj = epochs[1970] + timedelta(microseconds=dec_val)
+            in_apache = dt_obj.strftime(__fmt__)
+            indiv_output = str(f"{ts_type}: {in_apache} UTC")
+            combined_output = str(f"{__red__}{ts_type}:\t\t{in_apache} UTC{__clr__}")
+    except Exception:
+        handle(sys.exc_info())
+        in_apache = indiv_output = combined_output = False
+    return in_apache, indiv_output, combined_output, reason
+
+def to_apache(dt_val):
+    """Convert a date/time to an Apache cookie value"""
+    ts_type, _, _ = ts_types["apache"]
+    try:
+        dt_obj = duparser.parse(dt_val)
+        if hasattr(dt_obj.tzinfo, "_offset"):
+            dt_tz = dt_obj.tzinfo._offset.total_seconds()
+        else:
+            dt_tz = 0
+        dt_object = duparser.parse(dt_val, ignoretz=True)
+        apache_int = int(((dt_obj - epochs[1970]).total_seconds() - int(dt_tz)) * 1000000)
+        out_apache = f"{apache_int:x}"
+        ts_output = str(f"{ts_type}:\t\t{out_apache}")
+    except Exception:
+        handle(sys.exc_info())
+        out_apache = ts_output = False
+    return out_apache, ts_output
+
+def to_leb128_hex(dt_val):
+    """Convert a date to a LEB128 hex value."""
+    ts_type, _, _ = ts_types["leb128_hex"]
+    try:
+        dt_obj = duparser.parse(dt_val)
+        if hasattr(dt_obj.tzinfo, "_offset"):
+            dt_tz = dt_obj.tzinfo._offset.total_seconds()
+        else:
+            dt_tz = 0
+        dt_obj = duparser.parse(dt_val, ignoretz=True)
+        unix_milli, _ = to_unix_milli(str(dt_obj))
+        unix_milli = int(unix_milli)
+        byte_list = []
+        while True:
+            byte_val = unix_milli & 0x7F
+            unix_milli >>= 7
+            if unix_milli != 0:
+                byte_val |= 0x80
+            byte_list.append(byte_val)
+            if unix_milli == 0:
+                break
+        out_leb128_hex = ''.join([f"{byte_val:02x}" for byte_val in byte_list])
+        ts_output = str(f"{ts_type}:\t\t{out_leb128_hex}")
+    except Exception:
+        handle(sys.exc_info())
+        out_leb128_hex = ts_output = False
+    return out_leb128_hex, ts_output
+
+def from_leb128_hex(timestamp):
+    """Convert a LEB 128 hex value to a date"""
+    ts_type, reason, _ = ts_types["leb128_hex"]
+    try:
+        if not len(timestamp) % 2 == 0 or not all(char in hexdigits for char in timestamp):
+            in_leb128_hex = indiv_output = combined_output = False
+        else:
+            ts_hex_list = [(timestamp[i:i+2]) for i in range(0, len(timestamp), 2)]
+            unix_milli = 0
+            shift = 0
+            for hex_val in ts_hex_list:
+                byte_val = int(hex_val, 16)
+                unix_milli |= (byte_val & 0x7F) << shift
+                if (byte_val & 0x80) == 0:
+                    break
+                shift += 7
+            in_leb128_hex, _, _, _ = from_unix_milli(str(unix_milli))
+            indiv_output = str(f"{ts_type}: {in_leb128_hex} UTC")
+            combined_output = str(
+                f"{__red__}{ts_type}:\t\t{in_leb128_hex} UTC{__clr__}"
+            )
+    except Exception:
+        handle(sys.exc_info())
+        in_leb128_hex = indiv_output = combined_output = False
+    return in_leb128_hex, indiv_output, combined_output, reason
 
 def date_range(start, end, check_date):
     """Check if date is in range of start and end, return True if it is"""
@@ -3922,9 +4022,12 @@ single_funcs = {
     "biome64": from_biome64,
     "biomehex": from_biomehex,
     "s32": from_s32,
+    "apache": from_apache,
+    "leb128": from_leb128_hex,
 }
 from_funcs = [
     from_ad,
+    from_apache,
     from_biome64,
     from_biomehex,
     from_bitdate,
@@ -3947,6 +4050,7 @@ from_funcs = [
     from_mac,
     from_ksalnum,
     from_ksdec,
+    from_leb128_hex,
     from_hfs_dec,
     from_mastodon,
     from_metasploit,
@@ -3982,6 +4086,7 @@ from_funcs = [
 ]
 to_funcs = [
     to_ad,
+    to_apache,
     to_biome64,
     to_biomehex,
     to_bitdate,
@@ -3998,6 +4103,7 @@ to_funcs = [
     to_hfs_be,
     to_hfs_le,
     to_ksdec,
+    to_leb128_hex,
     to_hfs_dec,
     to_mastodon,
     to_systemtime,
@@ -4064,6 +4170,9 @@ def main():
     )
     arg_parse.add_argument(
         "--active", metavar="", help="convert from Active Directory value"
+    )
+    arg_parse.add_argument(
+        "--apache", metavar="", help="convert from an Apache Cookie hex value"
     )
     arg_parse.add_argument(
         "--auto", metavar="", help="convert from OLE Automation Date format"
@@ -4133,6 +4242,8 @@ def main():
     arg_parse.add_argument(
         "--ksalnum", metavar="", help="convert from a KSUID 27-character value"
     )
+    arg_parse.add_argument(
+        "--leb128", metavar="", help="convert from a LEB128 hex value")
     arg_parse.add_argument("--mac", metavar="", help="convert from Mac Absolute Time")
     arg_parse.add_argument(
         "--mastodon", metavar="", help="convert from a Mastodon URL value"

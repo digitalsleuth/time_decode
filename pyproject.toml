@@ -7,7 +7,7 @@ exclude = ["debian*", "binaries*", "build*", "dist*"]
 
 [project]
 name = "time-decode"
-version = "7.0.2"
+version = "7.1.0"
 dependencies = [
     "PyQt6",
     "python-dateutil",

@@ -1,6 +1,7 @@
 - 128-bit SYSTEMTIME
 - 32-bit MS-DOS time, result is Local
 - Active Directory value
+- Apache Cookie
 - Apple Biome hex value
 - Apple Biome 64-bit decimal value
 - Bitwise decimal 10-digit
@@ -23,6 +24,7 @@
 - iOS 11+ (as NSDate)
 - KSUID 27-character
 - KSUID 9-digit
+- LEB128 hex
 - Mac Absolute Time (as NSDate)
 - Mac OS/HFS+ Decimal Time
 - Mastodon URL
