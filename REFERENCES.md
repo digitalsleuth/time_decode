@@ -66,3 +66,9 @@
 - https://github.com/apache/httpd/blob/trunk/modules/metadata/mod_usertrack.c#L99
 ### LEB128 hex value (thanks to Justin Lazenby for identifying this one!)
 - https://en.wikipedia.org/wiki/LEB128
+### Julian hex values
+- https://stackoverflow.com/questions/56067745/hex-numbers-that-translate-into-date-and-time-stamps
+### Julian decimal values
+- https://github.com/seanredmond/juliandate/
+### Semi-Octet value
+- https://doubleblak.com/blogPost.php?k=timestamps#semioctet

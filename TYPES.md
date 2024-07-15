@@ -22,6 +22,8 @@
 - HFS(+) LE, HFS Local, HFS+ UTC
 - Hotmail
 - iOS 11+ (as NSDate)
+- Julian Decimal date
+- Julian Hex date
 - KSUID 27-character
 - KSUID 9-digit
 - LEB128 hex
@@ -40,6 +42,7 @@
 - OLE Automation Date
 - S32 Encoded (BlueSky Social)
 - Samsung/LG 4-byte
+- Semi-Octet decimal value
 - Sonyflake URL
 - Symantec's 6-byte AV
 - TikTok URL
@@ -47,6 +50,7 @@
 - Unix Hex 32-bit BE
 - Unix Hex 32-bit LE
 - Unix Milliseconds
+- Unix Milliseconds (hex)
 - Unix Seconds
 - UUID
 - VMWare Snapshot (.vmsd)
