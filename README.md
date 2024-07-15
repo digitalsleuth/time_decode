@@ -1,4 +1,6 @@
 # Time Decode
+![PyPI - Version](https://img.shields.io/pypi/v/time_decode?logo=python&label=Latest%20pypi%20Release&labelColor=white)
+
 A Python 3 timestamp and date decoder/encoder. 
 
 I noticed a lack of timestamp conversion utilities in a number of different linux systems. Since I happen to use linux in my day-to-day work I thought this would help.
