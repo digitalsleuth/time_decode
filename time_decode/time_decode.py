@@ -5,7 +5,7 @@ Additional information regarding the source of the timestamp formats and associa
 is provided in the REFERENCES.md file at https://github.com/digitalsleuth/time_decode.
 """
 
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, timezone
 import struct
 from string import hexdigits
 import argparse
@@ -20,9 +20,14 @@ from calendar import monthrange
 import juliandate as jd
 from dateutil import parser as duparser
 from colorama import init
-
-from pytz import common_timezones, timezone as tzone
-import pytz
+if sys.version_info.major == 3 and sys.version_info.minor < 9:
+    from pytz import common_timezones, timezone as tzone
+    import pytz
+    IS_PYTZ = True
+else:
+    from zoneinfo import ZoneInfo as tzone, available_timezones as common_timezones
+    common_timezones = common_timezones()
+    IS_PYTZ = False
 
 # Included for GUI
 from PyQt6.QtCore import (
@@ -67,8 +72,8 @@ from PyQt6.QtWidgets import (
 init(autoreset=True)
 
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "15 Jul 2024"
-__version__ = "8.0.0"
+__date__ = "30 Jul 2024"
+__version__ = "8.1.0"
 __description__ = "Python 3 CLI Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -637,7 +642,10 @@ class UiDialog:
                 tz = tzone(tz_name)
                 tz_original = all_ts[k][0]
                 dt_parse = duparser.parse(tz_original)
-                dt_obj = pytz.utc.localize(dt_parse)
+                if IS_PYTZ:
+                    dt_obj = pytz.utc.localize(dt_parse)
+                else:
+                    dt_obj = dt_parse.replace(tzinfo=timezone.utc)
                 tz_selected = dt_obj.astimezone(tz).strftime(__fmt__)
                 if self.check_daylight(dt_parse, tz):
                     tz_out = f"{tz_offset} DST"
@@ -655,7 +663,10 @@ class UiDialog:
             tz_name = " ".join(selected_tz.split(" ")[1:])
             tz = tzone(tz_name)
             dt_parse = duparser.parse(dt_obj)
-            dt_parse = pytz.utc.localize(dt_parse)
+            if IS_PYTZ:
+                dt_parse = pytz.utc.localize(dt_parse)
+            else:
+                dt_parse = dt_parse.replace(tzinfo=timezone.utc)
             dt_obj = dt_parse.astimezone(tz).strftime(__fmt__)
         results, _ = to_timestamps(dt_obj)
         self.results = results
@@ -665,10 +676,13 @@ class UiDialog:
         """Generates a list of common timezones for conversion"""
         timezone_offsets = [("No Time Zone Change", "")]
         dt_obj = duparser.parse(self.dateTime.text())
-        dt_obj_naive = pytz.utc.localize(dt_obj)
+        if IS_PYTZ:
+            dt_obj_naive = pytz.utc.localize(dt_obj)
+        else:
+            dt_obj_naive = dt_obj.replace(tzinfo=timezone.utc)
         for tz_name in common_timezones:
-            timezone = tzone(tz_name)
-            dt_val = dt_obj_naive.astimezone(timezone)
+            set_timezone = tzone(tz_name)
+            dt_val = dt_obj_naive.astimezone(set_timezone)
             offset_seconds = dt_val.utcoffset().total_seconds()
             hours, remainder = divmod(abs(offset_seconds), 3600)
             minutes = remainder // 60
@@ -757,7 +771,10 @@ class UiDialog:
             tz_offset = selected_tz.split(" ")[0]
             tz = tzone(tz_name)
             dt_parse = duparser.parse(ts_date)
-            dt_parse = pytz.utc.localize(dt_parse)
+            if IS_PYTZ:
+                dt_parse = pytz.utc.localize(dt_parse)
+            else:
+                dt_parse = dt_parse.replace(tzinfo=timezone.utc)
             ts_date = dt_parse.astimezone(tz).strftime(__fmt__)
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
         if not in_ts_types:
@@ -810,7 +827,10 @@ class UiDialog:
                 return
             if "No Time Zone Change" not in selected_tz:
                 dt_parse = duparser.parse(result)
-                dt_obj = pytz.utc.localize(dt_parse)
+                if IS_PYTZ:
+                    dt_obj = pytz.utc.localize(dt_parse)
+                else:
+                    dt_obj = dt_parse.replace(tzinfo=timezone.utc)
                 result = dt_obj.astimezone(tz).strftime(__fmt__)
                 if self.check_daylight(dt_parse, tz):
                     tz_out = f"{tz_offset} DST"

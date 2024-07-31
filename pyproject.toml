@@ -7,12 +7,12 @@ exclude = ["debian*", "binaries*", "build*", "dist*"]
 
 [project]
 name = "time-decode"
-version = "8.0.0"
+version = "8.1.0"
 dependencies = [
     "PyQt6",
     "python-dateutil",
     "colorama",
-    "pytz",
+    "pytz; python_version<'3.9'",
     "juliandate"
 ]
 requires-python = ">=3.6"
