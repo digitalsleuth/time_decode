@@ -5,7 +5,7 @@ Additional information regarding the source of the timestamp formats and associa
 is provided in the REFERENCES.md file at https://github.com/digitalsleuth/time_decode.
 """
 
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, timezone
 import struct
 from string import hexdigits
 import argparse
@@ -17,12 +17,11 @@ import base64
 import uuid
 import traceback
 from calendar import monthrange
+from typing import NamedTuple
+from zoneinfo import ZoneInfo as tzone, available_timezones as common_timezones
 import juliandate as jd
 from dateutil import parser as duparser
 from colorama import init
-
-from pytz import common_timezones, timezone as tzone
-import pytz
 
 # Included for GUI
 from PyQt6.QtCore import (
@@ -63,12 +62,12 @@ from PyQt6.QtWidgets import (
     QStyle,
 )
 
-
+common_timezones = common_timezones()
 init(autoreset=True)
 
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "15 Jul 2024"
-__version__ = "8.0.0"
+__date__ = "30 Jan 2025"
+__version__ = "9.0.0"
 __description__ = "Python 3 CLI Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -637,7 +636,7 @@ class UiDialog:
                 tz = tzone(tz_name)
                 tz_original = all_ts[k][0]
                 dt_parse = duparser.parse(tz_original)
-                dt_obj = pytz.utc.localize(dt_parse)
+                dt_obj = dt_parse.replace(tzinfo=timezone.utc)
                 tz_selected = dt_obj.astimezone(tz).strftime(__fmt__)
                 if self.check_daylight(dt_parse, tz):
                     tz_out = f"{tz_offset} DST"
@@ -655,7 +654,7 @@ class UiDialog:
             tz_name = " ".join(selected_tz.split(" ")[1:])
             tz = tzone(tz_name)
             dt_parse = duparser.parse(dt_obj)
-            dt_parse = pytz.utc.localize(dt_parse)
+            dt_parse = dt_parse.replace(tzinfo=timezone.utc)
             dt_obj = dt_parse.astimezone(tz).strftime(__fmt__)
         results, _ = to_timestamps(dt_obj)
         self.results = results
@@ -665,10 +664,10 @@ class UiDialog:
         """Generates a list of common timezones for conversion"""
         timezone_offsets = [("No Time Zone Change", "")]
         dt_obj = duparser.parse(self.dateTime.text())
-        dt_obj_naive = pytz.utc.localize(dt_obj)
+        dt_obj_naive = dt_obj.replace(tzinfo=timezone.utc)
         for tz_name in common_timezones:
-            timezone = tzone(tz_name)
-            dt_val = dt_obj_naive.astimezone(timezone)
+            set_timezone = tzone(tz_name)
+            dt_val = dt_obj_naive.astimezone(set_timezone)
             offset_seconds = dt_val.utcoffset().total_seconds()
             hours, remainder = divmod(abs(offset_seconds), 3600)
             minutes = remainder // 60
@@ -757,7 +756,7 @@ class UiDialog:
             tz_offset = selected_tz.split(" ")[0]
             tz = tzone(tz_name)
             dt_parse = duparser.parse(ts_date)
-            dt_parse = pytz.utc.localize(dt_parse)
+            dt_parse = dt_parse.replace(tzinfo=timezone.utc)
             ts_date = dt_parse.astimezone(tz).strftime(__fmt__)
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
         if not in_ts_types:
@@ -810,7 +809,7 @@ class UiDialog:
                 return
             if "No Time Zone Change" not in selected_tz:
                 dt_parse = duparser.parse(result)
-                dt_obj = pytz.utc.localize(dt_parse)
+                dt_obj = dt_parse.replace(tzinfo=timezone.utc)
                 result = dt_obj.astimezone(tz).strftime(__fmt__)
                 if self.check_daylight(dt_parse, tz):
                     tz_out = f"{tz_offset} DST"
@@ -1108,368 +1107,376 @@ class TimeDecodeGui(QMainWindow, UiDialog):
 # 2023-05-01 17:59:38.285777
 # Examples based around 2023-05-01 09:xx:xx to 17:xx:xx
 
+
+class TsTypes(NamedTuple):
+    ts_type: str
+    reason: str
+    example: str
+    time_zone: str
+
+
 ts_types = {
-    "unix_sec": [
+    "unix_sec": TsTypes(
         "Unix Seconds",
         "Unix seconds timestamp is 10 digits in length",
         "1682963978",
         "UTC",
-    ],
-    "unix_milli": [
+    ),
+    "unix_milli": TsTypes(
         "Unix Milliseconds",
         "Unix milliseconds timestamp is 13 digits in length",
         "1682963978285",
         "UTC",
-    ],
-    "unix_milli_hex": [
+    ),
+    "unix_milli_hex": TsTypes(
         "Unix Milliseconds hex",
         "Unix Milliseconds hex timestamp is 12 hex characters (6 bytes)",
         "0187d878582d",
         "UTC",
-    ],
-    "windows_hex_64": [
+    ),
+    "windows_hex_64": TsTypes(
         "Windows 64-bit Hex BE",
         "Windows 64-bit Hex Big-Endian timestamp is 16 hex characters (8 bytes)",
         "01d97c56b232fc2a",
         "UTC",
-    ],
-    "windows_hex_64le": [
+    ),
+    "windows_hex_64le": TsTypes(
         "Windows 64-bit Hex LE",
         "Windows 64-bit Hex Little-Endian timestamp is 16 hex characters (8 bytes)",
         "2afc32b2567cd901",
         "UTC",
-    ],
-    "chrome": [
+    ),
+    "chrome": TsTypes(
         "Google Chrome",
         "Chrome/Webkit timestamp is 17 digits",
         "13327437578285777",
         "UTC",
-    ],
-    "ad": [
+    ),
+    "ad": TsTypes(
         "Active Directory/LDAP",
         "Active Directory/LDAP timestamps are 18 digits",
         "133274375782857770",
         "UTC",
-    ],
-    "unix_hex_32be": [
+    ),
+    "unix_hex_32be": TsTypes(
         "Unix Hex 32-bit BE",
         "Unix Hex 32-bit Big-Endian timestamps are 8 hex characters (4 bytes)",
         "644ffe0a",
         "UTC",
-    ],
-    "unix_hex_32le": [
+    ),
+    "unix_hex_32le": TsTypes(
         "Unix Hex 32-bit LE",
         "Unix Hex 32-bit Little-Endian timestamps are 8 hex characters (4 bytes)",
         "0afe4f64",
         "UTC",
-    ],
-    "cookie": [
+    ),
+    "cookie": TsTypes(
         "Windows Cookie Date",
         "IE text cookie times consist of 2 ints, enter with a comma between them",
         "2986828032,31030358",
         "UTC",
-    ],
-    "ole_be": [
+    ),
+    "ole_be": TsTypes(
         "Windows OLE 64-bit double BE",
         "OLE Big-Endian timestamps are 16 hex characters (8 bytes)",
         "40e5fef7fdf0f084",
         "UTC",
-    ],
-    "ole_le": [
+    ),
+    "ole_le": TsTypes(
         "Windows OLE 64-bit double LE",
         "OLE Little-Endian timestamps are 16 hex characters (8 bytes)",
         "84f0f0fdf7fee540",
         "UTC",
-    ],
-    "mac": [
+    ),
+    "mac": TsTypes(
         "NSDate - Mac Absolute time",
         "NSDates (Mac) are 9 digits '.' 6 digits",
         "704656778.285777",
         "UTC",
-    ],
-    "hfs_dec": [
+    ),
+    "hfs_dec": TsTypes(
         "Mac OS/HFS+ Decimal Time",
         "Mac OS/HFS+ Decimal timestamps are 10 digits",
         "3765808778",
         "UTC",
-    ],
-    "hfs_be": [
+    ),
+    "hfs_be": TsTypes(
         "HFS/HFS+ 32-bit Hex BE",
         "HFS/HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)",
         "e075ae8a",
         "HFS Local / HFS+ UTC",
-    ],
-    "hfs_le": [
+    ),
+    "hfs_le": TsTypes(
         "HFS/HFS+ 32-bit Hex LE",
         "HFS/HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)",
         "8aae75e0",
         "HFS Local / HFS+ UTC",
-    ],
-    "msdos": [
+    ),
+    "msdos": TsTypes(
         "MS-DOS 32-bit Hex Value",
         "MS-DOS 32-bit timestamps are 8 hex characters (4 bytes)",
         "738fa156",
         "Local",
-    ],
-    "fat": [
+    ),
+    "fat": TsTypes(
         "FAT Date + Time",
         "MS-DOS wFatDate wFatTime timestamps are 8 hex characters (4 bytes)",
         "a156738f",
         "Local",
-    ],
-    "systemtime": [
+    ),
+    "systemtime": TsTypes(
         "Microsoft 128-bit SYSTEMTIME",
         "Microsoft 128-bit SYSTEMTIME timestamps are 32 hex characters (16 bytes)",
         "e70705000100010011003b0026001d01",
         "UTC",
-    ],
-    "filetime": [
+    ),
+    "filetime": TsTypes(
         "Microsoft FILETIME time",
         "FILETIME timestamps are 2 sets of 8 hex chars (4 bytes) separated by a colon",
         "b232fc2a:01d97c56",
         "UTC",
-    ],
-    "hotmail": [
+    ),
+    "hotmail": TsTypes(
         "Microsoft Hotmail time",
         "Hotmail timestamps are 2 sets of 8 hex chars (4 bytes), separated by a colon",
         "567cd901:2afc32b2",
         "UTC",
-    ],
-    "prtime": [
+    ),
+    "prtime": TsTypes(
         "Mozilla PRTime",
         "Mozilla PRTime timestamps are 16 digits",
         "1682963978285777",
         "UTC",
-    ],
-    "ole_auto": [
+    ),
+    "ole_auto": TsTypes(
         "OLE Automation Date",
         "OLE Automation timestamps are 2 ints, separated by a dot",
         "45047.749748677976",
         "UTC",
-    ],
-    "ms1904": [
+    ),
+    "ms1904": TsTypes(
         "MS Excel 1904 Date",
         "Excel 1904 timestamps are 2 ints, separated by a dot",
         "43585.749748677976",
         "UTC",
-    ],
-    "iostime": [
+    ),
+    "iostime": TsTypes(
         "NSDate - iOS 11+",
         "NSDates (iOS) are 15-19 digits in length",
         "704656778285777024",
         "UTC",
-    ],
-    "symtime": [
+    ),
+    "symtime": TsTypes(
         "Symantec AV time",
         "Symantec 6-byte hex timestamps are 12 hex characters",
         "350401113b26",
         "UTC",
-    ],
-    "gpstime": ["GPS time", "GPS timestamps are 10 digits", "1366999159", "UTC"],
-    "eitime": [
+    ),
+    "gpstime": TsTypes("GPS time", "GPS timestamps are 10 digits", "1366999159", "UTC"),
+    "eitime": TsTypes(
         "Google EI time",
         "Google ei timestamps contain only URLsafe base64 characters: A-Za-z0-9=-_",
         "Cv5PZA",
         "UTC",
-    ],
-    "bplist": [
+    ),
+    "bplist": TsTypes(
         "NSDate - Binary Plist / Cocoa",
         "NSDates (bplist) are 9 digits in length",
         "704656778",
         "UTC",
-    ],
-    "nsdate": [
+    ),
+    "nsdate": TsTypes(
         "NSDate - bplist / Cocoa / Mac / iOS",
         "NSDates are 9, 9.6, or 15-19 digits in length",
         "704656778.285777",
         "UTC",
-    ],
-    "gsm": [
+    ),
+    "gsm": TsTypes(
         "GSM time",
         "GSM timestamps are 14 hex characters (7 bytes)",
         "32501071958300",
         "UTC",
-    ],
-    "vm": [
+    ),
+    "vm": TsTypes(
         "VMSD time",
         "VMSD values are a 6-digit value and a signed/unsigned int at least 9 digits",
         "391845,-1777068416",
         "UTC",
-    ],
-    "tiktok": [
+    ),
+    "tiktok": TsTypes(
         "TikTok time",
         "TikTok timestamps are 19 digits long",
         "7228142017547750661",
         "UTC",
-    ],
-    "twitter": [
+    ),
+    "twitter": TsTypes(
         "Twitter time",
         "Twitter timestamps are 18 digits or longer",
         "1653078434443132928",
         "UTC",
-    ],
-    "discord": [
+    ),
+    "discord": TsTypes(
         "Discord time",
         "Discord timestamps are 18 digits or longer",
         "1102608904745127937",
         "UTC",
-    ],
-    "ksalnum": [
+    ),
+    "ksalnum": TsTypes(
         "KSUID Alpha-numeric",
         "KSUID values are 27 alpha-numeric characters",
         "2PChRqPZDwT9m2gBDLd5uy7XNTr",
         "UTC",
-    ],
-    "mastodon": [
+    ),
+    "mastodon": TsTypes(
         "Mastodon time",
         "Mastodon timestamps are 18 digits or longer",
         "110294727262208000",
         "UTC",
-    ],
-    "metasploit": [
+    ),
+    "metasploit": TsTypes(
         "Metasploit Payload UUID",
         "Metasploit Payload UUID's are at least 22 chars and base64 urlsafe encoded",
         "4PGoVGYmx8l6F3sVI4Rc8g",
         "UTC",
-    ],
-    "sony": [
+    ),
+    "sony": TsTypes(
         "Sonyflake time",
         "Sonyflake values are 15 hex characters",
         "65dd4bb89000001",
         "UTC",
-    ],
-    "uuid": [
+    ),
+    "uuid": TsTypes(
         "UUID time",
         "UUIDs are in the format 00000000-0000-0000-0000-000000000000",
         "d93026f0-e857-11ed-a05b-0242ac120003",
         "UTC",
-    ],
-    "dhcp6": [
+    ),
+    "dhcp6": TsTypes(
         "DHCP6 DUID time",
         "DHCPv6 DUID values are at least 14 bytes long",
         "000100012be2ba8a000000000000",
         "UTC",
-    ],
-    "dotnet": [
+    ),
+    "dotnet": TsTypes(
         "Microsoft .NET DateTime",
         ".NET DateTime values are 18 digits",
         "638185607782857728",
         "UTC",
-    ],
-    "gbound": [
+    ),
+    "gbound": TsTypes(
         "GMail Boundary time",
         "GMail Boundary values are 28 hex chars",
         "0000000000001872d105faa59600",
         "UTC",
-    ],
-    "gmsgid": [
+    ),
+    "gmsgid": TsTypes(
         "GMail Message ID time",
         "GMail Message ID values are 16 hex chars or 19 digits (IMAP)",
         "187d878582d00000",
         "UTC",
-    ],
-    "moto": [
+    ),
+    "moto": TsTypes(
         "Motorola time",
         "Motorola 6-byte hex timestamps are 12 hex characters",
         "350501113b26",
         "UTC",
-    ],
-    "nokia": [
+    ),
+    "nokia": TsTypes(
         "Nokia time",
         "Nokia 4-byte hex timestamps are 8 hex characters",
         "cdd5880a",
         "UTC",
-    ],
-    "nokiale": [
+    ),
+    "nokiale": TsTypes(
         "Nokia time LE",
         "Nokia 4-byte hex timestamps are 8 hex characters",
         "0a88d5cd",
         "UTC",
-    ],
-    "ns40": [
+    ),
+    "ns40": TsTypes(
         "Nokia S40 time",
         "Nokia 7-byte hex timestamps are 14 hex characters",
         "07e70501113b26",
         "UTC",
-    ],
-    "ns40le": [
+    ),
+    "ns40le": TsTypes(
         "Nokia S40 time LE",
         "Nokia 7-byte hex timestamps are 14 hex characters",
         "e7070501113b26",
         "UTC",
-    ],
-    "bitdec": [
+    ),
+    "bitdec": TsTypes(
         "Bitwise Decimal time",
         "Bitwise Decimal timestamps are 10 digits",
         "2121600123",
         "Local",
-    ],
-    "bitdate": [
+    ),
+    "bitdate": TsTypes(
         "BitDate time",
         "Samsung/LG BitDate timestamps are 8 hex characters",
         "7b0c757e",
         "Local",
-    ],
-    "ksdec": [
+    ),
+    "ksdec": TsTypes(
         "KSUID Decimal",
         "KSUID decimal timestamps are 9 digits in length",
         "282963978",
         "UTC",
-    ],
-    "exfat": [
+    ),
+    "exfat": TsTypes(
         "exFAT time",
         "exFAT 32-bit timestamps are 8 hex characters (4 bytes)",
         "56a18f73",
         "Local",
-    ],
-    "biomehex": [
+    ),
+    "biomehex": TsTypes(
         "Apple Biome hex time",
         "Apple Biome Hex value is 8 bytes (16 chars) long",
         "41c5001ac5249457",
         "UTC",
-    ],
-    "biome64": [
+    ),
+    "biome64": TsTypes(
         "Apple Biome 64-bit decimal",
         "Apple Biome 64-bit decimal is 19 digits in length",
         "4739194297853973591",
         "UTC",
-    ],
-    "s32": [
+    ),
+    "s32": TsTypes(
         "S32 Encoded (Bluesky) time",
         "S32 encoded (Bluesky) timestamps are 9 characters long",
         "3kzgbkpsk",
         "UTC",
-    ],
-    "apache": [
+    ),
+    "apache": TsTypes(
         "Apache Cookie Hex time",
         "Apache Cookie hex timestamps are 13 hex characters long",
         "5faa420b70880",
         "UTC",
-    ],
-    "leb128_hex": [
+    ),
+    "leb128_hex": TsTypes(
         "LEB128 Hex time",
         "LEB128 Hex timestamps are variable-length and even-length",
         "8ed1b7b8fd30",
         "UTC",
-    ],
-    "julian_dec": [
+    ),
+    "julian_dec": TsTypes(
         "Julian Date decimal value",
         "Julian Date decimal values are 7 digits, a decimal, and up to 10 digits",
         "2460066.249748678",
         "UTC",
-    ],
-    "julian_hex": [
+    ),
+    "julian_hex": TsTypes(
         "Julian Date hex value",
         "Julian Date hex values are 14 characters (7 bytes)",
         "2589a2ee2dcc6",
         "UTC",
-    ],
-    "semi_octet": [
+    ),
+    "semi_octet": TsTypes(
         "Semi-Octet decimal value",
         "Semi-Octet decimal values are 12 or 14 digits long",
         "325010901034",
         "Local",
-    ],
+    ),
 }
 __types__ = len(ts_types)
 
@@ -1479,7 +1486,7 @@ epochs = {
     1899: dt(1899, 12, 30),
     1904: dt(1904, 1, 1),
     1970: dt(1970, 1, 1),
-    1980: dt(1980, 1, 6),
+    1980: dt(1980, 1, 6, tzinfo=timezone.utc),
     2000: dt(2000, 1, 1),
     2001: dt(2001, 1, 1),
     2050: dt(2050, 1, 1),
@@ -1606,7 +1613,9 @@ def from_unix_sec(timestamp):
         if len(str(timestamp)) != 10 or not timestamp.isdigit():
             in_unix_sec = indiv_output = combined_output = False
         else:
-            in_unix_sec = dt.utcfromtimestamp(float(timestamp)).strftime(__fmt__)
+            in_unix_sec = dt.fromtimestamp(float(timestamp), timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_unix_sec} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_unix_sec} {tz_out}{__clr__}"
@@ -1642,9 +1651,9 @@ def from_unix_milli(timestamp):
         if len(str(timestamp)) != 13 or not str(timestamp).isdigit():
             in_unix_milli = indiv_output = combined_output = False
         else:
-            in_unix_milli = dt.utcfromtimestamp(float(timestamp) / 1000.0).strftime(
-                __fmt__
-            )
+            in_unix_milli = dt.fromtimestamp(
+                float(timestamp) / 1000.0, timezone.utc
+            ).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_unix_milli} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_unix_milli} {tz_out}{__clr__}"
@@ -1871,10 +1880,12 @@ def from_ad(timestamp):
             val_check = (
                 float(int(timestamp) - epochs["active"]) / epochs["hundreds_nano"]
             )
-            if val_check < 0 or val_check > 32536850399:
+            if val_check < 0 or val_check >= 32536799999:
+                # This is the Windows maximum for parsing a unix TS
+                # and is 3001-01-19 02:59:59 UTC                
                 in_ad = indiv_output = combined_output = False
             else:
-                dt_obj = dt.utcfromtimestamp(val_check)
+                dt_obj = dt.fromtimestamp(val_check, timezone.utc)
                 in_ad = dt_obj.strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_ad} {tz_out}")
                 combined_output = str(
@@ -1936,7 +1947,9 @@ def from_unix_hex_32be(timestamp):
             in_unix_hex_32 = indiv_output = combined_output = False
         else:
             to_dec = int(timestamp, 16)
-            in_unix_hex_32 = dt.utcfromtimestamp(float(to_dec)).strftime(__fmt__)
+            in_unix_hex_32 = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_unix_hex_32} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_unix_hex_32} {tz_out}{__clr__}"
@@ -1974,7 +1987,9 @@ def from_unix_hex_32le(timestamp):
             in_unix_hex_32le = indiv_output = combined_output = False
         else:
             to_dec = int.from_bytes(struct.pack("<L", int(timestamp, 16)), "big")
-            in_unix_hex_32le = dt.utcfromtimestamp(float(to_dec)).strftime(__fmt__)
+            in_unix_hex_32le = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_unix_hex_32le} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_unix_hex_32le} {tz_out}{__clr__}"
@@ -2015,10 +2030,10 @@ def from_cookie(timestamp):
         else:
             low, high = [int(h, base=10) for h in timestamp.split(",")]
             calc = 10**-7 * (high * 2**32 + low) - 11644473600
-            if calc >= 1e11:
+            if calc >= 32536799999 or calc < 0:
                 in_cookie = indiv_output = combined_output = False
             else:
-                dt_obj = dt.utcfromtimestamp(calc)
+                dt_obj = dt.fromtimestamp(calc, timezone.utc)
                 in_cookie = dt_obj.strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_cookie} {tz_out}")
                 combined_output = str(
@@ -2059,7 +2074,7 @@ def from_ole_be(timestamp):
             in_ole_be = indiv_output = combined_output = False
         else:
             delta = struct.unpack(">d", struct.pack(">Q", int(timestamp, 16)))[0]
-            if delta != delta or int(delta) < 0 or delta > 2e6:
+            if int(delta) < 0 or int(delta) > 2e6:
                 in_ole_be = indiv_output = combined_output = False
             else:
                 dt_obj = epochs[1899] + timedelta(days=delta)
@@ -2103,7 +2118,7 @@ def from_ole_le(timestamp):
         else:
             to_le = hex(int.from_bytes(struct.pack("<Q", int(timestamp, 16)), "big"))
             delta = struct.unpack(">d", struct.pack(">Q", int(to_le[2:], 16)))[0]
-            if delta != delta or int(delta) < 0 or int(delta) > 99999:
+            if int(delta) < 0 or int(delta) > 99999:
                 in_ole_le = indiv_output = combined_output = False
             else:
                 dt_obj = epochs[1899] + timedelta(days=delta)
@@ -2141,7 +2156,7 @@ def to_ole_le(dt_val):
 def from_bplist(timestamp):
     """Convert a bplist NSDate timestamp to a date value"""
     in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    ts_type, reason, _, tz_out = ts_types["bplist"]
+    _, reason, _, tz_out = ts_types["bplist"]
     if not "(bplist)" in indiv_output:
         in_nsdate = indiv_output = combined_output = False
     return in_nsdate, indiv_output, combined_output, reason, tz_out
@@ -2150,7 +2165,7 @@ def from_bplist(timestamp):
 def from_iostime(timestamp):
     """Convert an iOS NSDate timestamp to a date value"""
     in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    ts_type, reason, _, tz_out = ts_types["iostime"]
+    _, reason, _, tz_out = ts_types["iostime"]
     if not "(iOS)" in indiv_output:
         in_nsdate = indiv_output = combined_output = False
     return in_nsdate, indiv_output, combined_output, reason, tz_out
@@ -2159,7 +2174,7 @@ def from_iostime(timestamp):
 def from_mac(timestamp):
     """Convert a mac NSDate timestamp to a date value"""
     in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    ts_type, reason, _, tz_out = ts_types["mac"]
+    _, reason, _, tz_out = ts_types["mac"]
     if not "(Mac)" in indiv_output:
         in_nsdate = indiv_output = combined_output = False
     return in_nsdate, indiv_output, combined_output, reason, tz_out
@@ -2189,14 +2204,14 @@ def from_nsdate(timestamp):
             val_type = "iostime"
         else:
             in_nsdate = indiv_output = combined_output = False
-        if val_type in ("mac", "bplist"):
+        if val_type in {"mac", "bplist"}:
             dt_obj = epochs[2001] + timedelta(seconds=float(timestamp))
             in_nsdate = dt_obj.strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_nsdate}")
             combined_output = str(f"{__red__}{ts_type}:\t{in_nsdate} {tz_out}{__clr__}")
         elif val_type == "iostime":
             dt_obj = (int(timestamp) / int(epochs["nano_2001"])) + 978307200
-            in_nsdate = dt.utcfromtimestamp(dt_obj).strftime(__fmt__)
+            in_nsdate = dt.fromtimestamp(dt_obj, timezone.utc).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_nsdate} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_nsdate} {tz_out}{__clr__}"
@@ -2246,7 +2261,9 @@ def from_hfs_dec(timestamp):
             if minus_epoch < 0:
                 in_hfs_dec = indiv_output = combined_output = False
             else:
-                in_hfs_dec = dt.utcfromtimestamp(minus_epoch).strftime(__fmt__)
+                in_hfs_dec = dt.fromtimestamp(minus_epoch, timezone.utc).strftime(
+                    __fmt__
+                )
                 indiv_output = str(f"{ts_type}: {in_hfs_dec} {tz_out}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t{in_hfs_dec} {tz_out}{__clr__}"
@@ -2386,13 +2403,19 @@ def from_fat(timestamp):
             fat_hour = stamp[3]
             fat_min = stamp[4]
             fat_sec = stamp[5] * 2
-            if (
-                fat_year not in range(1970, 2100)
-                or fat_month not in range(1, 13)
-                or fat_day not in range(1, 32)
-                or fat_hour not in range(0, 24)
-                or fat_min not in range(0, 60)
-                or fat_sec not in range(0, 60)
+            if any(
+                not low <= value < high
+                for value, (low, high) in zip(
+                    (fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec),
+                    (
+                        (1970, 2100),
+                        (1, 13),
+                        (1, monthrange(fat_year, fat_month)[1] + 1),
+                        (0, 24),
+                        (0, 60),
+                        (0, 60),
+                    ),
+                )
             ):
                 in_fat = indiv_output = combined_output = False
             else:
@@ -2464,14 +2487,19 @@ def from_msdos(timestamp):
             dos_hour = stamp[3]
             dos_min = stamp[4]
             dos_sec = stamp[5] * 2
-            if (
-                dos_year not in range(1970, 2100)
-                or dos_month not in range(1, 13)
-                or dos_day not in range(1, 32)
-                or dos_hour not in range(0, 24)
-                or dos_min not in range(0, 60)
-                or dos_sec not in range(0, 60)
-                or dos_day not in range(1, monthrange(dos_year, dos_month)[1])
+            if any(
+                not low <= value < high
+                for value, (low, high) in zip(
+                    (dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec),
+                    (
+                        (1970, 2100),
+                        (1, 13),
+                        (1, monthrange(dos_year, dos_month)[1] + 1),
+                        (0, 24),
+                        (0, 60),
+                        (0, 60),
+                    ),
+                )
             ):
                 in_msdos = indiv_output = combined_output = False
             else:
@@ -2537,14 +2565,26 @@ def from_exfat(timestamp):
             exfat_hour = stamp[3]
             exfat_min = stamp[4]
             exfat_sec = stamp[5] * 2
-            if (
-                exfat_year not in range(1970, 2100)
-                or exfat_month not in range(1, 13)
-                or exfat_day not in range(1, 32)
-                or exfat_hour not in range(0, 24)
-                or exfat_min not in range(0, 60)
-                or exfat_sec not in range(0, 60)
-                or exfat_day not in range(1, monthrange(exfat_year, exfat_month)[1])
+            if any(
+                not low <= value < high
+                for value, (low, high) in zip(
+                    (
+                        exfat_year,
+                        exfat_month,
+                        exfat_day,
+                        exfat_hour,
+                        exfat_min,
+                        exfat_sec,
+                    ),
+                    (
+                        (1970, 2100),
+                        (1, 13),
+                        (1, monthrange(exfat_year, exfat_month)[1] + 1),
+                        (0, 24),
+                        (0, 60),
+                        (0, 60),
+                    ),
+                )
             ):
                 in_exfat = indiv_output = combined_output = False
             else:
@@ -2668,8 +2708,9 @@ def from_filetime(timestamp):
             if converted_time >= 1e18:
                 in_filetime = indiv_output = combined_output = False
             else:
-                dt_obj = dt.utcfromtimestamp(
-                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"]
+                dt_obj = dt.fromtimestamp(
+                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"],
+                    timezone.utc,
                 )
                 in_filetime = dt_obj.strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_filetime} {tz_out}")
@@ -2727,8 +2768,9 @@ def from_hotmail(timestamp):
             if converted_time >= 1e18:
                 in_hotmail = indiv_output = combined_output = False
             else:
-                dt_obj = dt.utcfromtimestamp(
-                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"]
+                dt_obj = dt.fromtimestamp(
+                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"],
+                    timezone.utc,
                 )
                 in_hotmail = dt_obj.strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_hotmail} {tz_out}")
@@ -2986,7 +3028,7 @@ def from_gpstime(timestamp):
             gps_stamp = epochs[1980] + timedelta(seconds=float(timestamp))
             tai_convert = gps_stamp + timedelta(seconds=19)
             epoch_convert = (tai_convert - epochs[1970]).total_seconds()
-            check_date = dt.utcfromtimestamp(epoch_convert)
+            check_date = dt.fromtimestamp(epoch_convert, timezone.utc)
             for entry in leapseconds:
                 check = date_range(
                     leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date
@@ -3029,7 +3071,7 @@ def to_gpstime(dt_val):
         leap_correction = check_date + timedelta(seconds=variance)
         epoch_shift = leap_correction - epochs[1970]
         gps_stamp = (
-            dt.utcfromtimestamp(epoch_shift.total_seconds()) - epochs[1980]
+            dt.fromtimestamp(epoch_shift.total_seconds(), timezone.utc) - epochs[1980]
         ).total_seconds() - 19
         gps_stamp = int(gps_stamp) - int(dt_tz)
         out_gpstime = str(gps_stamp)
@@ -3061,7 +3103,7 @@ def from_eitime(timestamp):
                 unix_ts = int.from_bytes(
                     struct.pack("<L", int(decoded_eitime, 16)), "big"
                 )
-                in_eitime = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                in_eitime = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}:\t\t\t{in_eitime}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_eitime} {tz_out}{__clr__}"
@@ -3347,10 +3389,10 @@ def from_vm(timestamp):
                 )
                 / 1000000
             )
-            if vmsd >= 1e13:
+            if vmsd >= 32536799999:
                 in_vm = indiv_output = combined_output = False
             else:
-                in_vm = dt.utcfromtimestamp(vmsd).strftime(__fmt__)
+                in_vm = dt.fromtimestamp(vmsd, timezone.utc).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_vm}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_vm} {tz_out}{__clr__}"
@@ -3393,10 +3435,12 @@ def from_tiktok(timestamp):
             in_tiktok = indiv_output = combined_output = False
         else:
             unix_ts = int(timestamp) >> 32
-            if unix_ts > 32536850399:
+            if unix_ts >= 32536799999:
                 in_tiktok = indiv_output = combined_output = False
             else:
-                in_tiktok = dt.utcfromtimestamp(float(unix_ts)).strftime(__fmt__)
+                in_tiktok = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
+                    __fmt__
+                )
             indiv_output = str(f"{ts_type}: {in_tiktok}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_tiktok} {tz_out}{__clr__}"
@@ -3415,12 +3459,12 @@ def from_twitter(timestamp):
             in_twitter = indiv_output = combined_output = False
         else:
             unix_ts = (int(timestamp) >> 22) + 1288834974657
-            if unix_ts > 32536850399:
+            if unix_ts >= 32536799999:
                 in_twitter = indiv_output = combined_output = False
             else:
-                in_twitter = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(
-                    __fmt__
-                )
+                in_twitter = dt.fromtimestamp(
+                    float(unix_ts) / 1000.0, timezone.utc
+                ).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_twitter}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_twitter} {tz_out}{__clr__}"
@@ -3439,12 +3483,12 @@ def from_discord(timestamp):
             in_discord = indiv_output = combined_output = False
         else:
             unix_ts = (int(timestamp) >> 22) + 1420070400000
-            if unix_ts > 32536850399:
+            if unix_ts >= 32536799999:
                 in_discord = indiv_output = combined_output = False
             else:
-                in_discord = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(
-                    __fmt__
-                )
+                in_discord = dt.fromtimestamp(
+                    float(unix_ts) / 1000.0, timezone.utc
+                ).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_discord}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_discord} {tz_out}{__clr__}"
@@ -3476,7 +3520,9 @@ def from_ksalnum(timestamp):
             b_array.reverse()
             ts_bytes = bytes(b_array)[0:4]
             unix_ts = int.from_bytes(ts_bytes, "big", signed=False) + 1400000000
-            in_ksalnum = dt.utcfromtimestamp(float(unix_ts)).strftime(__fmt__)
+            in_ksalnum = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_ksalnum}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_ksalnum} {tz_out}{__clr__}"
@@ -3496,12 +3542,10 @@ def from_mastodon(timestamp):
         else:
             ts_conversion = int(timestamp) >> 16
             unix_ts = float(ts_conversion) / 1000.0
-            if int(unix_ts) > 32536850399:
-                # This is the Windows maximum for parsing a unix TS
-                # and is 3001-01-19 21:29:59 UTC
+            if int(unix_ts) >= 32536799999:
                 in_mastodon = indiv_output = combined_output = False
             else:
-                in_mastodon = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                in_mastodon = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_mastodon}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_mastodon} {tz_out}{__clr__}"
@@ -3570,7 +3614,9 @@ def from_metasploit(timestamp):
                     ]
                 ),
             )[0]
-            in_metasploit = dt.utcfromtimestamp(float(unix_ts)).strftime(__fmt__)
+            in_metasploit = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_metasploit}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t{in_metasploit} {tz_out}{__clr__}"
@@ -3593,7 +3639,9 @@ def from_sony(timestamp):
             dec_value = int(timestamp, 16)
             ts_value = dec_value >> 24
             unix_ts = (ts_value + 140952960000) * 10
-            in_sony = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
+            in_sony = dt.fromtimestamp(float(unix_ts) / 1000.0, timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_sony}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_sony} {tz_out}{__clr__}"
@@ -3618,7 +3666,9 @@ def from_uuid(timestamp):
             u_data = uuid.UUID(uuid_lower)
             if u_data.version == 1:
                 unix_ts = int((u_data.time / 10000) - 12219292800000)
-                in_uuid = dt.utcfromtimestamp(float(unix_ts) / 1000.0).strftime(__fmt__)
+                in_uuid = dt.fromtimestamp(
+                    float(unix_ts) / 1000.0, timezone.utc
+                ).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_uuid}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_uuid} {tz_out}{__clr__}"
@@ -3687,7 +3737,9 @@ def from_dotnet(timestamp):
             if dotnet_to_umil < 0:
                 in_dotnet = indiv_output = combined_output = False
             else:
-                in_dotnet = dt.utcfromtimestamp(dotnet_to_umil).strftime(__fmt__)
+                in_dotnet = dt.fromtimestamp(dotnet_to_umil, timezone.utc).strftime(
+                    __fmt__
+                )
             indiv_output = str(f"{ts_type}: {in_dotnet} {tz_out}")
             combined_output = str(f"{__red__}{ts_type}:\t{in_dotnet} {tz_out}{__clr__}")
     except Exception:
@@ -3729,7 +3781,9 @@ def from_gbound(timestamp):
             end = working_value[:6]
             begin = working_value[6:14]
             full_dec = int("".join(begin + end), 16)
-            in_gbound = dt.utcfromtimestamp(full_dec / 1000000).strftime(__fmt__)
+            in_gbound = dt.fromtimestamp(full_dec / 1000000, timezone.utc).strftime(
+                __fmt__
+            )
             indiv_output = str(f"{ts_type}: {in_gbound} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_gbound} {tz_out}{__clr__}"
@@ -3775,7 +3829,7 @@ def from_gmsgid(timestamp):
         else:
             working_value = gmsgid[:11]
             to_int = int(working_value, 16)
-            in_gmsgid = dt.utcfromtimestamp(to_int / 1000).strftime(__fmt__)
+            in_gmsgid = dt.fromtimestamp(to_int / 1000, timezone.utc).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_gmsgid} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_gmsgid} {tz_out}{__clr__}"
@@ -3877,7 +3931,7 @@ def from_nokia(timestamp):
             if unix_ts < 0:
                 in_nokia = indiv_output = combined_output = False
             else:
-                in_nokia = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                in_nokia = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_nokia}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_nokia} {tz_out}{__clr__}"
@@ -3927,7 +3981,7 @@ def from_nokiale(timestamp):
             if unix_ts < 0:
                 in_nokiale = indiv_output = combined_output = False
             else:
-                in_nokiale = dt.utcfromtimestamp(unix_ts).strftime(__fmt__)
+                in_nokiale = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
                 indiv_output = str(f"{ts_type}: {in_nokiale}")
                 combined_output = str(
                     f"{__red__}{ts_type}:\t\t\t{in_nokiale} {tz_out}{__clr__}"
@@ -3971,18 +4025,12 @@ def from_ns40(timestamp):
             in_ns40 = indiv_output = combined_output = False
         else:
             ns40 = timestamp
-            ns40_val = {}
-            ns40_val["yr"] = ns40[:4]
-            ns40_val["mon"] = ns40[4:6]
-            ns40_val["day"] = ns40[6:8]
-            ns40_val["hr"] = ns40[8:10]
-            ns40_val["min"] = ns40[10:12]
-            ns40_val["sec"] = ns40[12:]
+            ns40_val = {"yr": ns40[:4], "mon": ns40[4:6], "day": ns40[6:8], "hr": ns40[8:10], "min": ns40[10:12], "sec": ns40[12:] }
             for each_key, _ in ns40_val.items():
                 ns40_val[str(each_key)] = int(ns40_val[str(each_key)], 16)
             if ns40_val["yr"] > 9999:
                 in_ns40 = indiv_output = combined_output = False
-            if (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
+            elif (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
                 in_ns40 = indiv_output = combined_output = False
             else:
                 in_ns40 = dt(
@@ -4013,7 +4061,7 @@ def to_ns40(dt_val):
             dt_tz = dt_obj.tzinfo._offset.total_seconds()
         dt_obj = duparser.parse(dt_val, ignoretz=True)
         dt_obj = str(int((dt_obj - epochs[1970]).total_seconds()) - int(dt_tz))
-        dt_obj = dt.utcfromtimestamp(int(dt_obj))
+        dt_obj = dt.fromtimestamp(int(dt_obj), timezone.utc)
         hex_vals = []
         hex_vals.append(f"{dt_obj.year:x}".zfill(4))
         hex_vals.append(f"{dt_obj.month:x}".zfill(2))
@@ -4039,20 +4087,12 @@ def from_ns40le(timestamp):
             in_ns40le = indiv_output = combined_output = False
         else:
             ns40le = timestamp
-            ns40_val = {}
-            ns40_val["yr"] = "".join(
-                [ns40le[i : i + 2] for i in range(0, len(ns40le[:4]), 2)][::-1]
-            )
-            ns40_val["mon"] = ns40le[4:6]
-            ns40_val["day"] = ns40le[6:8]
-            ns40_val["hr"] = ns40le[8:10]
-            ns40_val["min"] = ns40le[10:12]
-            ns40_val["sec"] = ns40le[12:]
+            ns40_val = {"yr": "".join([ns40le[i : i + 2] for i in range(0, len(ns40le[:4]), 2)][::-1]), "mon": ns40le[4:6], "day": ns40le[6:8], "hr": ns40le[8:10], "min": ns40le[10:12], "sec": ns40le[12:] }
             for each_key, _ in ns40_val.items():
                 ns40_val[str(each_key)] = int(ns40_val[str(each_key)], 16)
             if ns40_val["yr"] > 9999:
                 in_ns40le = indiv_output = combined_output = False
-            if (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
+            elif (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
                 in_ns40le = indiv_output = combined_output = False
             else:
                 in_ns40le = dt(
@@ -4084,7 +4124,7 @@ def to_ns40le(dt_val):
             dt_tz = 0
         dt_obj = duparser.parse(dt_val, ignoretz=True)
         dt_obj = str(int((dt_obj - epochs[1970]).total_seconds()) - int(dt_tz))
-        dt_obj = dt.utcfromtimestamp(int(dt_obj))
+        dt_obj = dt.fromtimestamp(int(dt_obj), timezone.utc)
         hex_vals = []
         year_le = f"{dt_obj.year:x}".zfill(4)
         year_le = "".join(
@@ -4142,7 +4182,7 @@ def to_bitdec(dt_val):
             dt_tz = 0
         dt_obj = duparser.parse(dt_val, ignoretz=True)
         dt_obj = str(int((dt_obj - epochs[1970]).total_seconds()) - int(dt_tz))
-        dt_obj = dt.utcfromtimestamp(int(dt_obj))
+        dt_obj = dt.fromtimestamp(int(dt_obj), timezone.utc)
         out_bitdec = str(
             (dt_obj.year << 20)
             + (dt_obj.month << 16)
@@ -4225,7 +4265,7 @@ def from_ksdec(timestamp):
             in_ksdec = indiv_output = combined_output = False
         else:
             ts_val = int(timestamp) + int(epochs["kstime"])
-            in_ksdec = dt.utcfromtimestamp(float(ts_val)).strftime(__fmt__)
+            in_ksdec = dt.fromtimestamp(float(ts_val), timezone.utc).strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_ksdec} {tz_out}")
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t\t{in_ksdec} {tz_out}{__clr__}"
@@ -4364,7 +4404,7 @@ def from_s32(timestamp):
         else:
             for char in timestamp:
                 result = result * 32 + S32_CHARS.index(char)
-            dt_obj = dt.utcfromtimestamp(result / 1000.0)
+            dt_obj = dt.fromtimestamp(result / 1000.0, timezone.utc)
             in_s32 = dt_obj.strftime(__fmt__)
             indiv_output = str(f"{ts_type}: {in_s32} {tz_out}")
             combined_output = str(f"{__red__}{ts_type}:\t\t{in_s32} {tz_out}{__clr__}")
@@ -4572,7 +4612,7 @@ def from_julian_hex(timestamp):
             julian_date = int(julianday) + int(julianmil)
             yr, mon, day, hr, mins, sec, mil = jd.to_gregorian(julian_date)
             dt_vals = [yr, mon, day, hr, mins, sec, mil]
-            if any(val < 0 for val in dt_vals):
+            if yr > 3000 or any(val < 0 for val in dt_vals):
                 in_julian_hex = indiv_output = combined_output = False
             else:
                 dt_obj = dt(yr, mon, day, hr, mins, sec, mil)
