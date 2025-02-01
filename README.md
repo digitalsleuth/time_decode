@@ -9,9 +9,12 @@ This was developed with the Digital Forensics field in mind, so all of the testi
 If you have any questions, suggestions, helpful thoughts of any kind, please feel free to drop me a line.
 
 # Requirements
-For python3, dateutil does not come pre-installed as a module. It will need to be installed manually:
-
-`sudo apt-get install python3-dateutil` or `python3 -m pip install python-dateutil`
+All requirements will get installed automatically when following the below install methods. The additional packages which get installed are:
+- PyQt6
+- python-dateutil
+- colorama
+- tzdata
+- juliandate
 
 # Install
 `python3 -m pip install time-decode` or `python3 -m pip install git+https://github.com/digitalsleuth/time_decode`
