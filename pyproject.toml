@@ -7,13 +7,14 @@ exclude = ["debian*", "binaries*", "build*", "dist*"]
 
 [project]
 name = "time-decode"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
     "PyQt6",
-    "python-dateutil",
     "colorama",
     "tzdata",
-    "juliandate"
+    "juliandate",
+    "prettytable",
+    "bbpb"
 ]
 requires-python = ">=3.9"
 authors = [
@@ -24,12 +25,10 @@ maintainers = [
 ]
 description = "Python 3 timestamp decode/encode tool"
 readme = "README.md"
-license = {file = "LICENSE"}
 keywords = ["digital forensics", "dfir", "timestamp", "decode", "encode"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]
 
