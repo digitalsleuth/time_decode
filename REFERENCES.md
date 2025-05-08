@@ -50,7 +50,7 @@
 - https://www.metaspike.com/dates-gmail-message-id-thread-id-timestamps/
 ### Nokia Timestamp
 - http://www.doubleblak.com/m/blogPosts.php?id=7#nokia
-### Nokia S40 Timestamp, Binary Coded Decimal
+### Nokia S40 Timestamp
 - https://sqliteforensictoolkit.com/a-brief-history-of-time-stamps/
 ### Bitwise Decimal Timestamp
 - https://stackoverflow.com/questions/19185106/unknown-timestamp-reference-date/19553622#19553622
@@ -78,3 +78,5 @@
 - https://github.com/Ollie-Boyd/Linkedin-post-timestamp-extractor/tree/main
 ### Microsoft DTTM
 - https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-doc/164c0c2e-6031-439e-88ad-69d00b69f414
+### WFS File System
+- https://www.academia.edu/81188982/ANALYSIS_AND_RECOVERY_OF_VIDEOS_FROM_THE_WFS_FILE_SYSTEM_Atena_Editora_

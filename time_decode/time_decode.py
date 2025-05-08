@@ -18,7 +18,7 @@ import base64
 import uuid
 import traceback
 import warnings
-from calendar import monthrange
+from calendar import monthrange, IllegalMonthError
 from typing import NamedTuple
 from zoneinfo import ZoneInfo as tzone
 import tzdata
@@ -26,7 +26,7 @@ import juliandate as jd
 from colorama import init
 import blackboxprotobuf
 from blackboxprotobuf.lib.exceptions import DecoderException
-import ulid
+from ulid import ULID
 from prettytable import PrettyTable, TableStyle
 from PyQt6.QtCore import (
     QRect,
@@ -1555,6 +1555,12 @@ ts_types = {
         "406608,-427259264",
         "UTC",
     ),
+    "wfs": TsTypes(
+        "WFS File System",
+        "WFS timestamps are 4 bytes",
+        "00F0063F",
+        "Local",
+    ),
     "cookie": TsTypes(
         "Windows Cookie Date",
         "Windows Cookie times consist of 2 ints, entered with a comma between them",
@@ -1671,10 +1677,7 @@ def from_unixsec(timestamp):
             in_unix_sec = dt.fromtimestamp(float(timestamp), timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_unix_sec} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_unix_sec} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_unix_sec, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_unix_sec = indiv_output = combined_output = ""
@@ -1686,7 +1689,7 @@ def to_unixsec(dt_obj):
     ts_type, _, _, _ = ts_types["unixsec"]
     try:
         out_unix_sec = str(int(dt_obj.timestamp()))
-        ts_output = str(f"{ts_type}:\t\t\t{out_unix_sec}")
+        ts_output, _ = format_output(ts_type, out_unix_sec)
     except Exception:
         handle(sys.exc_info())
         out_unix_sec = ts_output = ""
@@ -1707,6 +1710,9 @@ def from_unixmilli(timestamp):
             combined_output = str(
                 f"{__red__}{ts_type}:\t\t{in_unix_milli} {tz_out}{__clr__}"
             )
+            indiv_output, combined_output = format_output(
+                ts_type, in_unix_milli, tz_out
+            )
     except Exception:
         handle(sys.exc_info())
         in_unix_milli = indiv_output = combined_output = ""
@@ -1718,7 +1724,7 @@ def to_unixmilli(dt_obj):
     ts_type, _, _, _ = ts_types["unixmilli"]
     try:
         out_unix_milli = str(int(dt_obj.timestamp() * 1000))
-        ts_output = str(f"{ts_type}:\t\t{out_unix_milli}")
+        ts_output, _ = format_output(ts_type, out_unix_milli)
     except Exception:
         handle(sys.exc_info())
         out_unix_milli = ts_output = ""
@@ -1736,9 +1742,8 @@ def from_unixmillihex(timestamp):
         else:
             unix_mil = int(str(timestamp), 16)
             in_unix_milli_hex, _, _, _, _ = from_unixmilli(unix_mil)
-            indiv_output = str(f"{ts_type}: {in_unix_milli_hex} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_unix_milli_hex} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_unix_milli_hex, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -1752,7 +1757,7 @@ def to_unixmillihex(dt_obj):
     try:
         unix_mil, _ = to_unixmilli(dt_obj)
         out_unix_milli_hex = f"{int(unix_mil):012x}"
-        ts_output = str(f"{ts_type}:\t\t{out_unix_milli_hex}")
+        ts_output, _ = format_output(ts_type, out_unix_milli_hex)
     except Exception:
         handle(sys.exc_info())
         out_unix_milli_hex = ts_output = ""
@@ -1772,9 +1777,8 @@ def from_filetimebe(timestamp):
             else:
                 dt_obj = epochs[1601] + timedelta(microseconds=base10_microseconds)
                 in_filetime_be = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_filetime_be} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_filetime_be} " f"UTC{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_filetime_be, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -1793,7 +1797,7 @@ def to_filetimebe(dt_obj):
             + (minus_epoch.days * 86400000000)
         )
         out_filetime_be = str(hex(int(calc_time) * 10))[2:].zfill(16)
-        ts_output = str(f"{ts_type}:\t\t{out_filetime_be}")
+        ts_output, _ = format_output(ts_type, out_filetime_be)
     except Exception:
         handle(sys.exc_info())
         out_filetime_be = ts_output = ""
@@ -1817,9 +1821,8 @@ def from_filetimele(timestamp):
             else:
                 dt_obj = epochs[1601] + timedelta(microseconds=converted_time)
                 in_filetime_le = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_filetime_le} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_filetime_le} " f"UTC{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_filetime_le, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -1838,7 +1841,7 @@ def to_filetimele(dt_obj):
             + (minus_epoch.days * 86400000000)
         )
         out_filetime_le = str(struct.pack("<Q", int(calc_time * 10)).hex()).zfill(16)
-        ts_output = str(f"{ts_type}:\t\t{out_filetime_le}")
+        ts_output, _ = format_output(ts_type, out_filetime_le)
     except Exception:
         handle(sys.exc_info())
         out_filetime_le = ts_output = ""
@@ -1855,10 +1858,7 @@ def from_chrome(timestamp):
             delta = timedelta(microseconds=int(timestamp))
             converted_time = epochs[1601] + delta
             in_chrome = converted_time.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_chrome} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_chrome} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_chrome, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_chrome = indiv_output = combined_output = ""
@@ -1871,7 +1871,7 @@ def to_chrome(dt_obj):
     try:
         chrome_time = (dt_obj - epochs[1601]).total_seconds()
         out_chrome = str(int(chrome_time * 1000000))
-        ts_output = str(f"{ts_type}:\t\t\t{out_chrome}")
+        ts_output, _ = format_output(ts_type, out_chrome)
     except Exception:
         handle(sys.exc_info())
         out_chrome = ts_output = ""
@@ -1895,10 +1895,7 @@ def from_active(timestamp):
             else:
                 dt_obj = dt.fromtimestamp(val_check, timezone.utc)
                 in_ad = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_ad} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_ad} {tz_out}{__clr__}"
-                )
+                indiv_output, combined_output = format_output(ts_type, in_ad, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ad = indiv_output = combined_output = ""
@@ -1911,7 +1908,7 @@ def to_active(dt_obj):
     try:
         nano_convert = int(dt_obj.timestamp() * epochs["hundreds_nano"])
         out_adtime = str(int(nano_convert) + int(epochs["active"]))
-        ts_output = str(f"{ts_type}:\t\t{out_adtime}")
+        ts_output, _ = format_output(ts_type, out_adtime)
     except Exception:
         handle(sys.exc_info())
         out_adtime = ts_output = ""
@@ -1929,9 +1926,8 @@ def from_unixhex32be(timestamp):
             in_unix_hex_32 = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_unix_hex_32} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_unix_hex_32} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_unix_hex_32, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -1945,7 +1941,7 @@ def to_unixhex32be(dt_obj):
     try:
         unix_time = int(dt_obj.timestamp())
         out_unix_hex_32 = str(struct.pack(">L", unix_time).hex())
-        ts_output = str(f"{ts_type}:\t\t{out_unix_hex_32}")
+        ts_output, _ = format_output(ts_type, out_unix_hex_32)
     except Exception:
         handle(sys.exc_info())
         out_unix_hex_32 = ts_output = ""
@@ -1963,9 +1959,8 @@ def from_unixhex32le(timestamp):
             in_unix_hex_32le = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_unix_hex_32le} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_unix_hex_32le} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_unix_hex_32le, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -1979,7 +1974,7 @@ def to_unixhex32le(dt_obj):
     try:
         unix_time = int((dt_obj - epochs[1970]).total_seconds())
         out_unix_hex_32le = str(struct.pack("<L", unix_time).hex())
-        ts_output = str(f"{ts_type}:\t\t{out_unix_hex_32le}")
+        ts_output, _ = format_output(ts_type, out_unix_hex_32le)
     except Exception:
         handle(sys.exc_info())
         out_unix_hex_32le = ts_output = ""
@@ -2002,9 +1997,8 @@ def from_cookie(timestamp):
             else:
                 dt_obj = dt.fromtimestamp(calc, timezone.utc)
                 in_cookie = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_cookie} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_cookie} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_cookie, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -2024,7 +2018,7 @@ def to_cookie(dt_obj):
             + (dt_obj.microsecond * 10)
         )
         out_cookie = f"{str(low)},{str(high)}"
-        ts_output = str(f"{ts_type}:\t\t{out_cookie}")
+        ts_output, _ = format_output(ts_type, out_cookie)
     except Exception:
         handle(sys.exc_info())
         out_cookie = ts_output = ""
@@ -2044,9 +2038,8 @@ def from_olebe(timestamp):
             else:
                 dt_obj = epochs[1899] + timedelta(days=delta)
                 in_ole_be = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_ole_be} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_ole_be} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_ole_be, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -2061,7 +2054,7 @@ def to_olebe(dt_obj):
         delta = ((dt_obj - epochs[1899]).total_seconds()) / 86400
         conv = struct.unpack("<Q", struct.pack("<d", delta))[0]
         out_ole_be = str(struct.pack(">Q", conv).hex())
-        ts_output = str(f"{ts_type}:\t{out_ole_be}")
+        ts_output, _ = format_output(ts_type, out_ole_be)
     except Exception:
         handle(sys.exc_info())
         out_ole_be = ts_output = ""
@@ -2082,9 +2075,8 @@ def from_olele(timestamp):
             else:
                 dt_obj = epochs[1899] + timedelta(days=delta)
                 in_ole_le = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_ole_le} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_ole_le} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_ole_le, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -2099,7 +2091,7 @@ def to_olele(dt_obj):
         delta = ((dt_obj - epochs[1899]).total_seconds()) / 86400
         conv = struct.unpack("<Q", struct.pack("<d", delta))[0]
         out_ole_le = str(struct.pack("<Q", conv).hex())
-        ts_output = str(f"{ts_type}:\t{out_ole_le}")
+        ts_output, _ = format_output(ts_type, out_ole_le)
     except Exception:
         handle(sys.exc_info())
         out_ole_le = ts_output = ""
@@ -2136,7 +2128,7 @@ def from_mac(timestamp):
 def from_nsdate(timestamp):
     """Convert an Apple NSDate timestamp (Mac Absolute, BPlist, Cocoa, iOS) to a date"""
     val_type = ""
-    ts_type, reason, _, tz_out = None, None, None, None
+    ts_type, reason, _, tz_out = 4 * (None,)
     try:
         in_nsdate = indiv_output = combined_output = None
         if (
@@ -2160,15 +2152,11 @@ def from_nsdate(timestamp):
         if val_type in {"mac", "bplist"}:
             dt_obj = epochs[2001] + timedelta(seconds=float(timestamp))
             in_nsdate = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_nsdate}")
-            combined_output = str(f"{__red__}{ts_type}:\t{in_nsdate} {tz_out}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
         elif val_type == "iostime":
             dt_obj = (int(timestamp) / int(epochs["nano_2001"])) + 978307200
             in_nsdate = dt.fromtimestamp(dt_obj, timezone.utc).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_nsdate} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_nsdate} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_nsdate = indiv_output = combined_output = ""
@@ -2187,7 +2175,7 @@ def to_mac(dt_obj):
             out_mac = "[!] Timestamp Boundary Exceeded [!]"
         else:
             out_mac = str(f"{mac_ts:.6f}")
-        ts_output = str(f"{ts_type}:\t{out_mac}")
+        ts_output, _ = format_output(ts_type, out_mac)
     except Exception:
         handle(sys.exc_info())
         out_mac = ts_output = ""
@@ -2208,9 +2196,8 @@ def from_hfsdec(timestamp):
                 in_hfs_dec = dt.fromtimestamp(minus_epoch, timezone.utc).strftime(
                     __fmt__
                 )
-                indiv_output = str(f"{ts_type}: {in_hfs_dec} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_hfs_dec} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_hfs_dec, tz_out
                 )
     except Exception:
         in_hfs_dec = indiv_output = combined_output = ""
@@ -2223,7 +2210,7 @@ def to_hfsdec(dt_obj):
     ts_type, _, _, _ = ts_types["hfsdec"]
     try:
         out_hfs_dec = str(int((dt_obj - epochs[1904]).total_seconds()))
-        ts_output = str(f"{ts_type}:\t\t{out_hfs_dec}")
+        ts_output, _ = format_output(ts_type, out_hfs_dec)
     except Exception:
         handle(sys.exc_info())
         out_hfs_dec = ts_output = ""
@@ -2239,10 +2226,7 @@ def from_hfsbe(timestamp):
         else:
             dt_obj = epochs[1904] + timedelta(seconds=int(timestamp, 16))
             in_hfs_be = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_hfs_be} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_hfs_be} " f"{tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_hfs_be, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_hfs_be = indiv_output = combined_output = ""
@@ -2258,7 +2242,7 @@ def to_hfsbe(dt_obj):
             out_hfs_be = "[!] Timestamp Boundary Exceeded [!]"
         else:
             out_hfs_be = f"{conv:08x}"
-        ts_output = str(f"{ts_type}:\t\t{out_hfs_be}")
+        ts_output, _ = format_output(ts_type, out_hfs_be)
     except Exception:
         handle(sys.exc_info())
         out_hfs_be = ts_output = ""
@@ -2275,10 +2259,7 @@ def from_hfsle(timestamp):
             to_le = struct.unpack(">I", struct.pack("<I", int(timestamp, 16)))[0]
             dt_obj = epochs[1904] + timedelta(seconds=to_le)
             in_hfs_le = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_hfs_le} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_hfs_le} " f"{tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_hfs_le, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_hfs_le = indiv_output = combined_output = ""
@@ -2294,7 +2275,7 @@ def to_hfsle(dt_obj):
             out_hfs_le = "[!] Timestamp Boundary Exceeded [!]"
         else:
             out_hfs_le = str(struct.pack("<I", conv).hex())
-        ts_output = str(f"{ts_type}:\t\t{out_hfs_le}")
+        ts_output, _ = format_output(ts_type, out_hfs_le)
     except Exception:
         handle(sys.exc_info())
         out_hfs_le = ts_output = ""
@@ -2329,28 +2310,30 @@ def from_fat(timestamp):
             fat_hour = stamp[3]
             fat_min = stamp[4]
             fat_sec = stamp[5] * 2
-            if any(
-                not low <= value < high
-                for value, (low, high) in zip(
-                    (fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec),
-                    (
-                        (1970, 2100),
-                        (1, 13),
-                        (1, monthrange(fat_year, fat_month)[1] + 1),
-                        (0, 24),
-                        (0, 60),
-                        (0, 60),
-                    ),
+            try:
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec),
+                        (
+                            (1970, 2100),
+                            (1, 13),
+                            (1, monthrange(fat_year, fat_month)[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                            (0, 60),
+                        ),
+                    )
                 )
-            ):
+                if out_of_range:
+                    in_fat = indiv_output = combined_output = ""
+                    return in_fat, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
                 in_fat = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec)
-                in_fat = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_fat} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_fat} {tz_out}{__clr__}"
-                )
+                return in_fat, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec)
+            in_fat = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_fat, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_fat = indiv_output = combined_output = ""
@@ -2376,7 +2359,7 @@ def to_fat(dt_obj):
         out_fat = "".join(
             [byte_swap[i : i + 4] for i in range(0, len(byte_swap), 4)][::-1]
         )
-        ts_output = str(f"{ts_type}:\t\t{out_fat}")
+        ts_output, _ = format_output(ts_type, out_fat)
     except Exception:
         handle(sys.exc_info())
         out_fat = ts_output = ""
@@ -2412,28 +2395,30 @@ def from_msdos(timestamp):
             dos_hour = stamp[3]
             dos_min = stamp[4]
             dos_sec = stamp[5] * 2
-            if any(
-                not low <= value < high
-                for value, (low, high) in zip(
-                    (dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec),
-                    (
-                        (1970, 2100),
-                        (1, 13),
-                        (1, monthrange(dos_year, dos_month)[1] + 1),
-                        (0, 24),
-                        (0, 60),
-                        (0, 60),
-                    ),
+            try:
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec),
+                        (
+                            (1970, 2100),
+                            (1, 13),
+                            (1, monthrange(dos_year, dos_month)[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                            (0, 60),
+                        ),
+                    )
                 )
-            ):
+                if out_of_range:
+                    in_msdos = indiv_output = combined_output = ""
+                    return in_msdos, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
                 in_msdos = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec)
-                in_msdos = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_msdos} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_msdos} {tz_out}{__clr__}"
-                )
+                return in_msdos, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec)
+            in_msdos = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_msdos, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_msdos = indiv_output = combined_output = ""
@@ -2456,7 +2441,7 @@ def to_msdos(dt_obj):
             ).hex()
         )
         out_msdos = "".join([hexval[i : i + 2] for i in range(0, len(hexval), 2)][::-1])
-        ts_output = str(f"{ts_type}:\t{out_msdos}")
+        ts_output, _ = format_output(ts_type, out_msdos)
     except Exception:
         handle(sys.exc_info())
         out_msdos = ts_output = ""
@@ -2489,37 +2474,39 @@ def from_exfat(timestamp):
             exfat_hour = stamp[3]
             exfat_min = stamp[4]
             exfat_sec = stamp[5] * 2
-            if any(
-                not low <= value < high
-                for value, (low, high) in zip(
-                    (
-                        exfat_year,
-                        exfat_month,
-                        exfat_day,
-                        exfat_hour,
-                        exfat_min,
-                        exfat_sec,
-                    ),
-                    (
-                        (1970, 2100),
-                        (1, 13),
-                        (1, monthrange(exfat_year, exfat_month)[1] + 1),
-                        (0, 24),
-                        (0, 60),
-                        (0, 60),
-                    ),
+            try:
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (
+                            exfat_year,
+                            exfat_month,
+                            exfat_day,
+                            exfat_hour,
+                            exfat_min,
+                            exfat_sec,
+                        ),
+                        (
+                            (1970, 2100),
+                            (1, 13),
+                            (1, monthrange(exfat_year, exfat_month)[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                            (0, 60),
+                        ),
+                    )
                 )
-            ):
+                if out_of_range:
+                    in_exfat = indiv_output = combined_output = ""
+                    return in_exfat, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
                 in_exfat = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(
-                    exfat_year, exfat_month, exfat_day, exfat_hour, exfat_min, exfat_sec
-                )
-                in_exfat = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_exfat} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_exfat} {tz_out}{__clr__}"
-                )
+                return in_exfat, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(
+                exfat_year, exfat_month, exfat_day, exfat_hour, exfat_min, exfat_sec
+            )
+            in_exfat = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_exfat, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_exfat = indiv_output = combined_output = ""
@@ -2541,7 +2528,7 @@ def to_exfat(dt_obj):
                 ">I", int(year + month + day + hour + minute + seconds, 2)
             ).hex()
         )
-        ts_output = str(f"{ts_type}:\t\t\t{out_exfat}")
+        ts_output, _ = format_output(ts_type, out_exfat)
     except Exception:
         handle(sys.exc_info())
         out_exfat = ts_output = ""
@@ -2576,9 +2563,8 @@ def from_systemtime(timestamp):
                     stamp[7] * 1000,
                 )
                 in_systemtime = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_systemtime} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t{in_systemtime} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_systemtime, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -2599,7 +2585,7 @@ def to_systemtime(dt_obj):
             )
             stamp.append(f"{to_hex:04x}")
         out_systemtime = "".join(stamp)
-        ts_output = str(f"{ts_type}:\t{out_systemtime}")
+        ts_output, _ = format_output(ts_type, out_systemtime)
     except Exception:
         handle(sys.exc_info())
         out_systemtime = ts_output = ""
@@ -2626,9 +2612,8 @@ def from_filetimelohi(timestamp):
                     timezone.utc,
                 )
                 in_filetime_lo_hi = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_filetime_lo_hi} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_filetime_lo_hi} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_filetime_lo_hi, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -2648,7 +2633,7 @@ def to_filetimelohi(dt_obj):
         )
         indiv_output = str(struct.pack(">Q", int(calc_time * 10)).hex())
         out_filetime_lo_hi = f"{str(indiv_output[8:])}:{str(indiv_output[:8])}"
-        ts_output = str(f"{ts_type}:\t{out_filetime_lo_hi}")
+        ts_output, _ = format_output(ts_type, out_filetime_lo_hi)
     except Exception:
         handle(sys.exc_info())
         out_filetime_lo_hi = ts_output = ""
@@ -2680,9 +2665,8 @@ def from_hotmail(timestamp):
                     timezone.utc,
                 )
                 in_hotmail = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_hotmail} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_hotmail} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_hotmail, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -2705,7 +2689,7 @@ def to_hotmail(dt_obj):
             [indiv_output[i : i + 2] for i in range(0, len(indiv_output), 2)][::-1]
         )
         out_hotmail = f"{str(byte_swap[8:])}:{str(byte_swap[:8])}"
-        ts_output = str(f"{ts_type}:\t\t{out_hotmail}")
+        ts_output, _ = format_output(ts_type, out_hotmail)
     except Exception:
         handle(sys.exc_info())
         out_hotmail = ts_output = ""
@@ -2721,10 +2705,7 @@ def from_prtime(timestamp):
         else:
             dt_obj = epochs[1970] + timedelta(microseconds=int(timestamp))
             in_prtime = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_prtime} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_prtime} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_prtime, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_prtime = indiv_output = combined_output = ""
@@ -2736,7 +2717,7 @@ def to_prtime(dt_obj):
     ts_type, _, _, _ = ts_types["prtime"]
     try:
         out_prtime = str(int(((dt_obj - epochs[1970]).total_seconds()) * 1000000))
-        ts_output = str(f"{ts_type}:\t\t\t{out_prtime}")
+        ts_output, _ = format_output(ts_type, out_prtime)
     except Exception:
         handle(sys.exc_info())
         out_prtime = ts_output = ""
@@ -2759,10 +2740,7 @@ def from_oleauto(timestamp):
         else:
             dt_obj = epochs[1899] + timedelta(days=float(timestamp))
             in_ole_auto = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_ole_auto} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t{in_ole_auto} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ole_auto, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ole_auto = indiv_output = combined_output = ""
@@ -2775,7 +2753,7 @@ def to_oleauto(dt_obj):
     try:
         ole_ts = ((dt_obj - epochs[1899]).total_seconds()) / 86400
         out_ole_auto = f"{ole_ts:.12f}"
-        ts_output = str(f"{ts_type}:\t{out_ole_auto}")
+        ts_output, _ = format_output(ts_type, out_ole_auto)
     except Exception:
         handle(sys.exc_info())
         out_ole_auto = ts_output = ""
@@ -2798,8 +2776,7 @@ def from_ms1904(timestamp):
         else:
             dt_obj = epochs[1904] + timedelta(days=float(timestamp))
             in_ms1904 = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_ms1904} {tz_out}")
-            combined_output = str(f"{__red__}{ts_type}:\t{in_ms1904} {tz_out}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_ms1904, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ms1904 = indiv_output = combined_output = ""
@@ -2812,7 +2789,7 @@ def to_ms1904(dt_obj):
     try:
         ms1904_ts = ((dt_obj - epochs[1904]).total_seconds()) / 86400
         out_ms1904 = f"{ms1904_ts:.12f}"
-        ts_output = str(f"{ts_type}:\t{out_ms1904}")
+        ts_output, _ = format_output(ts_type, out_ms1904)
     except Exception:
         handle(sys.exc_info())
         out_ms1904 = ts_output = ""
@@ -2828,7 +2805,7 @@ def to_iostime(dt_obj):
         )
         if int(out_iostime) < 0:
             out_iostime = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output = str(f"{ts_type}:\t\t{out_iostime}")
+        ts_output, _ = format_output(ts_type, out_iostime)
     except Exception:
         handle(sys.exc_info())
         out_iostime = ts_output = ""
@@ -2863,8 +2840,7 @@ def from_symantec(timestamp):
                     in_symtime = indiv_output = combined_output = ""
                     return in_symtime, indiv_output, combined_output, reason, tz_out
                 in_symtime = dt_obj.strftime(__fmt__)
-        indiv_output = str(f"{ts_type}: {in_symtime}")
-        combined_output = str(f"{__red__}{ts_type}:\t\t{in_symtime} {tz_out}{__clr__}")
+        indiv_output, combined_output = format_output(ts_type, in_symtime, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_symtime = indiv_output = combined_output = ""
@@ -2884,7 +2860,7 @@ def to_symantec(dt_obj):
         out_symtime = (
             f"{sym_year}{sym_month}{sym_day}{sym_hour}{sym_minute}{sym_second}"
         )
-        ts_output = str(f"{ts_type}:\t\t{out_symtime}")
+        ts_output, _ = format_output(ts_type, out_symtime)
     except Exception:
         handle(sys.exc_info())
         out_symtime = ts_output = ""
@@ -2912,10 +2888,7 @@ def from_gps(timestamp):
                     variance = 0
             gps_out = check_date - timedelta(seconds=variance)
             in_gpstime = gps_out.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_gpstime}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_gpstime} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_gpstime, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_gpstime = indiv_output = combined_output = ""
@@ -2940,7 +2913,7 @@ def to_gps(dt_obj):
             dt.fromtimestamp(epoch_shift.total_seconds(), timezone.utc) - epochs[1980]
         ).total_seconds() - 19
         out_gpstime = str(int(gps_stamp))
-        ts_output = str(f"{ts_type}:\t\t\t{out_gpstime}")
+        ts_output, _ = format_output(ts_type, out_gpstime)
     except Exception:
         handle(sys.exc_info())
         out_gpstime = ts_output = ""
@@ -2966,9 +2939,8 @@ def from_eitime(timestamp):
                     struct.pack("<L", int(decoded_eitime, 16)), "big"
                 )
                 in_eitime = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}:\t\t\t{in_eitime}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_eitime} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_eitime, tz_out
                 )
             except base64.binascii.Error:
                 in_eitime = indiv_output = combined_output = ""
@@ -2986,7 +2958,7 @@ def to_eitime(dt_obj):
         unix_hex = struct.pack("<L", unix_time)
         urlsafe_encode = base64.urlsafe_b64encode(unix_hex)
         out_eitime = urlsafe_encode.decode(encoding="UTF-8").strip("=")
-        ts_output = str(f"{ts_type}:\t\t\t{out_eitime}")
+        ts_output, _ = format_output(ts_type, out_eitime)
     except Exception:
         handle(sys.exc_info())
         out_eitime = ts_output = ""
@@ -3000,7 +2972,7 @@ def to_bplist(dt_obj):
         out_bplist = str(int((dt_obj - epochs[2001]).total_seconds()))
         if int(out_bplist) < 0:
             out_bplist = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output = str(f"{ts_type}:\t{out_bplist}")
+        ts_output, _ = format_output(ts_type, out_bplist)
     except Exception:
         handle(sys.exc_info())
         out_bplist = ts_output = ""
@@ -3166,8 +3138,7 @@ def from_gsm(timestamp):
             in_gsm = str(
                 dt(dt_year, dt_month, dt_day, dt_hour, dt_min, dt_sec).strftime(__fmt__)
             )
-            indiv_output = str(f"{ts_type}: {in_gsm}")
-            combined_output = str(f"{__red__}{ts_type}:\t\t\t{in_gsm}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_gsm, tz_out)
     except ValueError:
         in_gsm = indiv_output = combined_output = ""
     except Exception:
@@ -3212,7 +3183,7 @@ def to_gsm(dt_obj):
             b_endian = value[::-1]
             date_value_swap.append(b_endian)
         out_gsm = "".join(date_value_swap)
-        ts_output = str(f"{ts_type}:\t\t\t{out_gsm}")
+        ts_output, _ = format_output(ts_type, out_gsm)
     except Exception:
         handle(sys.exc_info())
         out_gsm = ts_output = ""
@@ -3239,10 +3210,7 @@ def from_vm(timestamp):
                 in_vm = indiv_output = combined_output = ""
             else:
                 in_vm = dt.fromtimestamp(vmsd, timezone.utc).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_vm}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_vm} {tz_out}{__clr__}"
-                )
+                indiv_output, combined_output = format_output(ts_type, in_vm, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_vm = indiv_output = combined_output = ""
@@ -3258,7 +3226,7 @@ def to_vm(dt_obj):
         unpacked_int = unix_seconds - (create_time_high * 2**32)
         create_time_low = struct.unpack("i", struct.pack("I", unpacked_int))[0]
         out_vm = f"{str(create_time_high)},{str(create_time_low)}"
-        ts_output = str(f"{ts_type}:\t\t\t{out_vm}")
+        ts_output, _ = format_output(ts_type, out_vm)
     except Exception:
         handle(sys.exc_info())
         out_vm = ts_output = ""
@@ -3279,10 +3247,7 @@ def from_tiktok(timestamp):
                 in_tiktok = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
                     __fmt__
                 )
-            indiv_output = str(f"{ts_type}: {in_tiktok}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_tiktok} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_tiktok, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_tiktok = indiv_output = combined_output = ""
@@ -3303,10 +3268,7 @@ def from_twitter(timestamp):
                 in_twitter = dt.fromtimestamp(
                     float(unix_ts) / 1000.0, timezone.utc
                 ).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_twitter}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_twitter} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_twitter, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_twitter = indiv_output = combined_output = ""
@@ -3327,10 +3289,7 @@ def from_discord(timestamp):
                 in_discord = dt.fromtimestamp(
                     float(unix_ts) / 1000.0, timezone.utc
                 ).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_discord}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_discord} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_discord, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_discord = indiv_output = combined_output = ""
@@ -3361,10 +3320,7 @@ def from_ksalnum(timestamp):
             in_ksalnum = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_ksalnum}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_ksalnum} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ksalnum, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ksalnum = indiv_output = combined_output = ""
@@ -3384,9 +3340,8 @@ def from_mastodon(timestamp):
                 in_mastodon = indiv_output = combined_output = ""
             else:
                 in_mastodon = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_mastodon}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_mastodon} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_mastodon, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -3401,7 +3356,7 @@ def to_mastodon(dt_obj):
         unix_seconds = int((dt_obj - epochs[1970]).total_seconds()) * 1000
         bit_shift = unix_seconds << 16
         out_mastodon = f"{str(bit_shift)}"
-        ts_output = str(f"{ts_type}:\t\t\t{out_mastodon}")
+        ts_output, _ = format_output(ts_type, out_mastodon)
     except Exception:
         handle(sys.exc_info())
         out_mastodon = ts_output = ""
@@ -3446,9 +3401,8 @@ def from_metasploit(timestamp):
             in_metasploit = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_metasploit}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t{in_metasploit} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_metasploit, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -3471,10 +3425,7 @@ def from_sony(timestamp):
             in_sony = dt.fromtimestamp(float(unix_ts) / 1000.0, timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_sony}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_sony} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_sony, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_sony = indiv_output = combined_output = ""
@@ -3487,7 +3438,7 @@ def to_sony(dt_obj):
     try:
         dec_value = int((dt_obj.timestamp() * 100) - 140952960000)
         out_sony = f"{(dec_value << 24):0x}"
-        ts_output = str(f"{ts_type}:\t\t\t{out_sony}")
+        ts_output, _ = format_output(ts_type, out_sony)
     except Exception:
         handle(sys.exc_info())
         out_sony = ts_output = ""
@@ -3511,10 +3462,7 @@ def from_uuid(timestamp):
                 in_uuid = dt.fromtimestamp(
                     float(unix_ts) / 1000.0, timezone.utc
                 ).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_uuid}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_uuid} {tz_out}{__clr__}"
-                )
+                indiv_output, combined_output = format_output(ts_type, in_uuid, tz_out)
             else:
                 in_uuid = indiv_output = combined_output = ""
     except Exception:
@@ -3547,7 +3495,7 @@ def to_uuid(dt_obj):
                 )
             )
         )
-        ts_output = str(f"{ts_type}:\t\t\t{out_uuid}")
+        ts_output, _ = format_output(ts_type, out_uuid)
     except Exception:
         handle(sys.exc_info())
         out_uuid = ts_output = ""
@@ -3565,10 +3513,7 @@ def from_dhcp6(timestamp):
             dhcp6_dec = int(dhcp6_bytes, 16)
             dhcp6_ts = epochs[2000] + timedelta(seconds=int(dhcp6_dec))
             in_dhcp6 = dhcp6_ts.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_dhcp6}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_dhcp6} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_dhcp6, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_dhcp6 = indiv_output = combined_output = ""
@@ -3582,11 +3527,10 @@ def to_dhcp6(dt_obj):
         unix_time = int((dt_obj - epochs[2000]).total_seconds())
         if int(unix_time) < 0:
             out_dhcp6 = "[!] Timestamp Boundary Exceeded [!]"
-            ts_output = str(f"{ts_type}:\t\t{out_dhcp6}")
         else:
             dhcp6_ts = str(struct.pack(">L", unix_time).hex())
             out_dhcp6 = f"00010001{dhcp6_ts}000000000000"
-            ts_output = str(f"{ts_type}:\t\t{out_dhcp6}")
+        ts_output, _ = format_output(ts_type, out_dhcp6)
     except Exception:
         handle(sys.exc_info())
         out_dhcp6 = ts_output = ""
@@ -3608,8 +3552,7 @@ def from_dotnet(timestamp):
                 in_dotnet = dt.fromtimestamp(dotnet_to_umil, timezone.utc).strftime(
                     __fmt__
                 )
-            indiv_output = str(f"{ts_type}: {in_dotnet} {tz_out}")
-            combined_output = str(f"{__red__}{ts_type}:\t{in_dotnet} {tz_out}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_dotnet, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_dotnet = indiv_output = combined_output = ""
@@ -3621,7 +3564,7 @@ def to_dotnet(dt_obj):
     ts_type, _, _, _ = ts_types["dotnet"]
     try:
         out_dotnet = str(int(((dt_obj - epochs[1]).total_seconds()) * 10000000))
-        ts_output = str(f"{ts_type}:\t{out_dotnet}")
+        ts_output, _ = format_output(ts_type, out_dotnet)
     except Exception:
         handle(sys.exc_info())
         out_dotnet = ts_output = ""
@@ -3644,10 +3587,7 @@ def from_gbound(timestamp):
             in_gbound = dt.fromtimestamp(full_dec / 1000000, timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_gbound} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_gbound} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_gbound, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_gbound = indiv_output = combined_output = ""
@@ -3664,7 +3604,7 @@ def to_gbound(dt_obj):
         begin = to_int[8:]
         end = to_int[:8]
         out_gbound = f"000000000000{begin}{end}00"
-        ts_output = str(f"{ts_type}:\t\t{out_gbound}")
+        ts_output, _ = format_output(ts_type, out_gbound)
     except Exception:
         handle(sys.exc_info())
         out_gbound = ts_output = ""
@@ -3684,10 +3624,7 @@ def from_gmsgid(timestamp):
             working_value = gmsgid[:11]
             to_int = int(working_value, 16)
             in_gmsgid = dt.fromtimestamp(to_int / 1000, timezone.utc).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_gmsgid} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_gmsgid} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_gmsgid, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_gmsgid = indiv_output = combined_output = ""
@@ -3701,7 +3638,7 @@ def to_gmsgid(dt_obj):
         to_int = int(((dt_obj - epochs[1970]).total_seconds()) * 1000)
         ts_hex = f"{to_int:x}"
         out_gmsgid = f"{ts_hex}00000"
-        ts_output = str(f"{ts_type}:\t\t{out_gmsgid}")
+        ts_output, _ = format_output(ts_type, out_gmsgid)
     except Exception:
         handle(sys.exc_info())
         out_gmsgid = ts_output = ""
@@ -3737,10 +3674,7 @@ def from_moto(timestamp):
                     in_moto = indiv_output = combined_output = ""
                     return in_moto, indiv_output, combined_output, reason, tz_out
                 in_moto = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_moto}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_moto} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_moto, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_moto = indiv_output = combined_output = ""
@@ -3761,7 +3695,7 @@ def to_moto(dt_obj):
             f"{moto_year}{moto_month}{moto_day}"
             f"{moto_hour}{moto_minute}{moto_second}"
         )
-        ts_output = str(f"{ts_type}:\t\t\t{out_moto}")
+        ts_output, _ = format_output(ts_type, out_moto)
     except Exception:
         handle(sys.exc_info())
         out_moto = ts_output = ""
@@ -3783,10 +3717,7 @@ def from_nokia(timestamp):
                 in_nokia = indiv_output = combined_output = ""
             else:
                 in_nokia = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_nokia}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_nokia} {tz_out}{__clr__}"
-                )
+                indiv_output, combined_output = format_output(ts_type, in_nokia, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_nokia = indiv_output = combined_output = ""
@@ -3802,7 +3733,7 @@ def to_nokia(dt_obj):
         int_diff = int_diff - 1
         dec_value = ~int_diff ^ 4294967295
         out_nokia = f"{dec_value:x}"
-        ts_output = str(f"{ts_type}:\t\t\t{out_nokia}")
+        ts_output, _ = format_output(ts_type, out_nokia)
     except Exception:
         handle(sys.exc_info())
         out_nokia = ts_output = ""
@@ -3827,9 +3758,8 @@ def from_nokiale(timestamp):
                 in_nokiale = indiv_output = combined_output = ""
             else:
                 in_nokiale = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_nokiale}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t\t{in_nokiale} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_nokiale, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -3849,7 +3779,7 @@ def to_nokiale(dt_obj):
         out_nokiale = "".join(
             [hex_val[i : i + 2] for i in range(0, len(hex_val), 2)][::-1]
         )
-        ts_output = str(f"{ts_type}:\t\t\t{out_nokiale}")
+        ts_output, _ = format_output(ts_type, out_nokiale)
     except Exception:
         handle(sys.exc_info())
         out_nokiale = ts_output = ""
@@ -3887,10 +3817,7 @@ def from_ns40(timestamp):
                     ns40_val["min"],
                     ns40_val["sec"],
                 ).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_ns40}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_ns40} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ns40, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ns40 = indiv_output = combined_output = ""
@@ -3909,7 +3836,7 @@ def to_ns40(dt_obj):
         hex_vals.append(f"{dt_obj.minute:x}".zfill(2))
         hex_vals.append(f"{dt_obj.second:x}".zfill(2))
         out_ns40 = "".join(hex_vals)
-        ts_output = str(f"{ts_type}:\t\t\t{out_ns40}")
+        ts_output, _ = format_output(ts_type, out_ns40)
     except Exception:
         handle(sys.exc_info())
         out_ns40 = ts_output = ""
@@ -3951,10 +3878,7 @@ def from_ns40le(timestamp):
                     ns40_val["min"],
                     ns40_val["sec"],
                 ).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_ns40le}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_ns40le} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ns40le, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ns40le = indiv_output = combined_output = ""
@@ -3977,7 +3901,7 @@ def to_ns40le(dt_obj):
         hex_vals.append(f"{dt_obj.minute:x}".zfill(2))
         hex_vals.append(f"{dt_obj.second:x}".zfill(2))
         out_ns40le = "".join(hex_vals)
-        ts_output = str(f"{ts_type}:\t\t{out_ns40le}")
+        ts_output, _ = format_output(ts_type, out_ns40le)
     except Exception:
         handle(sys.exc_info())
         out_ns40le = ts_output = ""
@@ -4001,10 +3925,8 @@ def from_bitdec(timestamp):
                 in_bitdec = dt(bd_yr, bd_mon, bd_day, bd_hr, bd_min).strftime(__fmt__)
             except ValueError:
                 in_bitdec = indiv_output = combined_output = ""
-            indiv_output = str(f"{ts_type}: {in_bitdec} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_bitdec} {tz_out}{__clr__}"
-            )
+                return in_bitdec, indiv_output, combined_output, reason, tz_out
+            indiv_output, combined_output = format_output(ts_type, in_bitdec, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_bitdec = indiv_output = combined_output = ""
@@ -4022,7 +3944,7 @@ def to_bitdec(dt_obj):
             + (dt_obj.hour << 6)
             + (dt_obj.minute)
         )
-        ts_output = str(f"{ts_type}:\t\t{out_bitdec}")
+        ts_output, _ = format_output(ts_type, out_bitdec)
     except Exception:
         handle(sys.exc_info())
         out_bitdec = ts_output = ""
@@ -4045,16 +3967,17 @@ def from_bitdate(timestamp):
             bitdate_day = int(to_binary[16:21], 2)
             bitdate_hr = int(to_binary[21:26], 2)
             bitdate_min = int(to_binary[26:32], 2)
+            if bitdate_yr not in range(1900, 2500):
+                in_bitdate = indiv_output = combined_output = ""
+                return in_bitdate, indiv_output, combined_output, reason, tz_out
             try:
                 in_bitdate = dt(
                     bitdate_yr, bitdate_mon, bitdate_day, bitdate_hr, bitdate_min
                 ).strftime(__fmt__)
             except ValueError:
                 in_bitdate = indiv_output = combined_output = ""
-            indiv_output = str(f"{ts_type}: {in_bitdate} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_bitdate} {tz_out}{__clr__}"
-            )
+                return in_bitdate, indiv_output, combined_output, reason, tz_out
+            indiv_output, combined_output = format_output(ts_type, in_bitdate, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_bitdate = indiv_output = combined_output = ""
@@ -4081,7 +4004,7 @@ def to_bitdate(dt_obj):
         out_bitdate = "".join(
             [to_hex[i : i + 2] for i in range(0, len(to_hex), 2)][::-1]
         )
-        ts_output = str(f"{ts_type}:\t\t\t{out_bitdate}")
+        ts_output, _ = format_output(ts_type, out_bitdate)
     except Exception:
         handle(sys.exc_info())
         out_bitdate = ts_output = ""
@@ -4097,10 +4020,7 @@ def from_ksdec(timestamp):
         else:
             ts_val = int(timestamp) + int(epochs["kstime"])
             in_ksdec = dt.fromtimestamp(float(ts_val), timezone.utc).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_ksdec} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_ksdec} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ksdec, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ksdec = indiv_output = combined_output = ""
@@ -4115,7 +4035,7 @@ def to_ksdec(dt_obj):
         out_ksdec = str(int(unix_ts) - int(epochs["kstime"]))
         if int(out_ksdec) < 0:
             out_ksdec = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output = str(f"{ts_type}:\t\t\t{out_ksdec}")
+        ts_output, _ = format_output(ts_type, out_ksdec)
     except Exception:
         handle(sys.exc_info())
         out_ksdec = ts_output = ""
@@ -4141,9 +4061,8 @@ def from_biomehex(timestamp):
             else:
                 dt_obj = epochs[2001] + timedelta(seconds=float(nsdate_val))
                 in_biomehex = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_biomehex} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_biomehex} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_biomehex, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -4158,7 +4077,7 @@ def to_biomehex(dt_obj):
         bplist_stamp = str(float((dt_obj - epochs[2001]).total_seconds()))
         byte_biome = struct.pack(">d", float(bplist_stamp))
         out_biomehex = bytes.hex(byte_biome)
-        ts_output = str(f"{ts_type}:\t\t{out_biomehex}")
+        ts_output, _ = format_output(ts_type, out_biomehex)
     except Exception:
         handle(sys.exc_info())
         out_biomehex = ts_output = ""
@@ -4180,9 +4099,8 @@ def from_biome64(timestamp):
             else:
                 dt_obj = epochs[2001] + timedelta(seconds=float(nsdate_unpacked))
                 in_biome64 = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_biome64} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t{in_biome64} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_biome64, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -4196,7 +4114,7 @@ def to_biome64(dt_obj):
     try:
         nsdate_stamp = float((dt_obj - epochs[2001]).total_seconds())
         out_biome64 = str(int.from_bytes(struct.pack(">d", nsdate_stamp), "big"))
-        ts_output = str(f"{ts_type}:\t{out_biome64}")
+        ts_output, _ = format_output(ts_type, out_biome64)
     except Exception:
         handle(sys.exc_info())
         out_biome64 = ts_output = ""
@@ -4219,8 +4137,7 @@ def from_s32(timestamp):
                 result = result * 32 + S32_CHARS.index(char)
             dt_obj = dt.fromtimestamp(result / 1000.0, timezone.utc)
             in_s32 = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_s32} {tz_out}")
-            combined_output = str(f"{__red__}{ts_type}:\t\t{in_s32} {tz_out}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_s32, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_s32 = indiv_output = combined_output = ""
@@ -4239,7 +4156,7 @@ def to_s32(dt_obj):
             unix_mil = math.floor(unix_mil / 32)
             result = S32_CHARS[index] + result
         out_s32 = result
-        ts_output = str(f"{ts_type}:\t{out_s32}")
+        ts_output, _ = format_output(ts_type, out_s32)
     except Exception:
         handle(sys.exc_info())
         out_s32 = ts_output = ""
@@ -4260,10 +4177,7 @@ def from_apache(timestamp):
             dec_val = int(timestamp, 16)
             dt_obj = epochs[1970] + timedelta(microseconds=dec_val)
             in_apache = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_apache} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_apache} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_apache, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_apache = indiv_output = combined_output = ""
@@ -4276,7 +4190,7 @@ def to_apache(dt_obj):
     try:
         apache_int = int(((dt_obj - epochs[1970]).total_seconds()) * 1000000)
         out_apache = f"{apache_int:x}"
-        ts_output = str(f"{ts_type}:\t\t{out_apache}")
+        ts_output, _ = format_output(ts_type, out_apache)
     except Exception:
         handle(sys.exc_info())
         out_apache = ts_output = ""
@@ -4302,9 +4216,8 @@ def from_leb128hex(timestamp):
                     break
                 shift += 7
             in_leb128_hex, _, _, _, _ = from_unixmilli(str(unix_milli))
-            indiv_output = str(f"{ts_type}: {in_leb128_hex} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_leb128_hex} {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_leb128_hex, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -4328,7 +4241,7 @@ def to_leb128hex(dt_obj):
             if unix_milli == 0:
                 break
         out_leb128_hex = "".join([f"{byte_val:02x}" for byte_val in byte_list])
-        ts_output = str(f"{ts_type}:\t\t{out_leb128_hex}")
+        ts_output, _ = format_output(ts_type, out_leb128_hex)
     except Exception:
         handle(sys.exc_info())
         out_leb128_hex = ts_output = ""
@@ -4360,9 +4273,8 @@ def from_juliandec(timestamp):
                 in_julian_dec = indiv_output = combined_output = ""
             else:
                 in_julian_dec = (dt(yr, mon, day, hr, mins, sec, mil)).strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_julian_dec} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_julian_dec} {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_julian_dec, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -4384,7 +4296,7 @@ def to_juliandec(dt_obj):
                 dt_obj.second,
             )
         )
-        ts_output = f"{ts_type}:\t\t{out_julian_dec}"
+        ts_output, _ = format_output(ts_type, out_julian_dec)
     except Exception:
         handle(sys.exc_info())
         out_julian_dec = ts_output = ""
@@ -4411,9 +4323,8 @@ def from_julianhex(timestamp):
             else:
                 dt_obj = dt(yr, mon, day, hr, mins, sec, mil)
                 in_julian_hex = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_julian_hex} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_julian_hex}" f" {tz_out}{__clr__}"
+                indiv_output, combined_output = format_output(
+                    ts_type, in_julian_hex, tz_out
                 )
     except Exception:
         handle(sys.exc_info())
@@ -4441,7 +4352,7 @@ def to_julianhex(dt_obj):
             left_val = f"{jul_dec:06x}"
             right_val = f"{0:08x}"
         out_julian_hex = f"{str(left_val)}{str(right_val)}"
-        ts_output = str(f"{ts_type}:\t\t{out_julian_hex}")
+        ts_output, _ = format_output(ts_type, out_julian_hex)
     except Exception:
         handle(sys.exc_info())
         out_julian_hex = ts_output = ""
@@ -4476,9 +4387,8 @@ def from_semioctet(timestamp):
                 in_semi_octet = indiv_output = combined_output = ""
                 return in_semi_octet, indiv_output, combined_output, reason, tz_out
             in_semi_octet = dt_obj.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_semi_octet} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_semi_octet}" f" {tz_out}{__clr__}"
+            indiv_output, combined_output = format_output(
+                ts_type, in_semi_octet, tz_out
             )
     except Exception:
         handle(sys.exc_info())
@@ -4502,7 +4412,7 @@ def to_semioctet(dt_obj):
         for each in ts_vals:
             swap_list.append(each[::-1])
         out_semi_octet = "".join(swap_list)
-        ts_output = f"{ts_type}:\t\t{out_semi_octet}"
+        ts_output, _ = format_output(ts_type, out_semi_octet)
     except Exception:
         handle(sys.exc_info())
         out_semi_octet = ts_output = ""
@@ -4539,10 +4449,7 @@ def from_ved(timestamp):
                 in_ved = dt.fromtimestamp(ved_ts / 1000000, timezone.utc).strftime(
                     __fmt__
                 )
-                indiv_output = str(f"{ts_type}:\t\t{in_ved}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_ved} {tz_out}{__clr__}"
-                )
+                indiv_output, combined_output = format_output(ts_type, in_ved, tz_out)
             else:
                 in_ved = indiv_output = combined_output = ""
     except Exception:
@@ -4561,10 +4468,7 @@ def from_linkedin(timestamp):
             bin_convert = bin(int(timestamp))[2:43]
             li_ts = int(bin_convert, 2) / 1000
             in_linkedin = dt.fromtimestamp(li_ts, timezone.utc).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}:\t\t{in_linkedin}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_linkedin} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_linkedin, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_linkedin = indiv_output = combined_output = ""
@@ -4581,12 +4485,9 @@ def from_ulid(timestamp):
         ):
             in_ulid = indiv_output = combined_output = ""
         else:
-            ulid_dt = ulid.parse(timestamp).timestamp().datetime
+            ulid_dt = ULID.parse(timestamp).datetime
             in_ulid = ulid_dt.strftime(__fmt__)
-            indiv_output = str(f"{ts_type}:\t\t\t{in_ulid}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t\t{in_ulid} {tz_out}{__clr__}"
-            )
+            indiv_output, combined_output = format_output(ts_type, in_ulid, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_ulid = indiv_output = combined_output = ""
@@ -4597,8 +4498,8 @@ def to_ulid(dt_obj):
     """Convert a date to a ULID value"""
     ts_type, _, _, _ = ts_types["ulid"]
     try:
-        out_ulid = ulid.from_timestamp(dt_obj).str
-        ts_output = f"{ts_type}:\t\t\t{out_ulid}"
+        out_ulid = str(ULID.from_datetime(dt_obj))
+        ts_output, _ = format_output(ts_type, out_ulid)
     except Exception:
         handle(sys.exc_info())
         out_ulid = ts_output = ""
@@ -4632,28 +4533,37 @@ def from_dttm(timestamp):
             dttm_dom = stamp[3]
             dttm_hour = stamp[4]
             dttm_min = stamp[5]
-            if any(
-                not low <= value < high
-                for value, (low, high) in zip(
-                    (dttm_dow, dttm_year, dttm_month, dttm_dom, dttm_hour, dttm_min),
-                    (
-                        (0, 6),
-                        (1900, 2050),
-                        (1, monthrange(dttm_year, dttm_month)[1] + 1),
-                        (0, 31),
-                        (0, 23),
-                        (0, 60),
-                    ),
+            try:
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (
+                            dttm_dow,
+                            dttm_year,
+                            dttm_month,
+                            dttm_dom,
+                            dttm_hour,
+                            dttm_min,
+                        ),
+                        (
+                            (0, 6),
+                            (1900, 2050),
+                            (1, 13),
+                            (0, monthrange(dttm_year, dttm_month)[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                        ),
+                    )
                 )
-            ):
+                if out_of_range:
+                    in_dttm = indiv_output = combined_output = ""
+                    return in_dttm, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
                 in_dttm = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(dttm_year, dttm_month, dttm_dom, dttm_hour, dttm_min, 0)
-                in_dttm = dt_obj.strftime(__fmt__)
-                indiv_output = str(f"{ts_type}: {in_dttm} {tz_out}")
-                combined_output = str(
-                    f"{__red__}{ts_type}:\t\t{in_dttm} {tz_out}{__clr__}"
-                )
+                return in_dttm, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(dttm_year, dttm_month, dttm_dom, dttm_hour, dttm_min, 0)
+            in_dttm = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_dttm, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_dttm = indiv_output = combined_output = ""
@@ -4673,7 +4583,7 @@ def to_dttm(dt_obj):
         out_dttm = str(
             struct.pack(">I", int(dow + year + month + day + hour + minute, 2)).hex()
         )
-        ts_output = str(f"{ts_type}:\t\t{out_dttm}")
+        ts_output, _ = format_output(ts_type, out_dttm)
     except Exception:
         handle(sys.exc_info())
         out_dttm = ts_output = ""
@@ -4690,28 +4600,120 @@ def from_bcd(timestamp):
                 timestamp[i : i + 2] for i in range(0, len(timestamp), 2)
             ]
             yr, mon, day, hr, mins, sec = (
-                int(yr),
+                int(yr) + 2000,
                 int(mon),
                 int(day),
                 int(hr),
                 int(mins),
                 int(sec),
             )
-            if yr > 70:
-                yr = yr + 1900
-            else:
-                yr = yr + 2000
             in_bcd = dt(yr, mon, day, hr, mins, sec, tzinfo=timezone.utc).strftime(
                 __fmt__
             )
-            indiv_output = str(f"{ts_type}: {in_bcd}")
-            combined_output = str(f"{__red__}{ts_type}:\t\t{in_bcd} {tz_out}{__clr__}")
+            indiv_output, combined_output = format_output(ts_type, in_bcd, tz_out)
     except ValueError:
         in_bcd = indiv_output = combined_output = ""
     except Exception:
         handle(sys.exc_info())
         in_bcd = indiv_output = combined_output = ""
     return in_bcd, indiv_output, combined_output, reason, tz_out
+
+
+def to_bcd(dt_obj):
+    ts_type, _, _, _ = ts_types["bcd"]
+    try:
+        yr, mon, day, hr, mins, sec = dt_obj.strftime("%Y-%m-%d-%H-%M-%S").split("-")
+        yr = str(int(yr) - 2000)
+        out_bcd = f"{yr}{mon}{day}{hr}{mins}{sec}"
+        ts_output, _ = format_output(ts_type, out_bcd)
+    except Exception:
+        handle(sys.exc_info())
+        out_bcd = ts_output = ""
+    return out_bcd, ts_output
+
+
+def from_wfs(timestamp):
+    """Convert a WFS file system timestamp to a date"""
+    ts_type, reason, _, tz_out = ts_types["wfs"]
+    try:
+        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
+            in_wfs = indiv_output = combined_output = ""
+        else:
+            int_ts = int(timestamp, 16)
+            binary = f"{int_ts:032b}"
+            stamp = [
+                binary[:6],
+                binary[6:10],
+                binary[10:15],
+                binary[15:20],
+                binary[20:26],
+                binary[26:32],
+            ]
+            for binary in stamp[:]:
+                dec = int(binary, 2)
+                stamp.remove(binary)
+                stamp.append(dec)
+            wfs_yr = stamp[0] + 2000
+            wfs_mon = stamp[1]
+            wfs_day = stamp[2]
+            wfs_hr = stamp[3]
+            wfs_min = stamp[4]
+            wfs_sec = stamp[5]
+            try:
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (
+                            wfs_yr,
+                            wfs_mon,
+                            wfs_day,
+                            wfs_hr,
+                            wfs_min,
+                            wfs_sec,
+                        ),
+                        (
+                            (2000, 3000),
+                            (1, 13),
+                            (0, monthrange(wfs_yr, wfs_mon)[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                            (0, 60),
+                        ),
+                    )
+                )
+                if out_of_range:
+                    in_wfs = indiv_output = combined_output = ""
+                    return in_wfs, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
+                in_wfs = indiv_output = combined_output = ""
+                return in_wfs, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(wfs_yr, wfs_mon, wfs_day, wfs_hr, wfs_min, wfs_sec)
+            in_wfs = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_wfs, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_wfs = indiv_output = combined_output = ""
+    return in_wfs, indiv_output, combined_output, reason, tz_out
+
+
+def to_wfs(dt_obj):
+    """Convert a date to a WFS file system timestamp"""
+    ts_type, _, _, _ = ts_types["wfs"]
+    try:
+        year = f"{(dt_obj.year - 2000):06b}"
+        month = f"{dt_obj.month:04b}"
+        day = f"{dt_obj.day:05b}"
+        hour = f"{dt_obj.hour:05b}"
+        minute = f"{dt_obj.minute:06b}"
+        sec = f"{dt_obj.second:06b}"
+        out_wfs = str(
+            struct.pack(">I", int(year + month + day + hour + minute + sec, 2)).hex()
+        )
+        ts_output, _ = format_output(ts_type, out_wfs)
+    except Exception:
+        handle(sys.exc_info())
+        out_wfs = ts_output = ""
+    return out_wfs, ts_output
 
 
 def date_range(start, end, check_date):
@@ -4804,6 +4806,23 @@ def formats(display="ALL"):
     print("* BE = Big-Endian / LE = Little-Endian")
 
 
+def format_output(ts_type, ts, tz=None):
+    tabs = ""
+    if len(ts_type) < 15:
+        tabs = "\t\t\t"
+    elif len(ts_type) in range(15, 23):
+        tabs = "\t\t"
+    elif len(ts_type) in range(23, 32):
+        tabs = "\t"
+    if tz:
+        indiv_output = f"{ts_type}: {ts} {tz}"
+        combined_output = f"{__red__}{ts_type}:{tabs}{ts} {tz}{__clr__}"
+    else:
+        indiv_output = f"{ts_type}:{tabs}{ts}"
+        combined_output = None
+    return indiv_output, combined_output
+
+
 single_funcs = {
     "active": from_active,
     "apache": from_apache,
@@ -4864,6 +4883,7 @@ single_funcs = {
     "unixsec": from_unixsec,
     "uuid": from_uuid,
     "vm": from_vm,
+    "wfs": from_wfs,
     "cookie": from_cookie,
     "filetimebe": from_filetimebe,
     "filetimetle": from_filetimele,
@@ -4930,6 +4950,7 @@ from_funcs = [
     from_unixsec,
     from_uuid,
     from_vm,
+    from_wfs,
     from_cookie,
     from_filetimebe,
     from_filetimele,
@@ -4946,6 +4967,7 @@ to_funcs = [
     to_mac,
     to_iostime,
     to_bplist,
+    to_bcd,
     to_bitdate,
     to_bitdec,
     to_dhcp6,
@@ -4989,6 +5011,7 @@ to_funcs = [
     to_unixsec,
     to_uuid,
     to_vm,
+    to_wfs,
     to_cookie,
     to_filetimebe,
     to_filetimele,

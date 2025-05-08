@@ -30,6 +30,7 @@
 - Mac Absolute Time (as NSDate)
 - Mac OS/HFS+ Decimal Time
 - Mastodon URL
+- Microsoft DTTM
 - Metasploit Payload UUID
 - Motorola's 6-byte
 - Mozilla's PRTime
@@ -47,6 +48,7 @@
 - Symantec's 6-byte AV
 - TikTok URL
 - Twitter URL
+- ULID
 - Unix Hex 32-bit BE
 - Unix Hex 32-bit LE
 - Unix Milliseconds
@@ -54,6 +56,7 @@
 - Unix Seconds
 - UUID
 - VMWare Snapshot (.vmsd)
+- WFS File System
 - Windows 64-bit Hex BE
 - Windows 64-bit Hex LE
 - Windows Cookie Date (Low,High)
