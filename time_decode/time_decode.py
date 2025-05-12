@@ -69,7 +69,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2025-05-04"
+__date__ = "2025-05-11"
 __version__ = "10.0.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
@@ -642,7 +642,6 @@ class UiMainWindow:
         selected_tz = self.time_zone_offsets.currentText()
         if "UTC - Default" not in selected_tz:
             tz_name = " ".join(selected_tz.split(" ")[1:])
-            tz_offset = selected_tz.split(" ")[0]
             tz = tzone(tz_name)
             ts_date = ts_date.astimezone(tz)
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
@@ -656,7 +655,8 @@ class UiMainWindow:
         if self.encode_radio.isChecked():
             is_func = False
             ts_selection = f"to_{ts_type}"
-            for this_func in to_funcs:
+            for _, funcs in single_funcs.items():
+                this_func = funcs[1]
                 if inspect.isfunction(this_func):
                     func_name = this_func.__name__
                     if func_name == ts_selection:
@@ -678,7 +678,8 @@ class UiMainWindow:
                 self._msg_box("You must enter a timestamp!", "Info")
                 return
             ts_selection = f"from_{ts_type}"
-            for this_func in from_funcs:
+            for _, funcs in single_funcs.items():
+                this_func = funcs[0]
                 if inspect.isfunction(this_func):
                     func_name = this_func.__name__
                     if func_name == ts_selection:
@@ -696,7 +697,10 @@ class UiMainWindow:
                 return
             if "UTC - Default" not in selected_tz:
                 dt_obj = dt.fromisoformat(result).replace(tzinfo=timezone.utc)
-                result = dt_obj.astimezone(tz).strftime(__fmt__)
+                tz_change = dt_obj.astimezone(tz)
+                tz_offset = tz_change.strftime("%z")
+                tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
+                result = tz_change.strftime(__fmt__)
                 if self.check_daylight(dt_obj, tz):
                     tz_out = f"{tz_offset} DST"
                 else:
@@ -1284,6 +1288,12 @@ ts_types = {
         "1102608904745127937",
         "UTC",
     ),
+    "dvr": TsTypes(
+        "DVR (WFS / DHFS) File System",
+        "DVR timestamps are 4 bytes",
+        "00F0063F",
+        "Local",
+    ),
     "exfat": TsTypes(
         "exFAT time",
         "exFAT 32-bit timestamps are 8 hex characters (4 bytes)",
@@ -1318,6 +1328,12 @@ ts_types = {
         "Google EI time",
         "Google ei timestamps contain only URLsafe base64 characters: A-Za-z0-9=-_",
         "WoUXaA",
+        "UTC",
+    ),
+    "gclid": TsTypes(
+        "Google GCLID time",
+        "Google GCLID timestamps contain only URLsafe base64 characters: A-Za-z0-9=-_",
+        "CKSDxc_qhLkCFQyk4AodO24Arg",
         "UTC",
     ),
     "ved": TsTypes(
@@ -1400,8 +1416,8 @@ ts_types = {
         "UTC",
     ),
     "dotnet": TsTypes(
-        "Microsoft .NET DateTime",
-        "Microsoft .NET DateTime values are 18 digits",
+        "Microsoft .NET DateTime Ticks",
+        "Microsoft .NET DateTime Ticks values are 18 digits",
         "638819687300649472",
         "UTC",
     ),
@@ -1504,7 +1520,7 @@ ts_types = {
     "twitter": TsTypes(
         "Twitter time",
         "Twitter timestamps are 18 digits or longer",
-        "1653078434443132928",
+        "1189581422684274688",
         "UTC",
     ),
     "ulid": TsTypes(
@@ -1554,12 +1570,6 @@ ts_types = {
         "VMSD values are a 6-digit value and a signed/unsigned int at least 9 digits",
         "406608,-427259264",
         "UTC",
-    ),
-    "wfs": TsTypes(
-        "WFS File System",
-        "WFS timestamps are 4 bytes",
-        "00F0063F",
-        "Local",
     ),
     "cookie": TsTypes(
         "Windows Cookie Date",
@@ -1623,6 +1633,7 @@ epochs = {
     "win_unix": 11644473600,
     "hfs_dec_sub": 2082844800,
     "kstime": 1400000000,
+    "ticks": 621355968000000000,
 }
 
 # There have been no further leapseconds since 2017,1,1 at the __date__ of this script
@@ -1665,6 +1676,7 @@ leapseconds = {
 S32_CHARS = "234567abcdefghijklmnopqrstuvwxyz"
 BASE32_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 URLSAFE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_"
+KSALNUM_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 
 def from_unixsec(timestamp):
@@ -2100,61 +2112,47 @@ def to_olele(dt_obj):
 
 def from_bplist(timestamp):
     """Convert a bplist NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    _, reason, _, tz_out = ts_types["bplist"]
-    if not "(bplist)" in indiv_output:
-        in_nsdate = indiv_output = combined_output = ""
+    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+        timestamp, "bplist"
+    )
     return in_nsdate, indiv_output, combined_output, reason, tz_out
 
 
 def from_iostime(timestamp):
     """Convert an iOS NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    _, reason, _, tz_out = ts_types["iostime"]
-    if not "(iOS)" in indiv_output:
-        in_nsdate = indiv_output = combined_output = ""
+    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+        timestamp, "iostime"
+    )
     return in_nsdate, indiv_output, combined_output, reason, tz_out
 
 
 def from_mac(timestamp):
     """Convert a mac NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, _, _ = from_nsdate(timestamp)
-    _, reason, _, tz_out = ts_types["mac"]
-    if not "(Mac)" in indiv_output:
-        in_nsdate = indiv_output = combined_output = ""
+    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+        timestamp, "mac"
+    )
     return in_nsdate, indiv_output, combined_output, reason, tz_out
 
 
-def from_nsdate(timestamp):
+def from_nsdate(timestamp, val_type):
     """Convert an Apple NSDate timestamp (Mac Absolute, BPlist, Cocoa, iOS) to a date"""
-    val_type = ""
-    ts_type, reason, _, tz_out = 4 * (None,)
+    ts_type, reason, _, tz_out = ts_types[val_type]
+    in_nsdate = indiv_output = combined_output = ""
     try:
-        in_nsdate = indiv_output = combined_output = None
-        if (
-            "." in timestamp
-            and (
-                (len(timestamp.split(".")[0]) == 9)
-                and (len(timestamp.split(".")[1]) in range(0, 7))
-            )
-            and "".join(timestamp.split(".")).isdigit()
-        ):
-            ts_type, reason, _, tz_out = ts_types["mac"]
-            val_type = "mac"
-        elif len(timestamp) == 9 and timestamp.isdigit():
-            ts_type, reason, _, tz_out = ts_types["bplist"]
-            val_type = "bplist"
-        elif len(timestamp) in range(15, 19) and timestamp.isdigit():
-            ts_type, reason, _, tz_out = ts_types["iostime"]
-            val_type = "iostime"
-        else:
-            in_nsdate = indiv_output = combined_output = ""
         if val_type in {"mac", "bplist"}:
-            dt_obj = epochs[2001] + timedelta(seconds=float(timestamp))
+            try:
+                dt_obj = epochs[2001] + timedelta(seconds=float(timestamp))
+            except (ValueError, OverflowError):
+                in_nsdate = indiv_output = combined_output = ""
+                return in_nsdate, indiv_output, combined_output, reason, tz_out
             in_nsdate = dt_obj.strftime(__fmt__)
             indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
         elif val_type == "iostime":
-            dt_obj = (int(timestamp) / int(epochs["nano_2001"])) + 978307200
+            try:
+                dt_obj = (int(timestamp) / int(epochs["nano_2001"])) + 978307200
+            except (ValueError, OverflowError):
+                in_nsdate = indiv_output = combined_output = ""
+                return in_nsdate, indiv_output, combined_output, reason, tz_out
             in_nsdate = dt.fromtimestamp(dt_obj, timezone.utc).strftime(__fmt__)
             indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
     except Exception:
@@ -3199,13 +3197,17 @@ def from_vm(timestamp):
         else:
             create_time_high = int(timestamp.split(",")[0])
             create_time_low = int(timestamp.split(",")[1])
-            vmsd = (
-                float(
-                    (create_time_high * 2**32)
-                    + struct.unpack("I", struct.pack("i", create_time_low))[0]
+            try:
+                vmsd = (
+                    float(
+                        (create_time_high * 2**32)
+                        + struct.unpack("I", struct.pack("i", create_time_low))[0]
+                    )
+                    / 1000000
                 )
-                / 1000000
-            )
+            except Exception:
+                in_vm = indiv_output = combined_output = ""
+                return in_vm, indiv_output, combined_output, reason, tz_out
             if vmsd >= 32536799999:
                 in_vm = indiv_output = combined_output = ""
             else:
@@ -3254,6 +3256,19 @@ def from_tiktok(timestamp):
     return in_tiktok, indiv_output, combined_output, reason, tz_out
 
 
+def to_tiktok(dt_obj):
+    """Convert a date/time to a TikTok timestamp"""
+    ts_type, _, _, _ = ts_types["tiktok"]
+    try:
+        unix_ts = int(dt_obj.timestamp())
+        out_tiktok = str(unix_ts << 32)
+        ts_output, _ = format_output(ts_type, out_tiktok)
+    except Exception:
+        handle(sys.exc_info())
+        out_tiktok = ts_output = ""
+    return out_tiktok, ts_output
+
+
 def from_twitter(timestamp):
     """Convert a Twitter URL value to a date/time"""
     ts_type, reason, _, tz_out = ts_types["twitter"]
@@ -3261,18 +3276,31 @@ def from_twitter(timestamp):
         if len(str(timestamp)) < 18 or not timestamp.isdigit():
             in_twitter = indiv_output = combined_output = ""
         else:
-            unix_ts = (int(timestamp) >> 22) + 1288834974657
+            unix_ts = ((int(timestamp) >> 22) + 1288834974657) / 1000
             if unix_ts >= 32536799999:
                 in_twitter = indiv_output = combined_output = ""
             else:
-                in_twitter = dt.fromtimestamp(
-                    float(unix_ts) / 1000.0, timezone.utc
-                ).strftime(__fmt__)
+                in_twitter = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
+                    __fmt__
+                )
             indiv_output, combined_output = format_output(ts_type, in_twitter, tz_out)
     except Exception:
         handle(sys.exc_info())
         in_twitter = indiv_output = combined_output = ""
     return in_twitter, indiv_output, combined_output, reason, tz_out
+
+
+def to_twitter(dt_obj):
+    """Convert a date/time value to a Twitter value"""
+    ts_type, _, _, _ = ts_types["twitter"]
+    try:
+        unix_ts = (dt_obj.timestamp() * 1000) - 1288834974657
+        out_twitter = str(int(unix_ts) << 22)
+        ts_output, _ = format_output(ts_type, out_twitter)
+    except Exception:
+        handle(sys.exc_info())
+        out_twitter = ts_output = ""
+    return out_twitter, ts_output
 
 
 def from_discord(timestamp):
@@ -3282,13 +3310,13 @@ def from_discord(timestamp):
         if len(str(timestamp)) < 18 or not timestamp.isdigit():
             in_discord = indiv_output = combined_output = ""
         else:
-            unix_ts = (int(timestamp) >> 22) + 1420070400000
+            unix_ts = ((int(timestamp) >> 22) + 1420070400000) / 1000
             if unix_ts >= 32536799999:
                 in_discord = indiv_output = combined_output = ""
             else:
-                in_discord = dt.fromtimestamp(
-                    float(unix_ts) / 1000.0, timezone.utc
-                ).strftime(__fmt__)
+                in_discord = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
+                    __fmt__
+                )
             indiv_output, combined_output = format_output(ts_type, in_discord, tz_out)
     except Exception:
         handle(sys.exc_info())
@@ -3296,20 +3324,32 @@ def from_discord(timestamp):
     return in_discord, indiv_output, combined_output, reason, tz_out
 
 
+def to_discord(dt_obj):
+    """Convert a date/time to a Discord URL value"""
+    ts_type, _, _, _ = ts_types["discord"]
+    try:
+        timestamp = int(dt_obj.timestamp() * 1000) - 1420070400000
+        out_discord = str(timestamp << 22)
+        ts_output, _ = format_output(ts_type, out_discord)
+    except Exception:
+        handle(sys.exc_info())
+        out_discord = ts_output = ""
+    return out_discord, ts_output
+
+
 def from_ksalnum(timestamp):
     """Extract a timestamp from a KSUID alpha-numeric value"""
     ts_type, reason, _, tz_out = ts_types["ksalnum"]
     try:
-        ksalnum_chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
         if len(str(timestamp)) != 27 or not all(
-            char in ksalnum_chars for char in timestamp
+            char in KSALNUM_CHARS for char in timestamp
         ):
             in_ksalnum = indiv_output = combined_output = ""
         else:
             length, i, variation = len(timestamp), 0, 0
             b_array = bytearray()
             for val in timestamp:
-                variation += ksalnum_chars.index(val) * (62 ** (length - (i + 1)))
+                variation += KSALNUM_CHARS.index(val) * (62 ** (length - (i + 1)))
                 i += 1
             while variation > 0:
                 b_array.append(variation & 0xFF)
@@ -3325,6 +3365,27 @@ def from_ksalnum(timestamp):
         handle(sys.exc_info())
         in_ksalnum = indiv_output = combined_output = ""
     return in_ksalnum, indiv_output, combined_output, reason, tz_out
+
+
+def to_ksalnum(dt_obj):
+    """Convert a date/time to a KSUID alpha-numeric value"""
+    ts_type, _, _, _ = ts_types["ksalnum"]
+    try:
+        out_ksalnum = ""
+        unix_ts = int(dt_obj.timestamp())
+        ts_bytes = (unix_ts - epochs["kstime"]).to_bytes(4, "big")
+        filler = os.urandom(16)
+        all_bytes = ts_bytes + filler
+        big_int = int.from_bytes(all_bytes, "big")
+        while big_int > 0:
+            big_int, rem = divmod(big_int, 62)
+            out_ksalnum = KSALNUM_CHARS[rem] + out_ksalnum
+        out_ksalnum = out_ksalnum.rjust(27, "0")
+        ts_output, _ = format_output(ts_type, out_ksalnum)
+    except Exception:
+        handle(sys.exc_info())
+        out_ksalnum = ts_output = ""
+    return out_ksalnum, ts_output
 
 
 def from_mastodon(timestamp):
@@ -3375,7 +3436,8 @@ def from_metasploit(timestamp):
         else:
             b64decoded = base64.urlsafe_b64decode(timestamp[0:22] + "==")
             if len(b64decoded) < struct.calcsize(meta_format):
-                raise Exception
+                in_metasploit = indiv_output = combined_output = ""
+                return in_metasploit, indiv_output, combined_output, reason, tz_out                
             (
                 _,
                 xor1,
@@ -3472,6 +3534,7 @@ def from_uuid(timestamp):
 
 
 def to_uuid(dt_obj):
+    """Convert a date/time value to a UUID"""
     ts_type, _, _, _ = ts_types["uuid"]
     try:
         timestamp = int((dt_obj - epochs[1582]).total_seconds() * 1e7)
@@ -3538,14 +3601,15 @@ def to_dhcp6(dt_obj):
 
 
 def from_dotnet(timestamp):
-    """Convert a .NET DateTime value to date/time"""
+    """Convert a .NET DateTime Ticks value to date/time"""
     ts_type, reason, _, tz_out = ts_types["dotnet"]
     try:
         if len(str(timestamp)) != 18 or not (timestamp).isdigit():
             in_dotnet = indiv_output = combined_output = ""
         else:
-            dotnet_offset = int((epochs[1970] - epochs[1]).total_seconds()) * 10000000
-            dotnet_to_umil = (int(timestamp) - dotnet_offset) / 10000000
+            dotnet_to_umil = (int(timestamp) - epochs["ticks"]) / epochs[
+                "hundreds_nano"
+            ]
             if dotnet_to_umil < 0:
                 in_dotnet = indiv_output = combined_output = ""
             else:
@@ -3560,10 +3624,11 @@ def from_dotnet(timestamp):
 
 
 def to_dotnet(dt_obj):
-    """Convert date to a .NET DateTime value"""
+    """Convert date to a .NET DateTime Ticks value"""
     ts_type, _, _, _ = ts_types["dotnet"]
     try:
-        out_dotnet = str(int(((dt_obj - epochs[1]).total_seconds()) * 10000000))
+        ts = dt_obj.timestamp() * epochs["hundreds_nano"]
+        out_dotnet = str(int(ts + epochs["ticks"]))
         ts_output, _ = format_output(ts_type, out_dotnet)
     except Exception:
         handle(sys.exc_info())
@@ -4124,7 +4189,6 @@ def to_biome64(dt_obj):
 def from_s32(timestamp):
     """
     Convert an S32 timestamp to a date/time value
-    Since BlueSky is not yet in use, this function is essentially a beta
     """
     ts_type, reason, _, tz_out = ts_types["s32"]
     try:
@@ -4458,6 +4522,49 @@ def from_ved(timestamp):
     return in_ved, indiv_output, combined_output, reason, tz_out
 
 
+def from_gclid(timestamp):
+    """Convert from a gclid urlsafe base64 encoded protobuf"""
+    ts_type, reason, _, tz_out = ts_types["gclid"]
+    try:
+        if not all(char in URLSAFE_CHARS for char in timestamp):
+            in_gclid = indiv_output = combined_output = ""
+        else:
+            decoded_gclid = None
+            if timestamp[0].isdigit() and int(timestamp[0]) in range(0, 3):
+                timestamp = timestamp[1:]
+            padding_check = len(timestamp) % 4
+            if padding_check != 0:
+                padding_reqd = 4 - padding_check
+                result_gclid = timestamp + (padding_reqd * "=")
+            else:
+                result_gclid = timestamp
+            try:
+                decoded_gclid = base64.urlsafe_b64decode(result_gclid)
+            except base64.binascii.Error:
+                in_gclid = indiv_output = combined_output = ""
+            try:
+                buff_content, _ = blackboxprotobuf.decode_message(decoded_gclid)
+            except (DecoderException, TypeError):
+                in_gclid = indiv_output = combined_output = ""
+                return in_gclid, indiv_output, combined_output, reason, tz_out
+            if (
+                "1" in buff_content
+                and isinstance(buff_content["1"], int)
+                and len(str(buff_content["1"])) == 16
+            ):
+                gclid_ts = buff_content["1"]
+                in_gclid = dt.fromtimestamp(gclid_ts / 1000000, timezone.utc).strftime(
+                    __fmt__
+                )
+                indiv_output, combined_output = format_output(ts_type, in_gclid, tz_out)
+            else:
+                in_gclid = indiv_output = combined_output = ""
+    except Exception:
+        handle(sys.exc_info())
+        in_gclid = indiv_output = combined_output = ""
+    return in_gclid, indiv_output, combined_output, reason, tz_out
+
+
 def from_linkedin(timestamp):
     """Convert from a LinkedIn Post Activity ID"""
     ts_type, reason, _, tz_out = ts_types["linkedin"]
@@ -4473,6 +4580,21 @@ def from_linkedin(timestamp):
         handle(sys.exc_info())
         in_linkedin = indiv_output = combined_output = ""
     return in_linkedin, indiv_output, combined_output, reason, tz_out
+
+
+def to_linkedin(dt_obj):
+    """Convert a date/time to a LinkedIn Post Activity ID"""
+    ts_type, _, _, _ = ts_types["linkedin"]
+    padding = "1011100101100100110110"
+    try:
+        unix_ts = dt_obj.timestamp() * 1000
+        to_bin = bin(int(unix_ts))[2:43]
+        out_linkedin = str(int(to_bin + padding, 2))
+        ts_output, _ = format_output(ts_type, out_linkedin)
+    except Exception:
+        handle(sys.exc_info())
+        out_linkedin = ts_output = ""
+    return out_linkedin, ts_output
 
 
 def from_ulid(timestamp):
@@ -4591,6 +4713,7 @@ def to_dttm(dt_obj):
 
 
 def from_bcd(timestamp):
+    """Convert a Binary Coded Decimal timestamp to a date"""
     ts_type, reason, _, tz_out = ts_types["bcd"]
     try:
         if len(timestamp) != 12 and not timestamp.isdigit():
@@ -4620,6 +4743,7 @@ def from_bcd(timestamp):
 
 
 def to_bcd(dt_obj):
+    """Convert a date/time to a Binary Coded Decimal"""
     ts_type, _, _, _ = ts_types["bcd"]
     try:
         yr, mon, day, hr, mins, sec = dt_obj.strftime("%Y-%m-%d-%H-%M-%S").split("-")
@@ -4632,12 +4756,12 @@ def to_bcd(dt_obj):
     return out_bcd, ts_output
 
 
-def from_wfs(timestamp):
-    """Convert a WFS file system timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["wfs"]
+def from_dvr(timestamp):
+    """Convert a DVR (WFS / DHFS) file system timestamp to a date"""
+    ts_type, reason, _, tz_out = ts_types["dvr"]
     try:
         if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_wfs = indiv_output = combined_output = ""
+            in_dvr = indiv_output = combined_output = ""
         else:
             int_ts = int(timestamp, 16)
             binary = f"{int_ts:032b}"
@@ -4653,28 +4777,28 @@ def from_wfs(timestamp):
                 dec = int(binary, 2)
                 stamp.remove(binary)
                 stamp.append(dec)
-            wfs_yr = stamp[0] + 2000
-            wfs_mon = stamp[1]
-            wfs_day = stamp[2]
-            wfs_hr = stamp[3]
-            wfs_min = stamp[4]
-            wfs_sec = stamp[5]
+            dvr_yr = stamp[0] + 2000
+            dvr_mon = stamp[1]
+            dvr_day = stamp[2]
+            dvr_hr = stamp[3]
+            dvr_min = stamp[4]
+            dvr_sec = stamp[5]
             try:
                 out_of_range = any(
                     not low <= value < high
                     for value, (low, high) in zip(
                         (
-                            wfs_yr,
-                            wfs_mon,
-                            wfs_day,
-                            wfs_hr,
-                            wfs_min,
-                            wfs_sec,
+                            dvr_yr,
+                            dvr_mon,
+                            dvr_day,
+                            dvr_hr,
+                            dvr_min,
+                            dvr_sec,
                         ),
                         (
                             (2000, 3000),
                             (1, 13),
-                            (0, monthrange(wfs_yr, wfs_mon)[1] + 1),
+                            (0, monthrange(dvr_yr, dvr_mon)[1] + 1),
                             (0, 24),
                             (0, 60),
                             (0, 60),
@@ -4682,23 +4806,23 @@ def from_wfs(timestamp):
                     )
                 )
                 if out_of_range:
-                    in_wfs = indiv_output = combined_output = ""
-                    return in_wfs, indiv_output, combined_output, reason, tz_out
+                    in_dvr = indiv_output = combined_output = ""
+                    return in_dvr, indiv_output, combined_output, reason, tz_out
             except (IllegalMonthError, ValueError):
-                in_wfs = indiv_output = combined_output = ""
-                return in_wfs, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(wfs_yr, wfs_mon, wfs_day, wfs_hr, wfs_min, wfs_sec)
-            in_wfs = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_wfs, tz_out)
+                in_dvr = indiv_output = combined_output = ""
+                return in_dvr, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt(dvr_yr, dvr_mon, dvr_day, dvr_hr, dvr_min, dvr_sec)
+            in_dvr = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_dvr, tz_out)
     except Exception:
         handle(sys.exc_info())
-        in_wfs = indiv_output = combined_output = ""
-    return in_wfs, indiv_output, combined_output, reason, tz_out
+        in_dvr = indiv_output = combined_output = ""
+    return in_dvr, indiv_output, combined_output, reason, tz_out
 
 
-def to_wfs(dt_obj):
-    """Convert a date to a WFS file system timestamp"""
-    ts_type, _, _, _ = ts_types["wfs"]
+def to_dvr(dt_obj):
+    """Convert a date to a DVR (WFS / DHFS) file system timestamp"""
+    ts_type, _, _, _ = ts_types["dvr"]
     try:
         year = f"{(dt_obj.year - 2000):06b}"
         month = f"{dt_obj.month:04b}"
@@ -4706,14 +4830,14 @@ def to_wfs(dt_obj):
         hour = f"{dt_obj.hour:05b}"
         minute = f"{dt_obj.minute:06b}"
         sec = f"{dt_obj.second:06b}"
-        out_wfs = str(
+        out_dvr = str(
             struct.pack(">I", int(year + month + day + hour + minute + sec, 2)).hex()
         )
-        ts_output, _ = format_output(ts_type, out_wfs)
+        ts_output, _ = format_output(ts_type, out_dvr)
     except Exception:
         handle(sys.exc_info())
-        out_wfs = ts_output = ""
-    return out_wfs, ts_output
+        out_dvr = ts_output = ""
+    return out_dvr, ts_output
 
 
 def date_range(start, end, check_date):
@@ -4727,7 +4851,8 @@ def from_all(timestamps):
     """Output all processed timestamp values and find date from provided timestamp"""
     this_yr = int(dt.now(timezone.utc).strftime("%Y"))
     full_list = {}
-    for func in from_funcs:
+    for _, funcs in single_funcs.items():
+        func = funcs[0]
         func_name = func.__name__.replace("from_", "")
         (result, _, combined_output, _, tz_out) = func(timestamps)
         if result and combined_output:
@@ -4754,7 +4879,10 @@ def to_timestamps(dt_obj):
             sys.exit(1)
     if dt_obj.tzinfo is None:
         dt_obj = dt_obj.replace(tzinfo=timezone.utc)
-    for func in to_funcs:
+    for _, funcs in single_funcs.items():
+        func = funcs[1]
+        if not func:
+            continue
         result, ts_output = func(dt_obj)
         func_name = (func.__name__).replace("to_", "")
         if result and isinstance(result, str):
@@ -4807,6 +4935,7 @@ def formats(display="ALL"):
 
 
 def format_output(ts_type, ts, tz=None):
+    """Format the output of the timestamp functions"""
     tabs = ""
     if len(ts_type) < 15:
         tabs = "\t\t\t"
@@ -4824,202 +4953,74 @@ def format_output(ts_type, ts, tz=None):
 
 
 single_funcs = {
-    "active": from_active,
-    "apache": from_apache,
-    "biome64": from_biome64,
-    "biomehex": from_biomehex,
-    "mac": from_mac,
-    "iostime": from_iostime,
-    "bplist": from_bplist,
-    "nsdate": from_nsdate,
-    "bcd": from_bcd,
-    "bitdate": from_bitdate,
-    "bitdec": from_bitdec,
-    "dhcp6": from_dhcp6,
-    "discord": from_discord,
-    "exfat": from_exfat,
-    "fat": from_fat,
-    "gbound": from_gbound,
-    "gmsgid": from_gmsgid,
-    "chrome": from_chrome,
-    "eitime": from_eitime,
-    "ved": from_ved,
-    "gps": from_gps,
-    "gsm": from_gsm,
-    "hfsbe": from_hfsbe,
-    "hfsle": from_hfsle,
-    "hfsdec": from_hfsdec,
-    "juliandec": from_juliandec,
-    "julianhex": from_julianhex,
-    "ksalnum": from_ksalnum,
-    "ksdec": from_ksdec,
-    "leb128hex": from_leb128hex,
-    "linkedin": from_linkedin,
-    "mastodon": from_mastodon,
-    "metasploit": from_metasploit,
-    "dotnet": from_dotnet,
-    "systemtime": from_systemtime,
-    "dttm": from_dttm,
-    "ms1904": from_ms1904,
-    "hotmail": from_hotmail,
-    "msdos": from_msdos,
-    "moto": from_moto,
-    "prtime": from_prtime,
-    "nokia": from_nokia,
-    "nokiale": from_nokiale,
-    "ns40": from_ns40,
-    "ns40le": from_ns40le,
-    "s32": from_s32,
-    "semioctet": from_semioctet,
-    "sony": from_sony,
-    "symantec": from_symantec,
-    "tiktok": from_tiktok,
-    "twitter": from_twitter,
-    "ulid": from_ulid,
-    "unixhex32be": from_unixhex32be,
-    "unixhex32le": from_unixhex32le,
-    "unixmilli": from_unixmilli,
-    "unixmillihex": from_unixmillihex,
-    "unixsec": from_unixsec,
-    "uuid": from_uuid,
-    "vm": from_vm,
-    "wfs": from_wfs,
-    "cookie": from_cookie,
-    "filetimebe": from_filetimebe,
-    "filetimetle": from_filetimele,
-    "filetimelohi": from_filetimelohi,
-    "olebe": from_olebe,
-    "olele": from_olele,
-    "oleauto": from_oleauto,
+    "active": [from_active, to_active],
+    "apache": [from_apache, to_apache],
+    "biome64": [from_biome64, to_biome64],
+    "biomehex": [from_biomehex, to_biomehex],
+    "mac": [from_mac, to_mac],
+    "iostime": [from_iostime, to_iostime],
+    "bplist": [from_bplist, to_bplist],
+    "bcd": [from_bcd, to_bcd],
+    "bitdate": [from_bitdate, to_bitdate],
+    "bitdec": [from_bitdec, to_bitdec],
+    "dhcp6": [from_dhcp6, to_dhcp6],
+    "discord": [from_discord, to_discord],
+    "dvr": [from_dvr, to_dvr],
+    "exfat": [from_exfat, to_exfat],
+    "fat": [from_fat, to_fat],
+    "gbound": [from_gbound, to_gbound],
+    "gmsgid": [from_gmsgid, to_gmsgid],
+    "chrome": [from_chrome, to_chrome],
+    "eitime": [from_eitime, to_eitime],
+    "gclid": [from_gclid, None],
+    "ved": [from_ved, None],
+    "gps": [from_gps, to_gps],
+    "gsm": [from_gsm, to_gsm],
+    "hfsbe": [from_hfsbe, to_hfsbe],
+    "hfsle": [from_hfsle, to_hfsle],
+    "hfsdec": [from_hfsdec, to_hfsdec],
+    "juliandec": [from_juliandec, to_juliandec],
+    "julianhex": [from_julianhex, to_julianhex],
+    "ksalnum": [from_ksalnum, to_ksalnum],
+    "ksdec": [from_ksdec, to_ksdec],
+    "leb128hex": [from_leb128hex, to_leb128hex],
+    "linkedin": [from_linkedin, to_linkedin],
+    "mastodon": [from_mastodon, to_mastodon],
+    "metasploit": [from_metasploit, None],
+    "dotnet": [from_dotnet, to_dotnet],
+    "systemtime": [from_systemtime, to_systemtime],
+    "dttm": [from_dttm, to_dttm],
+    "ms1904": [from_ms1904, to_ms1904],
+    "hotmail": [from_hotmail, to_hotmail],
+    "msdos": [from_msdos, to_msdos],
+    "moto": [from_moto, to_moto],
+    "prtime": [from_prtime, to_prtime],
+    "nokia": [from_nokia, to_nokia],
+    "nokiale": [from_nokiale, to_nokiale],
+    "ns40": [from_ns40, to_ns40],
+    "ns40le": [from_ns40le, to_ns40le],
+    "s32": [from_s32, to_s32],
+    "semioctet": [from_semioctet, to_semioctet],
+    "sony": [from_sony, to_sony],
+    "symantec": [from_symantec, to_symantec],
+    "tiktok": [from_tiktok, to_tiktok],
+    "twitter": [from_twitter, to_twitter],
+    "ulid": [from_ulid, to_ulid],
+    "unixhex32be": [from_unixhex32be, to_unixhex32be],
+    "unixhex32le": [from_unixhex32le, to_unixhex32le],
+    "unixmilli": [from_unixmilli, to_unixmilli],
+    "unixmillihex": [from_unixmillihex, to_unixmillihex],
+    "unixsec": [from_unixsec, to_unixsec],
+    "uuid": [from_uuid, to_uuid],
+    "vm": [from_vm, to_vm],
+    "cookie": [from_cookie, to_cookie],
+    "filetimebe": [from_filetimebe, to_filetimebe],
+    "filetimetle": [from_filetimele, to_filetimele],
+    "filetimelohi": [from_filetimelohi, to_filetimelohi],
+    "olebe": [from_olebe, to_olebe],
+    "olele": [from_olele, to_olele],
+    "oleauto": [from_oleauto, to_oleauto],
 }
-
-from_funcs = [
-    from_active,
-    from_apache,
-    from_biome64,
-    from_biomehex,
-    from_nsdate,
-    from_bcd,
-    from_bitdate,
-    from_bitdec,
-    from_dhcp6,
-    from_discord,
-    from_exfat,
-    from_fat,
-    from_gbound,
-    from_gmsgid,
-    from_chrome,
-    from_eitime,
-    from_ved,
-    from_gps,
-    from_gsm,
-    from_hfsbe,
-    from_hfsle,
-    from_hfsdec,
-    from_juliandec,
-    from_julianhex,
-    from_ksalnum,
-    from_ksdec,
-    from_leb128hex,
-    from_linkedin,
-    from_mastodon,
-    from_metasploit,
-    from_dotnet,
-    from_systemtime,
-    from_dttm,
-    from_ms1904,
-    from_hotmail,
-    from_msdos,
-    from_moto,
-    from_prtime,
-    from_ns40,
-    from_ns40le,
-    from_nokia,
-    from_nokiale,
-    from_s32,
-    from_semioctet,
-    from_sony,
-    from_symantec,
-    from_tiktok,
-    from_twitter,
-    from_ulid,
-    from_unixhex32be,
-    from_unixhex32le,
-    from_unixmilli,
-    from_unixmillihex,
-    from_unixsec,
-    from_uuid,
-    from_vm,
-    from_wfs,
-    from_cookie,
-    from_filetimebe,
-    from_filetimele,
-    from_filetimelohi,
-    from_olebe,
-    from_olele,
-    from_oleauto,
-]
-to_funcs = [
-    to_active,
-    to_apache,
-    to_biome64,
-    to_biomehex,
-    to_mac,
-    to_iostime,
-    to_bplist,
-    to_bcd,
-    to_bitdate,
-    to_bitdec,
-    to_dhcp6,
-    to_exfat,
-    to_fat,
-    to_gbound,
-    to_gmsgid,
-    to_chrome,
-    to_eitime,
-    to_gps,
-    to_gsm,
-    to_hfsbe,
-    to_hfsle,
-    to_hfsdec,
-    to_juliandec,
-    to_julianhex,
-    to_ksdec,
-    to_leb128hex,
-    to_mastodon,
-    to_dotnet,
-    to_systemtime,
-    to_dttm,
-    to_ms1904,
-    to_hotmail,
-    to_msdos,
-    to_moto,
-    to_prtime,
-    to_ns40,
-    to_ns40le,
-    to_nokia,
-    to_nokiale,
-    to_s32,
-    to_semioctet,
-    to_sony,
-    to_symantec,
-    to_ulid,
-    to_unixhex32be,
-    to_unixhex32le,
-    to_unixmilli,
-    to_unixmillihex,
-    to_unixsec,
-    to_uuid,
-    to_vm,
-    to_wfs,
-    to_cookie,
-    to_filetimebe,
-    to_filetimele,
-    to_filetimelohi,
-    to_olebe,
-    to_olele,
-    to_oleauto,
-]
 
 
 def main():
@@ -5090,7 +5091,7 @@ def main():
                 else:
                     dt_text = "dates"
                 print(
-                    f"[+] Displaying {len(full_list)} potential {dt_text}\r"
+                    f"[+] Displaying {len(full_list)} potential {dt_text}\n"
                     f"{__red__}[+] Most likely results (+/- 5 years) are highlighted\n{__clr__}"
                 )
                 for _, output in enumerate(full_list):
@@ -5112,7 +5113,9 @@ def main():
             for arg_passed, _ in single_funcs.items():
                 requested = all_args[arg_passed]
                 if requested:
-                    _, indiv_output, _, reason, _ = single_funcs[arg_passed](requested)
+                    _, indiv_output, _, reason, _ = single_funcs[arg_passed][0](
+                        requested
+                    )
                     if indiv_output is False:
                         print(f"[!] {reason}")
                     else:
@@ -5123,4 +5126,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    launch_gui()
