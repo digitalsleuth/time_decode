@@ -7,3 +7,5 @@ __pycache__
 *.spec
 td.ico
 version.txt
+icon.icns
+.DS_Store
