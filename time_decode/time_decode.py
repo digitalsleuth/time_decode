@@ -311,6 +311,18 @@ class UiMainWindow:
             self.time_zone_offsets.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
         self.time_zone_offsets.setEnabled(True)
         self.time_zone_offsets.setHidden(False)
+        tz_tooltip = (
+            "Time Zones in the drop-down box are displayed based on the current date/time.\n"
+            "The actual UTC Offset (whether observing DST or not) will be calculated\naccordingly"
+            " when generating output.\n\n"
+            "For example: Europe/Amsterdam time zone is UTC+01:00 before 29 March 2026 at 2AM,\n"
+            "then it is UTC+02:00 until 29 October 2026 at 3AM.\n\n"
+            "If YOUR current date/time falls between these two times, the time zone will display "
+            "UTC+02:00.\n"
+            "Otherwise, it will display UTC+01:00.\n\nThe output will adjust based on the date/time"
+            " value provided or determined."
+        )
+        self.time_zone_offsets.setToolTip(tz_tooltip)
         self.output_table = QTableWidget(main_window)
         self.output_table.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
@@ -380,8 +392,12 @@ class UiMainWindow:
         self.new_window_button.setIconSize(QSize(22, 22))
         self.new_window_button.setToolTip("Open results in a new window")
         self.new_window_button.clicked.connect(self._new_window)
+        if os.sys.platform == "linux":
+            vert = 415
+        else:
+            vert = 370
         self.timestamp_count_label = QLabel(main_window)
-        self.timestamp_count_label.setGeometry(QRect(392, 94, 90, 22))
+        self.timestamp_count_label.setGeometry(QRect(vert, 94, 90, 22))
         self.timestamp_count_label.setStyleSheet(
             "background-color: white; color: black;"
         )
@@ -481,12 +497,15 @@ class UiMainWindow:
             if "UTC - Default" in selected_tz:
                 results[k] = f"{all_ts[k][0]} {all_ts[k][2]}"
             else:
-                tz_offset = selected_tz.split(" ")[0]
+
                 tz_name = " ".join(selected_tz.split(" ")[1:])
                 tz = tzone(tz_name)
                 tz_original = all_ts[k][0]
                 dt_obj = dt.fromisoformat(tz_original).replace(tzinfo=timezone.utc)
-                tz_selected = dt_obj.astimezone(tz).strftime(__fmt__)
+                tz_change = dt_obj.astimezone(tz)
+                tz_selected = tz_change.strftime(__fmt__)
+                tz_offset = tz_change.strftime("%z")
+                tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
                 if self.check_daylight(dt_obj, tz):
                     tz_out = f"{tz_offset} DST"
                 else:
@@ -568,6 +587,17 @@ class UiMainWindow:
     def display_output(self, ts_list):
         """Configures the output format for the provided values"""
         self._reset_table()
+        tbl_fixed_width = 475
+        col2_width = 235
+        self_fixed_width = 490
+        if os.sys.platform == "linux":
+            tbl_fixed_width = 520
+            col2_width = 280
+            self_fixed_width = 535
+        elif os.sys.platform in {"win32", "darwin"}:
+            tbl_fixed_width = 475
+            col2_width = 235
+            self_fixed_width = 490
         self.output_table.setVisible(True)
         self.output_table.setColumnCount(2)
         self.output_table.setAlternatingRowColors(True)
@@ -608,9 +638,9 @@ class UiMainWindow:
                         this_col.setForeground(QColor("black"))
         self.output_table.horizontalHeader().setFixedHeight(1)
         self.output_table.verticalHeader().setFixedWidth(1)
-        self.output_table.setFixedWidth(505)
+        self.output_table.setFixedWidth(tbl_fixed_width)
         self.output_table.setColumnWidth(0, 220)
-        self.output_table.setColumnWidth(1, 260)
+        self.output_table.setColumnWidth(1, col2_width)
         self.output_table.resizeRowsToContents()
         self.output_table.setShowGrid(True)
         total_row_height = sum(
@@ -624,7 +654,7 @@ class UiMainWindow:
         else:
             self.setFixedHeight(self.height() + int(total_row_height + 1))
             self.output_table.verticalScrollBar().hide()
-        self.setFixedWidth(520)
+        self.setFixedWidth(self_fixed_width)
         self.new_window_button.setEnabled(True)
         self.new_window_button.setHidden(False)
         if len(ts_list) > 1:
@@ -662,8 +692,15 @@ class UiMainWindow:
                     if func_name == ts_selection:
                         is_func = True
             if not is_func:
+                msg = (
+                    f"Cannot convert to {ts_format}, information required to do this is "
+                    "unavailable.\n\n"
+                    "This is typically because the timestamp is only a small part of a larger "
+                    "value, and the other 'parts' of the value are not available to combine with"
+                    " the timestamp to provide a reasonable output."
+                )
                 self._msg_box(
-                    f"Cannot convert to {ts_format}, information required to do this is unavailable.\n\nThis is typically because the timestamp is only a small part of a larger value, and the other 'parts' of the value are not available to combine with the timestamp to provide a reasonable value.",
+                    msg,
                     "Warning",
                 )
                 return
@@ -685,8 +722,15 @@ class UiMainWindow:
                     if func_name == ts_selection:
                         is_func = True
             if not is_func:
+                msg = (
+                    f"Cannot convert from {ts_format}, information required to do this is "
+                    "unavailable.\n\n"
+                    "This is typically because the timestamp is only a small part of a larger "
+                    "value, and the other 'parts' of are not available within your value to provide"
+                    " a reasonable output."
+                )
                 self._msg_box(
-                    f"Cannot convert from {ts_format}, information required to do this is unavailable.\n\nThis is typically because the timestamp is only a small part of a larger value, and the other 'parts' of are not available within your value to provide a reasonable conversion.",
+                    msg,
                     "Warning",
                 )
                 return
@@ -847,9 +891,12 @@ class UiMainWindow:
                 400,
             )
             self.examples_window.timestamp_table.setFont(self.text_font)
-            self.examples_window.window_label.setText(
-                f"A total of {self.examples_window.timestamp_table.rowCount()} examples. NOTE: Not all timestamps can be converted TO, as a timestamp may be only PART of the total value."
+            text = (
+                f"{self.examples_window.timestamp_table.rowCount()} timestamp examples. "
+                "NOTE: Not all timestamp can be converted TO, as a timestamp may be only PART"
+                " of the total value."
             )
+            self.examples_window.window_label.setText(text)
             self.examples_window.window_label.setFont(self.text_font)
             x = (self.screen_layout.width() // 2) - (self.examples_window.width() // 2)
             y = (self.screen_layout.height() // 2) - (
@@ -2112,26 +2159,94 @@ def to_olele(dt_obj):
 
 def from_bplist(timestamp):
     """Convert a bplist NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-        timestamp, "bplist"
-    )
+    _, reason, _, tz_out = ts_types["bplist"]
+    if len(timestamp) == 9 and timestamp.isdigit():
+        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+            timestamp, "bplist"
+        )
+    else:
+        in_nsdate = indiv_output = combined_output = ""
     return in_nsdate, indiv_output, combined_output, reason, tz_out
+
+
+def to_bplist(dt_obj):
+    """Convert a date to a Binary Plist timestamp"""
+    ts_type, _, _, _ = ts_types["bplist"]
+    try:
+        out_bplist = str(int((dt_obj - epochs[2001]).total_seconds()))
+        if int(out_bplist) < 0:
+            out_bplist = "[!] Timestamp Boundary Exceeded [!]"
+        ts_output, _ = format_output(ts_type, out_bplist)
+    except Exception:
+        handle(sys.exc_info())
+        out_bplist = ts_output = ""
+    return out_bplist, ts_output
 
 
 def from_iostime(timestamp):
     """Convert an iOS NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-        timestamp, "iostime"
-    )
+    _, reason, _, tz_out = ts_types["iostime"]
+    if len(timestamp) in range(15, 19) and timestamp.isdigit():
+        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+            timestamp, "iostime"
+        )
+    else:
+        in_nsdate = indiv_output = combined_output = ""
     return in_nsdate, indiv_output, combined_output, reason, tz_out
+
+
+def to_iostime(dt_obj):
+    """Convert a date to an iOS 11 timestamp"""
+    ts_type, _, _, _ = ts_types["iostime"]
+    try:
+        out_iostime = str(
+            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
+        )
+        if int(out_iostime) < 0:
+            out_iostime = "[!] Timestamp Boundary Exceeded [!]"
+        ts_output, _ = format_output(ts_type, out_iostime)
+    except Exception:
+        handle(sys.exc_info())
+        out_iostime = ts_output = ""
+    return out_iostime, ts_output
 
 
 def from_mac(timestamp):
     """Convert a mac NSDate timestamp to a date value"""
-    in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-        timestamp, "mac"
-    )
+    _, reason, _, tz_out = ts_types["mac"]
+    if (
+        "." in timestamp
+        and (
+            (len(timestamp.split(".")[0]) == 9)
+            and (len(timestamp.split(".")[1]) in range(0, 7))
+        )
+        and "".join(timestamp.split(".")).isdigit()
+    ):
+        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
+            timestamp, "mac"
+        )
+    else:
+        in_nsdate = indiv_output = combined_output = ""
     return in_nsdate, indiv_output, combined_output, reason, tz_out
+
+
+def to_mac(dt_obj):
+    """Convert a date to a Mac Absolute timestamp"""
+    ts_type, _, _, _ = ts_types["mac"]
+    try:
+        mac_ts = (
+            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
+            / 1000000000
+        )
+        if mac_ts < 0:
+            out_mac = "[!] Timestamp Boundary Exceeded [!]"
+        else:
+            out_mac = str(f"{mac_ts:.6f}")
+        ts_output, _ = format_output(ts_type, out_mac)
+    except Exception:
+        handle(sys.exc_info())
+        out_mac = ts_output = ""
+    return out_mac, ts_output
 
 
 def from_nsdate(timestamp, val_type):
@@ -2159,25 +2274,6 @@ def from_nsdate(timestamp, val_type):
         handle(sys.exc_info())
         in_nsdate = indiv_output = combined_output = ""
     return in_nsdate, indiv_output, combined_output, reason, tz_out
-
-
-def to_mac(dt_obj):
-    """Convert a date to a Mac Absolute timestamp"""
-    ts_type, _, _, _ = ts_types["mac"]
-    try:
-        mac_ts = (
-            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
-            / 1000000000
-        )
-        if mac_ts < 0:
-            out_mac = "[!] Timestamp Boundary Exceeded [!]"
-        else:
-            out_mac = str(f"{mac_ts:.6f}")
-        ts_output, _ = format_output(ts_type, out_mac)
-    except Exception:
-        handle(sys.exc_info())
-        out_mac = ts_output = ""
-    return out_mac, ts_output
 
 
 def from_hfsdec(timestamp):
@@ -2794,22 +2890,6 @@ def to_ms1904(dt_obj):
     return out_ms1904, ts_output
 
 
-def to_iostime(dt_obj):
-    """Convert a date to an iOS 11 timestamp"""
-    ts_type, _, _, _ = ts_types["iostime"]
-    try:
-        out_iostime = str(
-            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
-        )
-        if int(out_iostime) < 0:
-            out_iostime = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output, _ = format_output(ts_type, out_iostime)
-    except Exception:
-        handle(sys.exc_info())
-        out_iostime = ts_output = ""
-    return out_iostime, ts_output
-
-
 def from_symantec(timestamp):
     """Convert a Symantec 6-byte hex timestamp to a date"""
     ts_type, reason, _, tz_out = ts_types["symantec"]
@@ -2961,20 +3041,6 @@ def to_eitime(dt_obj):
         handle(sys.exc_info())
         out_eitime = ts_output = ""
     return out_eitime, ts_output
-
-
-def to_bplist(dt_obj):
-    """Convert a date to a Binary Plist timestamp"""
-    ts_type, _, _, _ = ts_types["bplist"]
-    try:
-        out_bplist = str(int((dt_obj - epochs[2001]).total_seconds()))
-        if int(out_bplist) < 0:
-            out_bplist = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output, _ = format_output(ts_type, out_bplist)
-    except Exception:
-        handle(sys.exc_info())
-        out_bplist = ts_output = ""
-    return out_bplist, ts_output
 
 
 def from_gsm(timestamp):
@@ -3437,7 +3503,7 @@ def from_metasploit(timestamp):
             b64decoded = base64.urlsafe_b64decode(timestamp[0:22] + "==")
             if len(b64decoded) < struct.calcsize(meta_format):
                 in_metasploit = indiv_output = combined_output = ""
-                return in_metasploit, indiv_output, combined_output, reason, tz_out                
+                return in_metasploit, indiv_output, combined_output, reason, tz_out
             (
                 _,
                 xor1,
@@ -4874,7 +4940,8 @@ def to_timestamps(dt_obj):
             dt_obj = dt.fromisoformat(dt_obj)
         except ValueError as exc:
             print(
-                f"[!] Check that your input timestamp follows the format: 'YYYY-MM-DD HH:MM:SS' with '.ffffff' for milliseconds and '+/-HH:MM' for timezones: {exc}"
+                f"[!] Check that your input timestamp follows the format: 'YYYY-MM-DD HH:MM:SS'\n"
+                f"[!] with '.ffffff' for milliseconds and '+/-HH:MM' for timezones:\n[!] {exc}"
             )
             sys.exit(1)
     if dt_obj.tzinfo is None:
@@ -4894,6 +4961,8 @@ def to_timestamps(dt_obj):
 def launch_gui():
     """Execute the application"""
     td_app = QApplication([__appname__, "windows:darkmode=2"])
+    td_app.setApplicationDisplayName(__appname__)
+    td_app.setApplicationName(__appname__)
     icon = QPixmap()
     icon.loadFromData(base64.b64decode(TimeDecodeGui.__fingerprint__))
     td_app.setWindowIcon(QIcon(icon))
@@ -5057,7 +5126,10 @@ def main():
     arg_parse.add_argument(
         "--format",
         metavar="ARGUMENT",
-        help="Display timestamp format and example by providing an available argument (without --). If no argument is selected, all will be displayed.",
+        help=(
+            "Display timestamp format and example by providing an available argument (without --)."
+            "\nIf no argument is selected, all will be displayed."
+        ),
         nargs="?",
         const="ALL",
     )
@@ -5126,4 +5198,4 @@ def main():
 
 
 if __name__ == "__main__":
-    launch_gui()
+    main()
