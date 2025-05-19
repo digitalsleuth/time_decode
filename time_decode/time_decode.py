@@ -140,7 +140,7 @@ class AboutWindow(QWidget):
         layout.addWidget(self.url_label, 1, 0)
         layout.addWidget(self.logo_label, 0, 2)
         self.setStyleSheet("background-color: white; color: black;")
-        self.setFixedHeight(100)
+        self.setFixedHeight(150)
         self.setFixedWidth(350)
         self.setLayout(layout)
 
@@ -191,8 +191,11 @@ class UiMainWindow:
 
     def __init__(self):
         super().__init__()
+        self.bulk_fmt_str = None
+        self.bulk_input_path = None
+        self.bulk_decode_button = None
         self.window_width = 490
-        self.window_height = 130
+        self.window_height = 160
         self.text_font = QFont()
         self.text_font.setPointSize(9)
         self.results = {}
@@ -250,6 +253,22 @@ class UiMainWindow:
         self.timestamp_text.setEnabled(True)
         self.timestamp_text.setStyleSheet(main_window.stylesheet)
         self.timestamp_text.setFont(self.text_font)
+        #NOL
+        self.bulk_input_path = QLineEdit(main_window)
+        self.bulk_input_path.setObjectName("bulk_input_path")
+        self.bulk_input_path.setGeometry(QRect(10, 125, 250, 22))
+        self.bulk_input_path.setHidden(False)
+        self.bulk_input_path.setEnabled(True)
+        self.bulk_input_path.setStyleSheet(main_window.stylesheet)
+        self.bulk_input_path.setFont(self.text_font)
+        self.bulk_fmt_str = QLineEdit(main_window)
+        self.bulk_fmt_str.setObjectName("bulk_format_str")
+        self.bulk_fmt_str.setGeometry(QRect(270, 125, 120, 22))
+        self.bulk_fmt_str.setHidden(False)
+        self.bulk_fmt_str.setEnabled(True)
+        self.bulk_fmt_str.setStyleSheet(main_window.stylesheet)
+        self.bulk_fmt_str.setFont(self.text_font)
+        #END NOL
         utc_time = dt.now(timezone.utc)
         self.date_time = QDateTimeEdit(main_window)
         self.date_time.setObjectName("date_time")
@@ -352,6 +371,16 @@ class UiMainWindow:
         self.guess_button.setStyleSheet("background-color: white; color: black;")
         self.guess_button.setFont(self.text_font)
         self.guess_button.clicked.connect(self.guess_decode)
+        # NOL
+        self.bulk_decode_button = QPushButton(main_window)
+        self.bulk_decode_button.setObjectName("bulk_decode_button")
+        self.bulk_decode_button.setEnabled(True)
+        self.bulk_decode_button.setHidden(False)
+        self.bulk_decode_button.setGeometry(QRect(400, 125, 70, 22))
+        self.bulk_decode_button.setStyleSheet("background-color: white; color: black;")
+        self.bulk_decode_button.setFont(self.text_font)
+        self.bulk_decode_button.clicked.connect(self.bulk_decode)
+        # END NOL
         self.to_all_button = QPushButton(main_window)
         self.to_all_button.setObjectName("to_all_button")
         self.to_all_button.setEnabled(False)
@@ -416,7 +445,14 @@ class UiMainWindow:
         self.timestamp_text.setPlaceholderText(
             _translate("main_window", "Timestamp", None)
         )
+        self.bulk_input_path.setPlaceholderText(
+            _translate("main_window", "Full Path to Input Text File (.txt)", None)
+        )
+        self.bulk_fmt_str.setPlaceholderText(
+            _translate("main_window", "%d.%m.%Y %H:%M:%S", None)
+        )
         self.guess_button.setText(_translate("main_window", "Guess", None))
+        self.bulk_decode_button.setText(_translate("main_window", "Bulk Decode", None))
         self.to_all_button.setText(_translate("main_window", "To All", None))
         self.encode_radio.setText(_translate("main_window", "Encode", None))
         self.decode_radio.setText(_translate("main_window", "Decode", None))
@@ -752,6 +788,81 @@ class UiMainWindow:
             results[ts_type] = f"{result} {tz_out}"
             self.results = results
             self.display_output(results)
+
+    def bulk_decode(self):
+        """The Bulk Decode button: converts all timestamps from a given text file to dates. Expects one Timestamp per line."""
+        results = []
+        ts_format = self.timestamp_formats.currentText()
+        in_path = self.bulk_input_path.text()
+        out_path = in_path.rsplit(".", 1)[0] + "_converted.txt"
+        fmt_str = self.bulk_fmt_str.text() if self.bulk_fmt_str.text() else __fmt__
+        selected_tz = self.time_zone_offsets.currentText()
+        if "UTC - Default" not in selected_tz:
+            tz_name = " ".join(selected_tz.split(" ")[1:])
+            tz = tzone(tz_name)
+        in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
+        if not in_ts_types:
+            self._msg_box(
+                f"For some reason {ts_format} is not in the list of available conversions!",
+                "Error",
+            )
+            return
+        ts_type = in_ts_types[0]
+        is_func = False
+        if not os.path.exists(in_path):
+            self._msg_box("Input File for Bulk Decode not found!", "Info")
+            return
+        if not os.path.isfile(in_path):
+            self._msg_box("Selected Input file is not a file!", "Info")
+            return
+        ts_selection = f"from_{ts_type}"
+        for _, funcs in single_funcs.items():
+            this_func = funcs[0]
+            if inspect.isfunction(this_func):
+                func_name = this_func.__name__
+                if func_name == ts_selection:
+                    is_func = True
+        if not is_func:
+            msg = (
+                f"Cannot convert from {ts_format}, information required to do this is "
+                "unavailable.\n\n"
+                "This is typically because the timestamp is only a small part of a larger "
+                "value, and the other 'parts' of are not available within your value to provide"
+                " a reasonable output."
+            )
+            self._msg_box(
+                msg,
+                "Warning",
+            )
+            return
+        with open(in_path, "r") as f:
+            timestamps = list(line.strip() for line in f.readlines())
+        ts_func = globals()[ts_selection]
+        for ts in timestamps:
+            result, _, _, reason, tz_out = ts_func(ts)
+            if not result:
+                self._msg_box(reason, "Error")
+                return
+            if "UTC - Default" not in selected_tz:
+                dt_obj = dt.fromisoformat(result).replace(tzinfo=timezone.utc)
+                tz_change = dt_obj.astimezone(tz)
+                tz_offset = tz_change.strftime("%z")
+                tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
+                result = tz_change.strftime(fmt_str)
+                if self.check_daylight(dt_obj, tz):
+                    tz_out = f"{tz_offset} DST"
+                else:
+                    tz_out = tz_offset
+                result = f"{result} {tz_out}"
+            else:
+                dt_obj = dt.fromisoformat(result)
+                result = dt_obj.strftime(fmt_str)
+            results.append(result)
+        with open(out_path, "w") as f:
+            for result in results:
+                f.write(result + "\n")
+        self._msg_box(f"Success! Converted timestamps were written to: {out_path}", "Info")
+
 
     @staticmethod
     def check_daylight(dtval, tz):
