@@ -253,7 +253,6 @@ class UiMainWindow:
         self.timestamp_text.setEnabled(True)
         self.timestamp_text.setStyleSheet(main_window.stylesheet)
         self.timestamp_text.setFont(self.text_font)
-        #NOL
         self.bulk_input_path = QLineEdit(main_window)
         self.bulk_input_path.setObjectName("bulk_input_path")
         self.bulk_input_path.setGeometry(QRect(10, 125, 250, 22))
@@ -268,7 +267,6 @@ class UiMainWindow:
         self.bulk_fmt_str.setEnabled(True)
         self.bulk_fmt_str.setStyleSheet(main_window.stylesheet)
         self.bulk_fmt_str.setFont(self.text_font)
-        #END NOL
         utc_time = dt.now(timezone.utc)
         self.date_time = QDateTimeEdit(main_window)
         self.date_time.setObjectName("date_time")
@@ -371,7 +369,6 @@ class UiMainWindow:
         self.guess_button.setStyleSheet("background-color: white; color: black;")
         self.guess_button.setFont(self.text_font)
         self.guess_button.clicked.connect(self.guess_decode)
-        # NOL
         self.bulk_decode_button = QPushButton(main_window)
         self.bulk_decode_button.setObjectName("bulk_decode_button")
         self.bulk_decode_button.setEnabled(True)
@@ -380,7 +377,6 @@ class UiMainWindow:
         self.bulk_decode_button.setStyleSheet("background-color: white; color: black;")
         self.bulk_decode_button.setFont(self.text_font)
         self.bulk_decode_button.clicked.connect(self.bulk_decode)
-        # END NOL
         self.to_all_button = QPushButton(main_window)
         self.to_all_button.setObjectName("to_all_button")
         self.to_all_button.setEnabled(False)
