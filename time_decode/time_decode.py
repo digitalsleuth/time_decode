@@ -7,7 +7,7 @@ is provided in the REFERENCES.md file at https://github.com/digitalsleuth/time_d
 
 from datetime import datetime as dt, timedelta, timezone
 import struct
-from string import hexdigits
+from string import hexdigits, ascii_lowercase
 import argparse
 import inspect
 import math
@@ -18,6 +18,7 @@ import base64
 import uuid
 import traceback
 import warnings
+import csv
 from calendar import monthrange, IllegalMonthError
 from typing import NamedTuple
 from zoneinfo import ZoneInfo as tzone
@@ -63,14 +64,14 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QMainWindow,
     QStyle,
+    QFileDialog,
 )
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
-
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2025-05-11"
-__version__ = "10.0.0"
+__date__ = "2025-05-25"
+__version__ = "10.1.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -79,42 +80,36 @@ __source__ = "https://github.com/digitalsleuth/time_decode"
 __appname__ = f"Time Decode v{__version__}"
 
 
-try:
-    from ctypes import windll
-
-    APP_ID = f"digitalsleuth.time-decode.gui.v{__version__.replace('.','-')}"
-    windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
-except ImportError:
-    pass
-
-
 class NewWindow(QWidget):
     """This class sets the structure for a new window"""
 
-    def __init__(self):
+    def __init__(self, parent=None):
         """Sets up the new window table and context menu"""
-        super().__init__()
-        layout = QVBoxLayout()
-        self.window_label = QLabel()
-        self.timestamp_table = QTableWidget()
-        self.timestamp_table.setSizePolicy(
+        super().__init__(parent)
+        if parent:
+            self.setPalette(parent.palette())
+            self.setFont(parent.font())
+        self.setStyleSheet("background-color: white;")
+        layout = QVBoxLayout(self)
+        self.window_label = QLabel(self)
+        self.output_table = QTableWidget(self)
+        self.output_table.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        self.timestamp_table.setStyleSheet(
+        self.output_table.setStyleSheet(
             "border: none; selection-background-color: #1644b9;"
         )
-        self.timestamp_table.setVerticalScrollBarPolicy(
+        self.output_table.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self.context_menu = ContextMenu(self.timestamp_table)
-        self.timestamp_table.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu
-        )
-        self.timestamp_table.customContextMenuRequested.connect(
+        self.context_menu = ContextMenu(self.output_table)
+        self.output_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.output_table.customContextMenuRequested.connect(
             self.context_menu.show_context_menu
         )
-        layout.addWidget(self.timestamp_table)
+        layout.addWidget(self.output_table)
         layout.addWidget(self.window_label)
+        self.stylesheet = TimeDecodeGui.stylesheet
         self.setLayout(layout)
 
     def key_press_event(self, event):
@@ -123,6 +118,40 @@ class NewWindow(QWidget):
             self.context_menu.copy()
         else:
             super().key_press_event(event)
+
+
+class CsvWindow(QWidget):
+    """This class sets the structure for a new window"""
+
+    def __init__(
+        self,
+        ts_formats: QComboBox,
+        time_zones: QComboBox,
+        dt_formats: QComboBox,
+        parent=None,
+    ):
+        """Sets up the new window table and context menu"""
+        super().__init__(parent)
+        if parent:
+            self.setPalette(parent.palette())
+            self.setFont(parent.font())
+        self.window_label = QLabel(self)
+        self.output_table = QTableWidget(self)
+        self.ts_formats = QComboBox(self)
+        self.time_zones = QComboBox(self)
+        self.dt_formats = QComboBox(self)
+        for i in range(ts_formats.count()):
+            self.ts_formats.addItem(ts_formats.itemText(i), ts_formats.itemData(i))
+        for i in range(time_zones.count()):
+            self.time_zones.addItem(time_zones.itemText(i), time_zones.itemData(i))
+        for i in range(dt_formats.count()):
+            self.dt_formats.addItem(dt_formats.itemText(i), dt_formats.itemData(i))
+        self.output_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.output_table.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
 
 
 class AboutWindow(QWidget):
@@ -225,6 +254,15 @@ class UiMainWindow:
         self.about_window = None
         self.logo = None
         self.timestamp_count_label = None
+        self.dt_format_combo = None
+        self.decode_from_file_button = None
+        self.selected_header = None
+        self.csv_path = None
+        self.csv_content_window = None
+        self.csv_go_button = None
+        self.csv_decode_action = None
+        self.select_new_csv = None
+        self.csv_close_button = None
         self.screen_layout = QApplication.primaryScreen().availableGeometry()
         self.center_x = (self.screen_layout.width() // 2) - (self.window_width // 2)
         self.center_y = (self.screen_layout.height() // 2) - (self.window_height // 2)
@@ -250,6 +288,9 @@ class UiMainWindow:
         self.timestamp_text.setEnabled(True)
         self.timestamp_text.setStyleSheet(main_window.stylesheet)
         self.timestamp_text.setFont(self.text_font)
+        self.timestamp_text.setToolTip(
+            "Enter your timestamp. To verify your timestamp format, select 'View -> Examples'."
+        )
         utc_time = dt.now(timezone.utc)
         self.date_time = QDateTimeEdit(main_window)
         self.date_time.setObjectName("date_time")
@@ -267,6 +308,9 @@ class UiMainWindow:
         )
         self.date_time.setFont(self.text_font)
         self.date_time.calendarWidget().setFont(self.text_font)
+        self.date_time.setToolTip(
+            "Enter your date/time as 'YYYY-mm-dd HH:MM:SS.fff' and only 3 digits for milliseconds."
+        )
         self.now_button = QPushButton("&Now", clicked=self.set_now)
         self.now_button.setFont(self.text_font)
         self.update_button = QPushButton(
@@ -305,7 +349,15 @@ class UiMainWindow:
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self.time_zone_offsets.setFont(self.text_font)
-        ts_offsets = self.common_timezone_offsets()
+        try:
+            dt_obj = dt.fromisoformat(self.date_time.text()).replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            dt_obj = dt.strptime(self.date_time.text(), __fmt__).replace(
+                tzinfo=timezone.utc
+            )
+        ts_offsets = common_timezone_offsets(dt_obj)
         for k, v in enumerate(ts_offsets):
             self.time_zone_offsets.addItem(f"{v[0]} {v[1]}")
             self.time_zone_offsets.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
@@ -352,6 +404,9 @@ class UiMainWindow:
         self.guess_button.setStyleSheet("background-color: white; color: black;")
         self.guess_button.setFont(self.text_font)
         self.guess_button.clicked.connect(self.guess_decode)
+        self.guess_button.setToolTip(
+            "Run the current timestamp through all functions to 'Guess' the format."
+        )
         self.to_all_button = QPushButton(main_window)
         self.to_all_button.setObjectName("to_all_button")
         self.to_all_button.setEnabled(False)
@@ -360,6 +415,9 @@ class UiMainWindow:
         self.to_all_button.setStyleSheet("background-color: white; color: black;")
         self.to_all_button.setFont(self.text_font)
         self.to_all_button.clicked.connect(self.encode_toall)
+        self.to_all_button.setToolTip(
+            "Convert the selected date/time value to all timestamp formats."
+        )
         self.encode_radio = QRadioButton(main_window)
         self.encode_radio.setObjectName("encode_radio")
         self.encode_radio.setGeometry(QRect(400, 30, 72, 20))
@@ -373,12 +431,39 @@ class UiMainWindow:
         self.decode_radio.setStyleSheet("background-color: white; color: black;")
         self.decode_radio.setFont(self.text_font)
         self.decode_radio.toggled.connect(self._decode_select)
+        self.decode_from_file_button = QPushButton(main_window)
+        self.decode_from_file_button.setObjectName("decode_from_file_button")
+        self.decode_from_file_button.setEnabled(True)
+        self.decode_from_file_button.setHidden(False)
+        self.decode_from_file_button.setGeometry(QRect(322, 60, 72, 22))
+        self.decode_from_file_button.setStyleSheet(
+            "background-color: white; color: black;"
+        )
+        self.decode_from_file_button.setFont(self.text_font)
+        self.decode_from_file_button.clicked.connect(self.csv_decode)
+        self.decode_from_file_button.setToolTip(
+            "Decode timestamps from a CSV/TXT file."
+        )
+        self.dt_format_combo = QComboBox(main_window)
+        self.dt_format_combo.setObjectName("dt_format_combo")
+        self.dt_format_combo.setEnabled(True)
+        self.dt_format_combo.setHidden(False)
+        self.dt_format_combo.setFont(self.text_font)
+        self.dt_format_combo.setGeometry(QRect(400, 60, 70, 22))
+        for k, v in enumerate(date_formats.items()):
+            self.dt_format_combo.addItem(f"{v[0]}")
+            self.dt_format_combo.setItemData(
+                k, v[1].replace("%", ""), Qt.ItemDataRole.ToolTipRole
+            )
+        self.dt_format_combo.setStyleSheet("background-color: white; color: black;")
+        self.dt_format_combo.setToolTip("Choose your desired date/time format.")
         self.go_button = QPushButton(main_window)
         self.go_button.setObjectName("go_button")
         self.go_button.setGeometry(QRect(245, 60, 70, 22))
         self.go_button.setStyleSheet("background-color: white; color: black;")
         self.go_button.setFont(self.text_font)
         self.go_button.clicked.connect(self.go_function)
+        self.go_button.setToolTip("Convert to/from the timestamp selected to the left.")
         new_window_pixmap = QStyle.StandardPixmap.SP_ArrowUp
         icon = main_window.style().standardIcon(new_window_pixmap)
         self.new_window_button = QPushButton(main_window)
@@ -421,6 +506,9 @@ class UiMainWindow:
         self.encode_radio.setText(_translate("main_window", "Encode", None))
         self.decode_radio.setText(_translate("main_window", "Decode", None))
         self.go_button.setText(_translate("main_window", "\u2190 From", None))
+        self.decode_from_file_button.setText(
+            _translate("main_window", "From file..", None)
+        )
         self.new_window_button.setHidden(True)
         self.new_window_button.setEnabled(False)
         self._menu_bar()
@@ -434,7 +522,15 @@ class UiMainWindow:
 
     def update_timezones(self):
         """Updates the time_zone_offsets combo box to reflect the selected Calendar date/time"""
-        ts_offsets = self.common_timezone_offsets()
+        try:
+            dt_obj = dt.fromisoformat(self.date_time.text()).replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            dt_obj = dt.strptime(self.date_time.text(), __fmt__).replace(
+                tzinfo=timezone.utc
+            )
+        ts_offsets = common_timezone_offsets(dt_obj)
         self.time_zone_offsets.clear()
         for k, v in enumerate(ts_offsets):
             self.time_zone_offsets.addItem(f"{v[0]} {v[1]}")
@@ -454,6 +550,10 @@ class UiMainWindow:
         self.new_window_button.setHidden(True)
         self.new_window_button.setEnabled(False)
         self.timestamp_count_label.setText("")
+        self.decode_from_file_button.setEnabled(True)
+        self.decode_from_file_button.setHidden(False)
+        self.dt_format_combo.setEnabled(True)
+        self.dt_format_combo.setHidden(False)
         self._reset_table()
 
     def _encode_select(self):
@@ -470,6 +570,10 @@ class UiMainWindow:
         self.new_window_button.setHidden(True)
         self.new_window_button.setEnabled(False)
         self.timestamp_count_label.setText("")
+        self.decode_from_file_button.setEnabled(False)
+        self.decode_from_file_button.setHidden(True)
+        self.dt_format_combo.setEnabled(False)
+        self.dt_format_combo.setHidden(True)
         self._reset_table()
 
     def _reset_table(self):
@@ -488,36 +592,27 @@ class UiMainWindow:
         """Will take the provided timestamp and run it through the 'from_all' function"""
         timestamp = self.timestamp_text.text()
         selected_tz = self.time_zone_offsets.currentText()
+        tz_name = " ".join(selected_tz.split(" ")[1:])
         if timestamp == "":
             self._msg_box("You must enter a timestamp!", "Info")
             return
-        all_ts = from_all(timestamp)
+        if "UTC - Default" in selected_tz:
+            all_ts = from_all(timestamp)
+        else:
+            all_ts = from_all(timestamp, tz_name)
         results = {}
         for k, _ in all_ts.items():
-            if "UTC - Default" in selected_tz:
-                results[k] = f"{all_ts[k][0]} {all_ts[k][2]}"
-            else:
-
-                tz_name = " ".join(selected_tz.split(" ")[1:])
-                tz = tzone(tz_name)
-                tz_original = all_ts[k][0]
-                dt_obj = dt.fromisoformat(tz_original).replace(tzinfo=timezone.utc)
-                tz_change = dt_obj.astimezone(tz)
-                tz_selected = tz_change.strftime(__fmt__)
-                tz_offset = tz_change.strftime("%z")
-                tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
-                if self.check_daylight(dt_obj, tz):
-                    tz_out = f"{tz_offset} DST"
-                else:
-                    tz_out = tz_offset
-                results[k] = f"{tz_selected} {tz_out}"
+            results[k] = f"{all_ts[k][0]} {all_ts[k][2]}"
         self.results = results
         self.display_output(results)
 
     def encode_toall(self):
         """Takes the date_time object, passes it to the to_timestamps function which encodes it"""
         dt_val = self.date_time.text()
-        dt_obj = dt.fromisoformat(dt_val)
+        try:
+            dt_obj = dt.fromisoformat(dt_val)
+        except ValueError:
+            dt_obj = dt.strptime(dt_val, __fmt__)
         if dt_obj.tzinfo is None:
             dt_obj = dt_obj.replace(tzinfo=timezone.utc)
         selected_tz = self.time_zone_offsets.currentText()
@@ -529,61 +624,6 @@ class UiMainWindow:
         self.results = results
         self.display_output(results)
 
-    def tzdata_timezones(self):
-        """Get the tzdata timezones and put them in a list for the timezone drop-down"""
-        zoneinfo_dir = os.path.join(tzdata.__path__[0], "zoneinfo")
-        timezones = set()
-        for root, _, files in os.walk(zoneinfo_dir):
-            for name in files:
-                rel_path = os.path.relpath(os.path.join(root, name), zoneinfo_dir)
-                if rel_path.startswith(("posix", "right")):
-                    continue
-                timezones.add(rel_path)
-        return sorted(timezones)
-
-    def common_timezone_offsets(self):
-        """Generates a list of all tzdata timezones for conversion, sorted by UTC offset"""
-        timezone_offsets = [("UTC - Default", "")]
-        dt_obj = dt.fromisoformat(self.date_time.text()).replace(tzinfo=timezone.utc)
-        duplicates = [
-            "Factory",
-            "Zulu",
-            "Etc\\Zulu",
-            "Etc\\UTC",
-            "GMT-0",
-            "GMT+0",
-            "Etc\\Universal",
-            "GMT0",
-            "UCT",
-            "Etc\\Greenwich",
-            "Etc\\GMT",
-            "Etc\\GMT+0",
-            "Etc\\GMT-0",
-            "Etc\\GMT0",
-            "Etc\\UCT",
-            "Universal",
-        ]
-        for tz_name in self.tzdata_timezones():
-            if tz_name in duplicates:
-                continue
-            try:
-                set_timezone = tzone(tz_name)
-                dt_val = dt_obj.astimezone(set_timezone)
-                offset_tz = dt_val.utcoffset()
-                if offset_tz is None:
-                    continue
-                offset_seconds = offset_tz.total_seconds()
-                hours, remainder = divmod(abs(offset_seconds), 3600)
-                minutes = remainder // 60
-                sign = "+" if offset_seconds >= 0 else "-"
-                int_offset = f"{sign}{int(hours):02}:{int(minutes):02}"
-                formatted_offset = f"UTC{int_offset}"
-                timezone_offsets.append((formatted_offset, tz_name))
-            except Exception:
-                continue
-        timezone_offsets.sort(key=lambda x: x[0])
-        return timezone_offsets
-
     def display_output(self, ts_list):
         """Configures the output format for the provided values"""
         self._reset_table()
@@ -594,10 +634,6 @@ class UiMainWindow:
             tbl_fixed_width = 520
             col2_width = 280
             self_fixed_width = 535
-        elif os.sys.platform in {"win32", "darwin"}:
-            tbl_fixed_width = 475
-            col2_width = 235
-            self_fixed_width = 490
         self.output_table.setVisible(True)
         self.output_table.setColumnCount(2)
         self.output_table.setAlternatingRowColors(True)
@@ -627,11 +663,15 @@ class UiMainWindow:
                 int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             )
             if self.decode_radio.isChecked():
-                ts = " ".join(result.split(" ")[:-1])
                 this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                if int(dt.fromisoformat(ts).strftime("%Y")) in range(
-                    this_yr - 5, this_yr + 5
-                ):
+                try:
+                    ts = result.split(" ")[0]
+                    result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
+                except ValueError:
+                    split_ts = result.split(" ")
+                    ts = f"{split_ts[0]} {split_ts[1]}"
+                    result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                if result_yr in range(this_yr - 5, this_yr + 5):
                     for each_col in range(0, self.output_table.columnCount()):
                         this_col = self.output_table.item(row, each_col)
                         this_col.setBackground(QColor("lightgreen"))
@@ -652,7 +692,7 @@ class UiMainWindow:
             self.setFixedHeight(540)
             self.output_table.verticalScrollBar().show()
         else:
-            self.setFixedHeight(self.height() + int(total_row_height + 1))
+            self.setFixedHeight(self.height() + int(total_row_height + 12))
             self.output_table.verticalScrollBar().hide()
         self.setFixedWidth(self_fixed_width)
         self.new_window_button.setEnabled(True)
@@ -665,15 +705,23 @@ class UiMainWindow:
 
     def go_function(self):
         """The To/From button: converts a date/timestamp, depending on the selected radio button"""
+        global __fmt__
         results = {}
+        __fmt__ = date_formats[self.dt_format_combo.currentText()]
         ts_format = self.timestamp_formats.currentText()
-        ts_text = self.timestamp_text.text()
-        ts_date = dt.fromisoformat(self.date_time.text()).replace(tzinfo=timezone.utc)
+        try:
+            ts_date = dt.fromisoformat(self.date_time.text()).replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            ts_date = dt.strptime(self.date_time.text(), __fmt__).replace(
+                tzinfo=timezone.utc
+            )
         selected_tz = self.time_zone_offsets.currentText()
         if "UTC - Default" not in selected_tz:
             tz_name = " ".join(selected_tz.split(" ")[1:])
             tz = tzone(tz_name)
-            ts_date = ts_date.astimezone(tz)
+            ts_date = ts_date.replace(tzinfo=tz)
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
         if not in_ts_types:
             self._msg_box(
@@ -711,6 +759,7 @@ class UiMainWindow:
             self.display_output(results)
         elif self.decode_radio.isChecked():
             is_func = False
+            ts_text = self.timestamp_text.text()
             if ts_text == "":
                 self._msg_box("You must enter a timestamp!", "Info")
                 return
@@ -740,27 +789,211 @@ class UiMainWindow:
                 self._msg_box(reason, "Error")
                 return
             if "UTC - Default" not in selected_tz:
-                dt_obj = dt.fromisoformat(result).replace(tzinfo=timezone.utc)
-                tz_change = dt_obj.astimezone(tz)
-                tz_offset = tz_change.strftime("%z")
-                tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
-                result = tz_change.strftime(__fmt__)
-                if self.check_daylight(dt_obj, tz):
-                    tz_out = f"{tz_offset} DST"
-                else:
-                    tz_out = tz_offset
-            results[ts_type] = f"{result} {tz_out}"
+                result, tz_out, _ = convert_timezone(tz_name, result)
+            if tz_out.startswith("+") or tz_out.startswith("-"):
+                results[ts_type] = f"{result}{tz_out}"
+            else:
+                results[ts_type] = f"{result} {tz_out}"
             self.results = results
             self.display_output(results)
 
-    @staticmethod
-    def check_daylight(dtval, tz):
-        """Checks to see if the provided timestamp, in the provided timezone, is observing DST"""
-        if dtval.tzinfo is None:
-            dtval = dtval.replace(tzinfo=tz)
+    def csv_decode(self):
+        """GUI function to decode contents a CSV/TXT file from selected timestamp format"""
+        csv_file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select a csv or txt document ...", "", "csv/txt files (*.csv *.txt)"
+        )
+        self.selected_header = None
+        combo_style = """
+            combobox-popup: 0; 
+            background-color: white;
+            color: black;
+            selection-background-color: white;
+            selection-color: black;
+            """
+        sample_rows = []
+        if csv_file_path:
+            self.csv_path = os.path.normpath(os.path.abspath(csv_file_path))
+            self.csv_content_window = CsvWindow(
+                self.timestamp_formats, self.time_zone_offsets, self.dt_format_combo
+            )
+            self.csv_content_window.setStyleSheet("background: white; color: black;")
+            self.csv_content_window.window_label.setFont(self.text_font)
+            self.csv_content_window.setWindowTitle("Choose your options for conversion")
+            self.csv_content_window.setMaximumWidth(330)
+            self.csv_go_button = QPushButton(self.csv_content_window)
+            self.csv_go_button.setObjectName("csv_go_button")
+            self.csv_go_button.setEnabled(True)
+            self.csv_go_button.setHidden(False)
+            self.csv_go_button.setFont(self.text_font)
+            self.csv_go_button.setText("Go")
+            self.csv_go_button.setGeometry(QRect(315, 230, 70, 22))
+            self.csv_go_button.setStyleSheet("background: white; color: black;")
+            self.csv_go_button.clicked.connect(
+                lambda: self.submit_csv_data(
+                    csv_file_path,
+                    self.csv_content_window.ts_formats.currentText(),
+                    self.selected_header,
+                    tz_name=self.csv_content_window.time_zones.currentText(),
+                    dt_format=date_formats[
+                        self.csv_content_window.dt_formats.currentText()
+                    ],
+                )
+            )
+            self.select_new_csv = QPushButton(self.csv_content_window)
+            self.select_new_csv.setObjectName("select_new_csv")
+            self.select_new_csv.setEnabled(True)
+            self.select_new_csv.setHidden(False)
+            self.select_new_csv.setFont(self.text_font)
+            self.select_new_csv.setText("Load new..")
+            self.select_new_csv.setGeometry(QRect(240, 260, 70, 22))
+            self.select_new_csv.clicked.connect(self.select_new_file)
+            self.select_new_csv.setToolTip(
+                "Load a new CSV/TXT file to replace the current one."
+            )
+            self.csv_content_window.ts_formats.setGeometry(QRect(10, 230, 225, 22))
+            self.csv_content_window.ts_formats.setStyleSheet(combo_style)
+            self.csv_content_window.ts_formats.view().setVerticalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            )
+            self.csv_content_window.ts_formats.setFont(self.text_font)
+            self.csv_content_window.time_zones.setGeometry(QRect(10, 260, 225, 22))
+            self.csv_content_window.time_zones.setStyleSheet(combo_style)
+            self.csv_content_window.time_zones.view().setVerticalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            )
+            self.csv_content_window.time_zones.setFont(self.text_font)
+            self.csv_content_window.dt_formats.setGeometry(QRect(240, 230, 70, 22))
+            self.csv_content_window.dt_formats.setToolTip(
+                "Choose your desired date/time format."
+            )
+            self.csv_content_window.dt_formats.setFont(self.text_font)
+            self.csv_close_button = QPushButton(self.csv_content_window)
+            self.csv_close_button.setObjectName("csv_close_button")
+            self.csv_close_button.setFont(self.text_font)
+            self.csv_close_button.setText("Close")
+            self.csv_close_button.setGeometry(QRect(315, 260, 70, 22))
+            self.csv_close_button.clicked.connect(self.csv_content_window.close)
+            try:
+                with open(csv_file_path, "r", newline="", encoding="utf-8") as src:
+                    sample = src.read(1024)
+                    try:
+                        dialect = csv.Sniffer().sniff(sample)
+                    except csv.Error:
+                        dialect = csv.get_dialect("excel")
+                    src.seek(0)
+                    reader = csv.reader(src, dialect)
+                    columns = len(next(reader, None))
+                    src.seek(0)
+                    rows = 5
+                    for row in reader:
+                        sample_rows.append(row)
+                        rows -= 1
+                        if rows == 0:
+                            break
+            except (FileNotFoundError, PermissionError):
+                handle(sys.exc_info())
+            self.csv_content_window.output_table.setColumnCount(columns)
+            self.csv_content_window.output_table.setRowCount(len(sample_rows))
+            self.csv_content_window.output_table.setHorizontalHeaderLabels(
+                [str(i + 1) for i in range(columns)]
+            )
+            self.csv_content_window.output_table.setAlternatingRowColors(True)
+            self.csv_content_window.output_table.setStyleSheet(
+                """
+                border: none;
+                alternate-background-color: #EAF6FF;
+                background-color: white;
+                color: black;
+                selection-background-color: #1644b9;
+                """
+            )
+            self.csv_content_window.output_table.setFont(self.text_font)
+            for row_index, row in enumerate(sample_rows):
+                for col_index in range(columns):
+                    cell_text = row[col_index] if col_index < len(row) else ""
+                    item = QTableWidgetItem(cell_text)
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    self.csv_content_window.output_table.setItem(
+                        row_index, col_index, item
+                    )
+            self.csv_content_window.output_table.verticalHeader().setFixedWidth(1)
+            self.csv_content_window.output_table.horizontalHeader().setFixedHeight(1)
+            self.csv_content_window.output_table.resizeColumnsToContents()
+            self.csv_content_window.output_table.setGeometry(
+                QRect(
+                    10,
+                    50,
+                    380,
+                    self.csv_content_window.output_table.verticalHeader().length() + 20,
+                )
+            )
+            self.csv_content_window.setFixedSize(
+                400,
+                290,
+            )
+            self.csv_content_window.output_table.itemSelectionChanged.connect(
+                self.get_column_number
+            )
+            window_width = self.csv_content_window.width()
+            window_height = self.csv_content_window.height()
+            self.csv_content_window.window_label.setGeometry(
+                QRect(10, 10, window_width - 10, 30)
+            )
+            self.csv_content_window.window_label.setText(
+                (
+                    "Select the column which contains your timestamps, then\n "
+                    "choose a timestamp format and time zone, then click 'Go'."
+                )
+            )
+            x = (self.screen_layout.width() // 2) - (window_width // 2)
+            y = (self.screen_layout.height() // 2) - (window_height // 2)
+            self.csv_content_window.move(x, y)
+            self.csv_content_window.show()
+
+    def select_new_file(self):
+        """Simply closes the open CSV window and reloads to select a new file"""
+        self.csv_content_window.close()
+        self.csv_decode()
+
+    def submit_csv_data(
+        self, csv_file, ts_format, column_num, tz_name=None, dt_format=None
+    ):
+        """Prepares data to submit for csv conversion"""
+        global __fmt__
+        if dt_format is not None and dt_format != __fmt__:
+            __fmt__ = dt_format
+        in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
+        if not in_ts_types:
+            self._msg_box(
+                f"For some reason {ts_format} is not in the list of available conversions!",
+                "Error",
+            )
+            return
+        ts_type = in_ts_types[0]
+        if tz_name is not None and "UTC - Default" not in tz_name:
+            tz_name = " ".join(tz_name.split(" ")[1:])
+            status, dest, reason = generate_csv(
+                csv_file, ts_type, column_num, tz_name=tz_name
+            )
         else:
-            dtval = dtval.astimezone(tz)
-        return dtval.dst() != timedelta(0, 0)
+            status, dest, reason = generate_csv(csv_file, ts_type, column_num)
+        dest = os.path.normpath(dest)
+        if status:
+            self._msg_box(f"Output CSV file saved as {dest}.", "Info")
+            return
+        if reason is None:
+            reason = "Unknown"
+        self._msg_box(
+            f"CSV could not be processed. {dest} is incomplete.\n\nReason: {reason}",
+            "Error",
+        )
+
+    def get_column_number(self):
+        """Gets the selected column number from the sample data and sets it into a variable"""
+        table = self.csv_content_window.output_table
+        selected_items = table.selectedItems()
+        if selected_items:
+            self.selected_header = selected_items[0].column() + 1
 
     def _menu_bar(self):
         """Add a menu bar"""
@@ -770,6 +1003,10 @@ class UiMainWindow:
         self.exit_action = QAction("&Exit", self)
         self.exit_action.triggered.connect(QApplication.instance().quit)
         self.exit_action.setFont(self.text_font)
+        self.csv_decode_action = QAction("&Decode from file ...", self)
+        self.csv_decode_action.triggered.connect(self.csv_decode)
+        self.csv_decode_action.setFont(self.text_font)
+        self.file_menu.addAction(self.csv_decode_action)
         self.file_menu.addAction(self.exit_action)
         self.menu_bar.addMenu(self.file_menu)
         self.view_menu = self.menu_bar.addMenu("&View")
@@ -785,7 +1022,24 @@ class UiMainWindow:
         self.help_menu.addAction(self.about_action)
         self.menu_bar.setFont(self.text_font)
 
-    def _msg_box(self, message, msg_type):
+    def _msg_box(self, message, msg_type, buttons="ok"):
+        button_choice = None
+        if buttons == "ok":
+            button_choice = QMessageBox.StandardButton.Ok
+        elif buttons == "ok_cancel":
+            button_choice = (
+                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+            )
+        elif buttons == "yes_no_cancel":
+            button_choice = (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel
+            )
+        elif buttons == "yes_no":
+            button_choice = (
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
         self.msg_box = QMessageBox()
         self.msg_box.setStyleSheet("background-color: white; color: black;")
         self.msg_box.setSizePolicy(
@@ -803,7 +1057,7 @@ class UiMainWindow:
         self.msg_box.setWindowTitle(msg_type)
         self.msg_box.setFixedSize(300, 300)
         self.msg_box.setText(f"{message}\t")
-        self.msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self.msg_box.setStandardButtons(button_choice)
         x = (self.screen_layout.width() // 2) - (self.msg_box.width() // 2)
         y = (self.screen_layout.height() // 2) - (self.msg_box.height() // 2)
         self.msg_box.move(x, y)
@@ -842,9 +1096,7 @@ class UiMainWindow:
                     data_list[1],
                     data_list[2],
                 )
-            structures = sorted(
-                structures.items(), key=lambda item: item[1][0].casefold()
-            )
+            structures = sorted(structures.items(), key=lambda item: item[0].casefold())
             self.examples_window = NewWindow()
             self.examples_window.window_label.setGeometry(QRect(0, 0, 200, 24))
             self.examples_window.setWindowTitle("Timestamp Examples")
@@ -854,45 +1106,45 @@ class UiMainWindow:
                 background-color: white; color: black;
                 """
             )
-            self.examples_window.timestamp_table.setColumnCount(2)
+            self.examples_window.output_table.setColumnCount(2)
             for example in structures:
-                row = self.examples_window.timestamp_table.rowCount()
-                self.examples_window.timestamp_table.insertRow(row)
+                row = self.examples_window.output_table.rowCount()
+                self.examples_window.output_table.insertRow(row)
                 widget0 = QTableWidgetItem(example[1][0])
                 widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 widget0.setToolTip(example[0])
                 widget1 = QTableWidgetItem(example[1][1])
                 widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.examples_window.timestamp_table.setItem(row, 0, widget0)
-                self.examples_window.timestamp_table.item(row, 0).setTextAlignment(
+                self.examples_window.output_table.setItem(row, 0, widget0)
+                self.examples_window.output_table.item(row, 0).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
-                self.examples_window.timestamp_table.item(row, 0)
-                self.examples_window.timestamp_table.setItem(row, 1, widget1)
-                self.examples_window.timestamp_table.item(row, 1).setTextAlignment(
+                self.examples_window.output_table.item(row, 0)
+                self.examples_window.output_table.setItem(row, 1, widget1)
+                self.examples_window.output_table.item(row, 1).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
-            self.examples_window.timestamp_table.horizontalHeader().setFixedHeight(1)
-            self.examples_window.timestamp_table.verticalHeader().setFixedWidth(1)
-            self.examples_window.timestamp_table.setGeometry(
+            self.examples_window.output_table.horizontalHeader().setFixedHeight(1)
+            self.examples_window.output_table.verticalHeader().setFixedWidth(1)
+            self.examples_window.output_table.setGeometry(
                 QRect(
                     0,
                     0,
-                    self.examples_window.timestamp_table.horizontalHeader().length(),
-                    self.examples_window.timestamp_table.verticalHeader().length(),
+                    self.examples_window.output_table.horizontalHeader().length(),
+                    self.examples_window.output_table.verticalHeader().length(),
                 )
             )
-            self.examples_window.timestamp_table.resizeColumnsToContents()
-            self.examples_window.timestamp_table.resizeRowsToContents()
-            self.examples_window.timestamp_table.setShowGrid(True)
-            self.examples_window.timestamp_table.setAlternatingRowColors(True)
+            self.examples_window.output_table.resizeColumnsToContents()
+            self.examples_window.output_table.resizeRowsToContents()
+            self.examples_window.output_table.setShowGrid(True)
+            self.examples_window.output_table.setAlternatingRowColors(True)
             self.examples_window.setFixedSize(
-                self.examples_window.timestamp_table.horizontalHeader().length() + 48,
+                self.examples_window.output_table.horizontalHeader().length() + 48,
                 400,
             )
-            self.examples_window.timestamp_table.setFont(self.text_font)
+            self.examples_window.output_table.setFont(self.text_font)
             text = (
-                f"{self.examples_window.timestamp_table.rowCount()} timestamp examples. "
+                f"{self.examples_window.output_table.rowCount()} timestamp examples. "
                 "NOTE: Not all timestamp can be converted TO, as a timestamp may be only PART"
                 " of the total value."
             )
@@ -937,68 +1189,71 @@ class UiMainWindow:
                 background-color: white; color: black;
                 """
             )
-            self.new_window.timestamp_table.setColumnCount(2)
+            self.new_window.output_table.setColumnCount(2)
             for ts_type, result in table_data.items():
-                row = self.new_window.timestamp_table.rowCount()
-                self.new_window.timestamp_table.insertRow(row)
+                row = self.new_window.output_table.rowCount()
+                self.new_window.output_table.insertRow(row)
                 widget0 = QTableWidgetItem(ts_types[ts_type][0])
                 widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 widget0.setToolTip(ts_types[ts_type][1])
                 widget1 = QTableWidgetItem(result)
                 widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.new_window.timestamp_table.setItem(row, 0, widget0)
-                self.new_window.timestamp_table.item(row, 0).setTextAlignment(
+                self.new_window.output_table.setItem(row, 0, widget0)
+                self.new_window.output_table.item(row, 0).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
-                self.new_window.timestamp_table.item(row, 0)
-                self.new_window.timestamp_table.setItem(row, 1, widget1)
-                self.new_window.timestamp_table.item(row, 1).setTextAlignment(
+                self.new_window.output_table.item(row, 0)
+                self.new_window.output_table.setItem(row, 1, widget1)
+                self.new_window.output_table.item(row, 1).setTextAlignment(
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
                 if self.decode_radio.isChecked():
-                    ts = " ".join(result.split(" ")[:-1])
+                    ts = result.split(" ")[0]
                     this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                    if int(dt.fromisoformat(ts).strftime("%Y")) in range(
-                        this_yr - 5, this_yr + 5
-                    ):
+                    try:
+                        ts = result.split(" ")[0]
+                        result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
+                    except ValueError:
+                        split_ts = result.split(" ")
+                        ts = f"{split_ts[0]} {split_ts[1]}"
+                        result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                    if result_yr in range(this_yr - 5, this_yr + 5):
                         for each_col in range(
-                            0, self.new_window.timestamp_table.columnCount()
+                            0, self.new_window.output_table.columnCount()
                         ):
-                            this_col = self.new_window.timestamp_table.item(
-                                row, each_col
-                            )
+                            this_col = self.new_window.output_table.item(row, each_col)
                             this_col.setBackground(QColor("lightgreen"))
                             this_col.setForeground(QColor("black"))
-            self.new_window.timestamp_table.horizontalHeader().setFixedHeight(1)
-            self.new_window.timestamp_table.verticalHeader().setFixedWidth(1)
-            self.new_window.timestamp_table.setGeometry(
+            self.new_window.output_table.horizontalHeader().setFixedHeight(1)
+            self.new_window.output_table.verticalHeader().setFixedWidth(1)
+            self.new_window.output_table.setGeometry(
                 QRect(
                     0,
                     0,
-                    self.new_window.timestamp_table.horizontalHeader().length(),
-                    self.new_window.timestamp_table.verticalHeader().length(),
+                    self.new_window.output_table.horizontalHeader().length(),
+                    self.new_window.output_table.verticalHeader().length(),
                 )
             )
-            self.new_window.timestamp_table.resizeColumnsToContents()
-            for col in range(0, self.new_window.timestamp_table.columnCount()):
-                col_width = self.new_window.timestamp_table.columnWidth(col)
-                self.new_window.timestamp_table.setColumnWidth(col, col_width + 10)
-            self.new_window.timestamp_table.resizeRowsToContents()
-            row_height = self.new_window.timestamp_table.rowHeight(row)
+            self.new_window.output_table.resizeColumnsToContents()
+            for col in range(0, self.new_window.output_table.columnCount()):
+                col_width = self.new_window.output_table.columnWidth(col)
+                self.new_window.output_table.setColumnWidth(col, col_width + 10)
+            self.new_window.output_table.resizeRowsToContents()
+            row_height = self.new_window.output_table.rowHeight(row)
             total_row_height = sum(
-                row_height for row in range(self.new_window.timestamp_table.rowCount())
+                row_height for row in range(self.new_window.output_table.rowCount())
             )
             if total_row_height < 400:
                 window_height = total_row_height + (row_height * 2) + 8
             else:
                 window_height = 400
-            self.new_window.timestamp_table.setShowGrid(True)
-            self.new_window.timestamp_table.setAlternatingRowColors(True)
+            self.new_window.output_table.setShowGrid(True)
+            self.new_window.output_table.setAlternatingRowColors(True)
             self.new_window.setFixedSize(
-                self.new_window.timestamp_table.horizontalHeader().length() + 38,
+                self.new_window.output_table.horizontalHeader().length() + 38,
                 window_height,
             )
-            self.new_window.timestamp_table.setFont(self.text_font)
+            self.new_window.output_table.setFont(self.text_font)
             x = (self.screen_layout.width() // 2) - (self.new_window.width() // 2)
             y = (self.screen_layout.height() // 2) - (self.new_window.height() // 2)
             self.new_window.move(x, y)
@@ -1276,21 +1531,15 @@ ts_types = {
         "UTC",
     ),
     "biomehex": TsTypes(
-        "Apple Biome hex time",
+        "Apple Biome Hex time",
         "Apple Biome Hex value is 8 bytes (16 chars) long",
         "41c6e3de6d084fec",
         "UTC",
     ),
-    "mac": TsTypes(
-        "Apple NSDate - Mac Absolute",
-        "Apple NSDates (Mac) are 9 digits '.' 6 digits",
-        "768064730.064939",
-        "UTC",
-    ),
-    "iostime": TsTypes(
-        "Apple NSDate - iOS 11+",
-        "Apple NSDates (iOS) are 15-19 digits in length",
-        "768064730064939008",
+    "nsdate": TsTypes(
+        "Apple NSDate - All",
+        "Apple NSDates are 9, 9.6, or 15-19 digits in length",
+        "704656778.285777",
         "UTC",
     ),
     "bplist": TsTypes(
@@ -1299,10 +1548,16 @@ ts_types = {
         "768064730",
         "UTC",
     ),
-    "nsdate": TsTypes(
-        "Apple NSDate - All",
-        "Apple NSDates are 9, 9.6, or 15-19 digits in length",
-        "704656778.285777",
+    "iostime": TsTypes(
+        "Apple NSDate - iOS 11+",
+        "Apple NSDates (iOS) are 15-19 digits in length",
+        "768064730064939008",
+        "UTC",
+    ),
+    "mac": TsTypes(
+        "Apple NSDate - Mac Absolute",
+        "Apple NSDates (Mac) are 9 digits '.' 6 digits",
+        "768064730.064939",
         "UTC",
     ),
     "bcd": TsTypes(
@@ -1397,16 +1652,16 @@ ts_types = {
         "UTC",
     ),
     "hfsbe": TsTypes(
-        "HFS/HFS+ 32-bit Hex BE",
-        "HFS/HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)",
+        "HFS / HFS+ 32-bit Hex BE",
+        "HFS / HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)",
         "e43d35da",
-        "HFS Local / HFS+ UTC",
+        "Local / UTC",
     ),
     "hfsle": TsTypes(
-        "HFS/HFS+ 32-bit Hex LE",
-        "HFS/HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)",
+        "HFS / HFS+ 32-bit Hex LE",
+        "HFS / HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)",
         "da353de4",
-        "HFS Local / HFS+ UTC",
+        "Local / UTC",
     ),
     "hfsdec": TsTypes(
         "HFS+ Decimal Time",
@@ -1516,12 +1771,6 @@ ts_types = {
         "d19d0f5a",
         "UTC",
     ),
-    "nokiale": TsTypes(
-        "Nokia time LE",
-        "Nokia 4-byte hex timestamps are 8 hex characters",
-        "5a0f9dd1",
-        "UTC",
-    ),
     "ns40": TsTypes(
         "Nokia S40 time",
         "Nokia 7-byte hex timestamps are 14 hex characters",
@@ -1532,6 +1781,12 @@ ts_types = {
         "Nokia S40 time LE",
         "Nokia 7-byte hex timestamps are 14 hex characters",
         "e90705040f1232",
+        "UTC",
+    ),
+    "nokiale": TsTypes(
+        "Nokia time LE",
+        "Nokia 4-byte hex timestamps are 8 hex characters",
+        "5a0f9dd1",
         "UTC",
     ),
     "s32": TsTypes(
@@ -1624,6 +1879,12 @@ ts_types = {
         "3600017664,31177991",
         "UTC",
     ),
+    "filetimelohi": TsTypes(
+        "Windows FILETIME (Low|High)",
+        "Windows FILETIME Low|High times are 2x 8 hex chars (4 bytes) colon separated",
+        "d69dd1ae:01dbbd07",
+        "UTC",
+    ),
     "filetimebe": TsTypes(
         "Windows FILETIME BE",
         "Windows FILETIME Hex Big-Endian timestamp is 16 hex characters (8 bytes)",
@@ -1634,12 +1895,6 @@ ts_types = {
         "Windows FILETIME LE",
         "Windows FILETIME Hex Little-Endian timestamp is 16 hex characters (8 bytes)",
         "aed19dd607bddb01",
-        "UTC",
-    ),
-    "filetimelohi": TsTypes(
-        "Windows FILETIME (Low:High)",
-        "Windows FILETIME Low:High times are 2x 8 hex chars (4 bytes) colon separated",
-        "d69dd1ae:01dbbd07",
         "UTC",
     ),
     "olebe": TsTypes(
@@ -1661,7 +1916,6 @@ ts_types = {
         "UTC",
     ),
 }
-__types__ = len(ts_types)
 
 epochs = {
     1: dt(1, 1, 1, tzinfo=timezone.utc),
@@ -1720,6 +1974,15 @@ leapseconds = {
     ],
 }
 
+date_formats = {
+    "Default": __fmt__,
+    "ISO 8601": "%Y-%m-%dT%H:%M:%S.%f",
+    "DD/MM/YY": "%d/%m/%Y %H:%M:%S.%f",
+    "DMY": "%d-%m-%Y %H:%M:%S.%f",
+    "MDY": "%m-%d-%Y %H:%M:%S.%f",
+    "YMD": __fmt__,
+}
+
 S32_CHARS = "234567abcdefghijklmnopqrstuvwxyz"
 BASE32_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 URLSAFE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_"
@@ -1765,10 +2028,6 @@ def from_unixmilli(timestamp):
             in_unix_milli = dt.fromtimestamp(
                 float(timestamp) / 1000.0, timezone.utc
             ).strftime(__fmt__)
-            indiv_output = str(f"{ts_type}: {in_unix_milli} {tz_out}")
-            combined_output = str(
-                f"{__red__}{ts_type}:\t\t{in_unix_milli} {tz_out}{__clr__}"
-            )
             indiv_output, combined_output = format_output(
                 ts_type, in_unix_milli, tz_out
             )
@@ -2312,7 +2571,7 @@ def to_hfsdec(dt_obj):
 
 
 def from_hfsbe(timestamp):
-    """Convert an HFS/HFS+ Big-Endian timestamp to a date (HFS+ is in UTC)"""
+    """Convert an HFS / HFS+ Big-Endian timestamp to a date (HFS+ is in UTC)"""
     ts_type, reason, _, tz_out = ts_types["hfsbe"]
     try:
         if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
@@ -2328,7 +2587,7 @@ def from_hfsbe(timestamp):
 
 
 def to_hfsbe(dt_obj):
-    """Convert a date to an HFS/HFS+ Big-Endian timestamp"""
+    """Convert a date to an HFS / HFS+ Big-Endian timestamp"""
     ts_type, _, _, _ = ts_types["hfsbe"]
     try:
         conv = int((dt_obj - epochs[1904]).total_seconds())
@@ -2344,7 +2603,7 @@ def to_hfsbe(dt_obj):
 
 
 def from_hfsle(timestamp):
-    """Convert an HFS/HFS+ Little-Endian timestamp to a date (HFS+ is in UTC)"""
+    """Convert an HFS / HFS+ Little-Endian timestamp to a date (HFS+ is in UTC)"""
     ts_type, reason, _, tz_out = ts_types["hfsle"]
     try:
         if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
@@ -2361,7 +2620,7 @@ def from_hfsle(timestamp):
 
 
 def to_hfsle(dt_obj):
-    """Convert a date to an HFS/HFS+ Little-Endian timestamp"""
+    """Convert a date to an HFS / HFS+ Little-Endian timestamp"""
     ts_type, _, _, _ = ts_types["hfsle"]
     try:
         conv = int((dt_obj - epochs[1904]).total_seconds())
@@ -4913,7 +5172,7 @@ def date_range(start, end, check_date):
     return start <= check_date or check_date <= end
 
 
-def from_all(timestamps):
+def from_all(timestamps, tz_name=None):
     """Output all processed timestamp values and find date from provided timestamp"""
     this_yr = int(dt.now(timezone.utc).strftime("%Y"))
     full_list = {}
@@ -4923,29 +5182,46 @@ def from_all(timestamps):
         (result, _, combined_output, _, tz_out) = func(timestamps)
         if result and combined_output:
             if isinstance(result, str):
-                if int(dt.fromisoformat(result).strftime("%Y")) not in range(
-                    this_yr - 5, this_yr + 5
-                ):
+                if tz_name is not None:
+                    new_ts, new_tz, _ = convert_timezone(tz_name, result)
+                    combined_output = combined_output.replace(result, new_ts)
+                    combined_output = combined_output.replace(tz_out, new_tz)
+                    tz_out = new_tz
+                    result = new_ts
+                try:
+                    ts = result.split(" ")[0]
+                    result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
+                except ValueError:
+                    split_ts = result.split(" ")
+                    ts = f"{split_ts[0]} {split_ts[1]}"
+                    result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                if result_yr not in range(this_yr - 5, this_yr + 5):
                     combined_output = combined_output.strip(__red__).strip(__clr__)
             full_list[func_name] = [result, combined_output, tz_out]
     return full_list
 
 
-def to_timestamps(dt_obj):
+def to_timestamps(dt_obj, tz_name=None):
     """Convert provided date to all timestamps"""
     results = {}
     ts_outputs = []
     if isinstance(dt_obj, str):
         try:
             dt_obj = dt.fromisoformat(dt_obj)
-        except ValueError as exc:
+        except ValueError:
+            dt_obj = dt.strptime(dt_obj, __fmt__)
+        except Exception as exc:
             print(
                 f"[!] Check that your input timestamp follows the format: 'YYYY-MM-DD HH:MM:SS'\n"
-                f"[!] with '.ffffff' for milliseconds and '+/-HH:MM' for timezones:\n[!] {exc}"
+                f"[!] with '.ffffff' for milliseconds and '+/-HH:MM' for timezones\n"
+                f"[!] or use --date-formats to pick a format and use the --date-format NAME:\n{exc}"
             )
             sys.exit(1)
-    if dt_obj.tzinfo is None:
+    if dt_obj.tzinfo is None and tz_name is None:
         dt_obj = dt_obj.replace(tzinfo=timezone.utc)
+    elif tz_name is not None:
+        tz = tzone(tz_name)
+        dt_obj = dt_obj.replace(tzinfo=tz)
     for _, funcs in single_funcs.items():
         func = funcs[1]
         if not func:
@@ -4958,8 +5234,15 @@ def to_timestamps(dt_obj):
     return results, ts_outputs
 
 
-def launch_gui():
+def gui():
     """Execute the application"""
+    try:
+        from ctypes import windll
+
+        app_id = f"digitalsleuth.time-decode.gui.v{__version__.replace('.','-')}"
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+    except ImportError:
+        pass
     td_app = QApplication([__appname__, "windows:darkmode=2"])
     td_app.setApplicationDisplayName(__appname__)
     td_app.setApplicationName(__appname__)
@@ -4987,7 +5270,7 @@ def formats(display="ALL"):
     structures = {}
     for arg, data_list in ts_types.items():
         structures[data_list[0]] = (data_list[1], data_list[2], arg)
-    structures = sorted(structures.items(), key=lambda item: item[1][0].casefold())
+    structures = sorted(structures.items(), key=lambda item: item[0].casefold())
     table = PrettyTable()
     table.set_style(TableStyle.SINGLE_BORDER)
     table.align = "l"
@@ -5013,12 +5296,206 @@ def format_output(ts_type, ts, tz=None):
     elif len(ts_type) in range(23, 32):
         tabs = "\t"
     if tz:
-        indiv_output = f"{ts_type}: {ts} {tz}"
-        combined_output = f"{__red__}{ts_type}:{tabs}{ts} {tz}{__clr__}"
+        indiv_output = f"{ts_type}: {ts}{tz}"
+        combined_output = f"{__red__}{ts_type}:{tabs}{ts}{tz}{__clr__}"
     else:
         indiv_output = f"{ts_type}:{tabs}{ts}"
         combined_output = None
     return indiv_output, combined_output
+
+
+def tzdata_timezones():
+    """Get the tzdata timezones and put them in a list for the timezone drop-down"""
+    zoneinfo_dir = os.path.join(tzdata.__path__[0], "zoneinfo")
+    timezones = set()
+    for root, _, files in os.walk(zoneinfo_dir):
+        for name in files:
+            rel_path = os.path.relpath(os.path.join(root, name), zoneinfo_dir)
+            if rel_path.startswith(("posix", "right")):
+                continue
+            timezones.add(rel_path)
+    return sorted(timezones)
+
+
+def common_timezone_offsets(dt_obj):
+    """Generates a list of all tzdata timezones for conversion, sorted by UTC offset"""
+    timezone_offsets = [("UTC - Default", "")]
+    duplicates = [
+        "Factory",
+        "Zulu",
+        "Etc\\Zulu",
+        "Etc\\UTC",
+        "GMT-0",
+        "GMT+0",
+        "Etc\\Universal",
+        "GMT0",
+        "UCT",
+        "Etc\\Greenwich",
+        "Etc\\GMT",
+        "Etc\\GMT+0",
+        "Etc\\GMT-0",
+        "Etc\\GMT0",
+        "Etc\\UCT",
+        "Universal",
+    ]
+    for tz_name in tzdata_timezones():
+        if tz_name in duplicates:
+            continue
+        try:
+            set_timezone = tzone(tz_name)
+            dt_val = dt_obj.astimezone(set_timezone)
+            offset_tz = dt_val.utcoffset()
+            if offset_tz is None:
+                continue
+            offset_seconds = offset_tz.total_seconds()
+            hours, remainder = divmod(abs(offset_seconds), 3600)
+            minutes = remainder // 60
+            sign = "+" if offset_seconds >= 0 else "-"
+            int_offset = f"{sign}{int(hours):02}:{int(minutes):02}"
+            formatted_offset = f"UTC{int_offset}"
+            timezone_offsets.append((formatted_offset, tz_name))
+        except Exception:
+            continue
+    timezone_offsets.sort(key=lambda x: x[0])
+    return timezone_offsets
+
+
+def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
+    """Loads a CSV file, reads a column and decodes the timestamps from the selected format"""
+    ts_func = single_funcs[ts_choice][0]
+    src_file = os.path.normpath(os.path.abspath(src_file))
+    dst_file = f"{os.path.splitext(src_file)[0]}_out.csv"
+    status = False
+    reason = None
+    csv_output = []
+    if isinstance(column_num, str) and not column_num.isdigit():
+        if len(column_num) == 1:
+            column_num = int(ascii_lowercase.index(column_num.lower()))
+        else:
+            return status, dst_file, reason
+    elif isinstance(column_num, str) and column_num.isdigit():
+        column_num = int(column_num)
+        if column_num > 0:
+            column_num -= 1
+        elif column_num < 0:
+            column_num = 0
+    elif isinstance(column_num, int):
+        if column_num > 0:
+            column_num -= 1
+        elif column_num < 0:
+            column_num = 0
+    elif column_num is None:
+        column_num = 0
+    try:
+        with open(src_file, "r", newline="", encoding="utf-8") as src, open(
+            dst_file, "w", newline="", encoding="utf-8"
+        ) as dst:
+            sample = src.read(2048)
+            try:
+                dialect = csv.Sniffer().sniff(sample)
+            except csv.Error:
+                dialect = csv.get_dialect("excel")
+            try:
+                has_header = csv.Sniffer().has_header(sample)
+            except csv.Error:
+                has_header = False
+                header_check = sample.count(",")
+                content = sample.split("\n")
+                if header_check == 0:
+                    line_one = content[0]
+                    line_two = content[1]
+                    if len(line_one) != len(line_two):
+                        has_header = True
+                elif len(content[0].split(",")[0]) != len(content[1].split(",")[1]):
+                    has_header = True
+            src.seek(0)
+            reader = csv.reader(src, dialect)
+            columns = len(next(reader, None))
+            src.seek(0)
+            if has_header:
+                header = next(reader)
+            if column_num > columns:
+                reason = "The selected column number is higher than the amount of actual columns."
+                return status, dst_file, reason
+            for row in reader:
+                ts = row[column_num]
+                results = ts_func(ts)
+                result = results[0]
+                reason = results[3]
+                if result == "":
+                    return status, dst_file, reason
+                if tz_name is not None:
+                    new_result, new_tz, _ = convert_timezone(tz_name, result)
+                    if new_tz.startswith("+") or new_tz.startswith("-"):
+                        result = f"{new_result}{new_tz}"
+                    else:
+                        result = f"{new_result} {new_tz}"
+                row.append(result)
+                csv_output.append(row)
+            writer = csv.writer(dst, quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            if has_header:
+                header.append(f"{ts_choice}_ts")
+                writer.writerow(header)
+            for row in csv_output:
+                writer.writerow(row)
+        status = True
+    except (FileNotFoundError, PermissionError):
+        handle(sys.exc_info())
+        status = False
+    return status, dst_file, reason
+
+
+def convert_timezone(tz_name, dt_val):
+    """Separate function to take a string date/time and convert it to the identified time zone"""
+    tz = tzone(tz_name)
+    try:
+        dt_obj = dt.fromisoformat(dt_val).replace(tzinfo=timezone.utc)
+    except ValueError:
+        dt_obj = dt.strptime(dt_val, __fmt__).replace(tzinfo=timezone.utc)
+    tz_change = dt_obj.astimezone(tz)
+    tz_offset = tz_change.strftime("%z")
+    tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
+    tz_selected = tz_change.strftime(__fmt__)
+    if check_daylight(dt_obj, tz):
+        tz_out = f"{tz_offset} DST"
+    else:
+        tz_out = tz_offset
+    return tz_selected, tz_out, tz_change
+
+
+def check_daylight(dtval, tz):
+    """Checks to see if the provided timestamp, in the provided timezone, is observing DST"""
+    if dtval.tzinfo is None:
+        dtval = dtval.replace(tzinfo=tz)
+    else:
+        dtval = dtval.astimezone(tz)
+    return dtval.dst() != timedelta(0, 0)
+
+
+def list_timezones():
+    """Displays all available time zone conversion options in a PrettyTable"""
+    tzs = common_timezone_offsets(dt.now(timezone.utc))
+    tzs = tzs[1:]
+    tzs.sort(key=lambda x: x[1])
+    table = PrettyTable()
+    table.set_style(TableStyle.SINGLE_BORDER)
+    table.align = "l"
+    table.field_names = ["Time Zone Name", "Current Offset"]
+    for tz in tzs:
+        table.add_row([tz[1], tz[0]])
+    print(table)
+    print(f"* Based on the current date/time of {dt.now(timezone.utc)}")
+
+
+def list_date_formats():
+    """Displays available date/time format strings"""
+    table = PrettyTable()
+    table.set_style(TableStyle.SINGLE_BORDER)
+    table.align = "l"
+    table.field_names = ["Name", "Format"]
+    for k, v in date_formats.items():
+        table.add_row([k, v.replace("%", "")])
+    print(table)
 
 
 single_funcs = {
@@ -5026,9 +5503,9 @@ single_funcs = {
     "apache": [from_apache, to_apache],
     "biome64": [from_biome64, to_biome64],
     "biomehex": [from_biomehex, to_biomehex],
-    "mac": [from_mac, to_mac],
-    "iostime": [from_iostime, to_iostime],
     "bplist": [from_bplist, to_bplist],
+    "iostime": [from_iostime, to_iostime],
+    "mac": [from_mac, to_mac],
     "bcd": [from_bcd, to_bcd],
     "bitdate": [from_bitdate, to_bitdate],
     "bitdec": [from_bitdec, to_bitdec],
@@ -5064,10 +5541,10 @@ single_funcs = {
     "msdos": [from_msdos, to_msdos],
     "moto": [from_moto, to_moto],
     "prtime": [from_prtime, to_prtime],
-    "nokia": [from_nokia, to_nokia],
-    "nokiale": [from_nokiale, to_nokiale],
     "ns40": [from_ns40, to_ns40],
     "ns40le": [from_ns40le, to_ns40le],
+    "nokia": [from_nokia, to_nokia],
+    "nokiale": [from_nokiale, to_nokiale],
     "s32": [from_s32, to_s32],
     "semioctet": [from_semioctet, to_semioctet],
     "sony": [from_sony, to_sony],
@@ -5083,17 +5560,19 @@ single_funcs = {
     "uuid": [from_uuid, to_uuid],
     "vm": [from_vm, to_vm],
     "cookie": [from_cookie, to_cookie],
-    "filetimebe": [from_filetimebe, to_filetimebe],
-    "filetimetle": [from_filetimele, to_filetimele],
     "filetimelohi": [from_filetimelohi, to_filetimelohi],
+    "filetimebe": [from_filetimebe, to_filetimebe],
+    "filetimele": [from_filetimele, to_filetimele],
     "olebe": [from_olebe, to_olebe],
     "olele": [from_olele, to_olele],
     "oleauto": [from_oleauto, to_oleauto],
 }
+__types__ = len(single_funcs)
 
 
 def main():
     """Parse all passed arguments"""
+    global __fmt__
     now = dt.now(timezone.utc).strftime(__fmt__)
     arg_parse = argparse.ArgumentParser(
         description=f"Time Decoder and Converter v"
@@ -5102,29 +5581,36 @@ def main():
         f"Some timestamps are only part of the entire value, and as such, full\n"
         f"timestamps may not be generated based on only the date/time portion.",
         formatter_class=argparse.RawTextHelpFormatter,
+        usage=argparse.SUPPRESS,
     )
     arg_parse.add_argument(
-        "-g",
-        "--gui",
+        "--csv",
+        metavar="SRC_FILE TS_FORMAT <column-number>",
+        help=(
+            "Process a csv/txt file with timestamps and convert them to the selected timestamp\n"
+            "Requires a timestamp format be provided without --. ie. 'unixsec' vice '--unixsec'.\n"
+            "You can also provide a column number if your input file contains multiple columns."
+        ),
+        nargs="*",
+    )
+    arg_parse.add_argument(
+        "--date-format",
+        metavar="FORMAT_NAME",
+        help=(
+            "Changes the output format of a date/time value.\n"
+            "Use the NAME for the format provided.\n"
+            "Use --date-formats to see all available options."
+        ),
+        type=str,
+        default="Default",
+    )
+    arg_parse.add_argument(
+        "--date-formats",
         action="store_true",
-        help="launch the gui",
+        help="Displays available date formats for the output of a date/time value",
     )
     arg_parse.add_argument(
-        "--guess",
-        metavar="TIMESTAMP",
-        help="guess the timestamp format and output possibilities",
-    )
-    arg_parse.add_argument(
-        "--timestamp",
-        metavar="DATE",
-        help="convert date to every timestamp\n"
-        'enter date as "YYYY-MM-DD HH:MM:SS.f" in 24h fmt\n'
-        "Without DATE argument, will convert current date/time\n",
-        nargs="?",
-        const=now,
-    )
-    arg_parse.add_argument(
-        "--format",
+        "--formats",
         metavar="ARGUMENT",
         help=(
             "Display timestamp format and example by providing an available argument (without --)."
@@ -5132,6 +5618,54 @@ def main():
         ),
         nargs="?",
         const="ALL",
+    )
+    arg_parse.add_argument(
+        "--guess",
+        metavar="TIMESTAMP",
+        help="Guess the timestamp format and output possibilities",
+    )
+    arg_parse.add_argument(
+        "--gui",
+        "-g",
+        action="store_true",
+        help="Launch the gui",
+    )
+    arg_parse.add_argument(
+        "--minimal",
+        "-m",
+        action="store_true",
+        help="Output only the timestamp, not the description",
+    )
+    arg_parse.add_argument(
+        "--to",
+        action="store_true",
+        help="Convert a date/time to a selected timestamp format",
+    )
+    arg_parse.add_argument(
+        "--timestamp",
+        metavar="DATE",
+        help=(
+            "Convert date to every timestamp\n"
+            'Enter date as "YYYY-MM-DD HH:MM:SS.f" in 24h fmt\n'
+            "Without a provided DATE, it will convert the current UTC date/time\n"
+        ),
+        nargs="?",
+        const=now,
+    )
+    arg_parse.add_argument(
+        "--timezones",
+        help="Prints a list of timezones to use for conversion",
+        action="store_true",
+    )
+    arg_parse.add_argument(
+        "--tz",
+        metavar="TIMEZONE_NAME",
+        help=(
+            "Provide the name of a timezone for conversion within quotes.\n"
+            "Use --timezones to see a list."
+        ),
+        type=str,
+        default=None,
     )
     for argument, data in ts_types.items():
         arg_parse.add_argument(f"--{argument}", metavar="", help=f"{data.ts_type}")
@@ -5142,59 +5676,143 @@ def main():
     if len(sys.argv[1:]) == 0:
         arg_parse.print_help()
         arg_parse.exit()
-
+    if len(sys.argv[1:]) > 0 and ("--timezones" in sys.argv):
+        list_timezones()
+        sys.exit(0)
     args = arg_parse.parse_args()
-    all_args = vars(args)
-    try:
-        if args.format:
-            formats(args.format)
-            sys.exit(0)
-        if args.guess:
-            full_list = from_all(args.guess)
-            if len(full_list) == 0:
-                print("[!] No valid dates found. Check your input and try again")
-            else:
-                print(
-                    f"[+] Guessing timestamp format for {args.guess}\n"
-                    f"[+] Outputs which do NOT result in a date/time value are NOT displayed\r"
-                )
-                if len(full_list) == 1:
-                    dt_text = "date"
-                else:
-                    dt_text = "dates"
-                print(
-                    f"[+] Displaying {len(full_list)} potential {dt_text}\n"
-                    f"{__red__}[+] Most likely results (+/- 5 years) are highlighted\n{__clr__}"
-                )
-                for _, output in enumerate(full_list):
-                    print(f"{full_list[output][1]}")
-            print("\r")
-            return
-        if args.timestamp:
-            _, ts_outputs = to_timestamps(args.timestamp)
-            print(
-                f"\n[+] Converting {args.timestamp} to {len(ts_outputs)} timestamps:\n"
+    if args.date_format in date_formats:
+        __fmt__ = date_formats[args.date_format]
+    else:
+        arg_parse.error(
+            (
+                f"[!] The format {args.date_format} is not one of the available options.\n"
+                "Please use the --date-formats argument to find a valid NAME."
             )
-            for ts_val in ts_outputs:
-                print(ts_val)
-            print("\r")
-            return
-        if args.gui:
-            launch_gui()
+        )
+    all_args = vars(args)
+    if args.formats:
+        formats(args.formats)
+        sys.exit(0)
+    if args.date_formats:
+        list_date_formats()
+        sys.exit(0)
+    if args.guess:
+        full_list = from_all(args.guess, args.tz)
+        if len(full_list) == 0:
+            print("[!] No valid dates found. Check your input and try again")
         else:
-            for arg_passed, _ in single_funcs.items():
-                requested = all_args[arg_passed]
-                if requested:
-                    _, indiv_output, _, reason, _ = single_funcs[arg_passed][0](
-                        requested
-                    )
-                    if indiv_output is False:
-                        print(f"[!] {reason}")
-                    else:
-                        print(indiv_output)
-                    return
-    except Exception:
-        handle(sys.exc_info())
+            print(
+                f"[+] Guessing timestamp format for {args.guess}\n"
+                f"[+] Outputs which do NOT result in a date/time value are NOT displayed\r"
+            )
+            if len(full_list) == 1:
+                dt_text = "date"
+            else:
+                dt_text = "dates"
+            print(
+                f"[+] Displaying {len(full_list)} potential {dt_text}\n"
+                f"{__red__}[+] Most likely results (+/- 5 years) are highlighted\n{__clr__}"
+            )
+            for _, output in enumerate(full_list):
+                print(f"{full_list[output][1]}")
+        print("\r")
+        return
+    if args.timestamp:
+        _, ts_outputs = to_timestamps(args.timestamp, args.tz)
+        print(f"\n[+] Converting {args.timestamp} to {len(ts_outputs)} timestamps:\n")
+        for ts_val in ts_outputs:
+            print(ts_val)
+        print("\r")
+        return
+    if args.gui:
+        gui()
+        return
+    if args.csv:
+        if len(args.csv) == 2:
+            src_file = os.path.normpath(os.path.abspath(args.csv[0]))
+            ts_type = args.csv[1]
+            src_exists = os.path.exists(src_file) and os.path.isfile(src_file)
+            if ts_type in single_funcs and src_exists:
+                result, dst, reason = generate_csv(src_file, ts_type, tz_name=args.tz)
+                dst = os.path.normpath(dst)
+                if result:
+                    print(f"[+] CSV file was saved as {dst}.")
+                else:
+                    print(f"[!] Unable to complete CSV export to {dst} - {reason}.")
+            else:
+                arg_parse.error(
+                    "[!] Provided argument is not in the list of conversion options"
+                )
+        elif len(args.csv) == 3:
+            src_file = os.path.normpath(os.path.abspath(args.csv[0]))
+            ts_type = args.csv[1]
+            column = args.csv[2]
+            src_exists = os.path.exists(src_file) and os.path.isfile(src_file)
+            if ts_type in single_funcs and src_exists:
+                result, dst, reason = generate_csv(
+                    src_file, ts_type, column, tz_name=args.tz
+                )
+                dst = os.path.normpath(dst)
+                if result:
+                    print(f"[+] CSV file was saved as {dst}.")
+                else:
+                    print(f"[!] Unable to complete CSV export to {dst} - {reason}.")
+            else:
+                arg_parse.error(
+                    "[!] Provided argument is not in the list of conversion options"
+                )
+        else:
+            arg_parse.error(
+                (
+                    "[!] --csv requires the file name to process "
+                    f"and the timestamp type without the '--' {args.csv}"
+                )
+            )
+        return
+    for arg_passed, funcs in single_funcs.items():
+        requested = all_args[arg_passed]
+        if requested and not args.to:
+            date_time, indiv_output, _, reason, _ = funcs[0](requested)
+            if indiv_output is False:
+                print(f"[!] {reason}")
+            else:
+                if args.minimal:
+                    print(date_time)
+                else:
+                    print(indiv_output)
+        elif requested and args.to:
+            try:
+                dt_obj = dt.fromisoformat(requested)
+            except ValueError:
+                dt_obj = dt.strptime(requested, __fmt__)
+            except Exception:
+                arg_parse.error(
+                    "[!] Format should be 'YYYY-MM-DD HH:MM:SS.fff' in 24h fmt."
+                    "Milliseconds (.fff) are optional.\n"
+                    "[!] Otherwise, use --date-formats to find an accepted format and use:\n"
+                    "[!] --date-format NAME where NAME is the format NAME, not the format STRING."
+                )
+                return
+            if not dt_obj.tzinfo:
+                if not args.tz:
+                    dt_obj = dt_obj.replace(tzinfo=timezone.utc)
+                else:
+                    tz = tzone(args.tz)
+                    dt_obj = dt_obj.replace(tzinfo=tz)
+            out_func = funcs[1]
+            timestamp = ""
+            formatted_output = ""
+            if out_func is not None:
+                timestamp, formatted_output = out_func(dt_obj)
+            else:
+                arg_parse.error(f"[!] {arg_passed} does not support a 'to' conversion.")
+            if timestamp == "":
+                print(f"[!] Unable to convert {requested} to {arg_passed}.")
+            else:
+                if args.minimal:
+                    print(timestamp)
+                else:
+                    print(formatted_output)
 
 
 if __name__ == "__main__":
