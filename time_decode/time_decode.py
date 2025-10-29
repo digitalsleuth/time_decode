@@ -70,8 +70,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2025-05-25"
-__version__ = "10.1.0"
+__date__ = "2025-10-28"
+__version__ = "10.2.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -5296,8 +5296,8 @@ def format_output(ts_type, ts, tz=None):
     elif len(ts_type) in range(23, 32):
         tabs = "\t"
     if tz:
-        indiv_output = f"{ts_type}: {ts}{tz}"
-        combined_output = f"{__red__}{ts_type}:{tabs}{ts}{tz}{__clr__}"
+        indiv_output = f"{ts_type}: {ts} {tz}"
+        combined_output = f"{__red__}{ts_type}:{tabs}{ts} {tz}{__clr__}"
     else:
         indiv_output = f"{ts_type}:{tabs}{ts}"
         combined_output = None
