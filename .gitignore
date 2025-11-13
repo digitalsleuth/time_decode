@@ -4,7 +4,5 @@ build
 dist
 debian
 __pycache__
-td.ico
-icon.icns
 .DS_Store
 @eaDir
