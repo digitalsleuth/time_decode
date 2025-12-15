@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-__version__ = "10.2.0"
+__version__ = "10.3.0"
 bundle_id = "com.digitalsleuth.time-decode"
 block_cipher = None
 
@@ -52,7 +52,7 @@ app = BUNDLE(coll,
                  'CFBundleDisplayName': 'Time Decode',
                  'CFBundleExecutable': 'Time Decode',
                  'CFBundleIdentifier': bundle_id,
-                 'CFBundleShortVersionString': '10.2.0',
-                 'CFBundleVersion': '10.2.0',
+                 'CFBundleShortVersionString': '10.3.0',
+                 'CFBundleVersion': '10.3.0',
              },
              bundle_identifier=bundle_id)

@@ -70,8 +70,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2025-10-28"
-__version__ = "10.2.0"
+__date__ = "2025-12-14"
+__version__ = "10.3.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -1667,6 +1667,12 @@ ts_types = {
         "HFS+ Decimal Time",
         "HFS+ Decimal timestamps are 10 digits",
         "3829216730",
+        "UTC",
+    ),
+    "logtime": TsTypes(
+        "JET LogTime",
+        "JET LogTime values are 8 bytes, one byte for each YY-MM-DD HH:MM:SS and 2 fillers",
+        "343a0d17037b0000",
         "UTC",
     ),
     "juliandec": TsTypes(
@@ -5165,6 +5171,36 @@ def to_dvr(dt_obj):
     return out_dvr, ts_output
 
 
+def from_logtime(timestamp):
+    ts_type, reason, _, tz_out = ts_types["logtime"]
+    try:
+        if len(str(timestamp)) != 16 and not all(
+            char in hexdigits for char in timestamp
+        ):
+            in_logtime = indiv_output = combined_output = ""
+        else:
+            vals = [int(timestamp[i:i+2], 16) for i in range(0, len(timestamp), 2)]
+            dt_obj = dt(vals[5] + 1900, vals[4], vals[3], vals[2], vals[1], vals[0])
+            in_logtime = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_logtime, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_logtime = indiv_output = combined_output = ""
+    return in_logtime, indiv_output, combined_output, reason, tz_out
+
+
+def to_logtime(dt_obj):
+    ts_type, _, _, _ = ts_types["logtime"]
+    try:
+        vals = [dt_obj.second, dt_obj.minute, dt_obj.hour, dt_obj.day, dt_obj.month, dt_obj.year - 1900]
+        out_logtime = ''.join(f'{i:02X}' for i in vals) + '0000'
+        ts_output, _ = format_output(ts_type, out_logtime)
+    except Exception:
+        handle(sys.exc_info())
+        out_logtime = ts_output = ""
+    return out_logtime, ts_output
+
+
 def date_range(start, end, check_date):
     """Check if date is in range of start and end, return True if it is"""
     if start <= end:
@@ -5525,6 +5561,7 @@ single_funcs = {
     "hfsbe": [from_hfsbe, to_hfsbe],
     "hfsle": [from_hfsle, to_hfsle],
     "hfsdec": [from_hfsdec, to_hfsdec],
+    "logtime": [from_logtime, to_logtime],
     "juliandec": [from_juliandec, to_juliandec],
     "julianhex": [from_julianhex, to_julianhex],
     "ksalnum": [from_ksalnum, to_ksalnum],
