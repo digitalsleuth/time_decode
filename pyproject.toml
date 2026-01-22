@@ -14,7 +14,7 @@ dependencies = [
     "tzdata",
     "juliandate",
     "prettytable",
-    "python-ulid",
+    "python-ulid>=3.1.0",
     "bbpb"
 ]
 requires-python = ">=3.9"
