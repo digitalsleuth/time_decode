@@ -70,8 +70,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2025-12-14"
-__version__ = "10.3.0"
+__date__ = "2026-01-21"
+__version__ = "10.3.1"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -5180,6 +5180,9 @@ def from_logtime(timestamp):
             in_logtime = indiv_output = combined_output = ""
         else:
             vals = [int(timestamp[i:i+2], 16) for i in range(0, len(timestamp), 2)]
+            if len(vals) < 6:
+                in_logtime = indiv_output = combined_output = ""
+                return in_logtime, indiv_output, combined_output, reason, tz_out
             dt_obj = dt(vals[5] + 1900, vals[4], vals[3], vals[2], vals[1], vals[0])
             in_logtime = dt_obj.strftime(__fmt__)
             indiv_output, combined_output = format_output(ts_type, in_logtime, tz_out)
