@@ -22,7 +22,6 @@ import csv
 from calendar import monthrange, IllegalMonthError
 from typing import NamedTuple
 from zoneinfo import ZoneInfo as tzone
-import tzdata
 import juliandate as jd
 from colorama import init
 import blackboxprotobuf
@@ -70,8 +69,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2026-01-21"
-__version__ = "10.3.1"
+__date__ = "2026-03-08"
+__version__ = "10.4.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -263,6 +262,7 @@ class UiMainWindow:
         self.csv_decode_action = None
         self.select_new_csv = None
         self.csv_close_button = None
+        self.__fmt__ = "%Y-%m-%d %H:%M:%S.%f"
         self.screen_layout = QApplication.primaryScreen().availableGeometry()
         self.center_x = (self.screen_layout.width() // 2) - (self.window_width // 2)
         self.center_y = (self.screen_layout.height() // 2) - (self.window_height // 2)
@@ -354,7 +354,7 @@ class UiMainWindow:
                 tzinfo=timezone.utc
             )
         except ValueError:
-            dt_obj = dt.strptime(self.date_time.text(), __fmt__).replace(
+            dt_obj = dt.strptime(self.date_time.text(), self.__fmt__).replace(
                 tzinfo=timezone.utc
             )
         ts_offsets = common_timezone_offsets(dt_obj)
@@ -515,7 +515,7 @@ class UiMainWindow:
 
     def set_now(self):
         """Sets the current date / time on the Calendar Widget"""
-        today = QDate().currentDate()
+        today = QDate.currentDate()
         now = dt.now(timezone.utc)
         self.date_time.calendarWidget().setSelectedDate(today)
         self.date_time.setDateTime(now)
@@ -527,7 +527,7 @@ class UiMainWindow:
                 tzinfo=timezone.utc
             )
         except ValueError:
-            dt_obj = dt.strptime(self.date_time.text(), __fmt__).replace(
+            dt_obj = dt.strptime(self.date_time.text(), self.__fmt__).replace(
                 tzinfo=timezone.utc
             )
         ts_offsets = common_timezone_offsets(dt_obj)
@@ -612,7 +612,7 @@ class UiMainWindow:
         try:
             dt_obj = dt.fromisoformat(dt_val)
         except ValueError:
-            dt_obj = dt.strptime(dt_val, __fmt__)
+            dt_obj = dt.strptime(dt_val, self.__fmt__)
         if dt_obj.tzinfo is None:
             dt_obj = dt_obj.replace(tzinfo=timezone.utc)
         selected_tz = self.time_zone_offsets.currentText()
@@ -670,7 +670,7 @@ class UiMainWindow:
                 except ValueError:
                     split_ts = result.split(" ")
                     ts = f"{split_ts[0]} {split_ts[1]}"
-                    result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                    result_yr = int(dt.strptime(ts, self.__fmt__).strftime("%Y"))
                 if result_yr in range(this_yr - 5, this_yr + 5):
                     for each_col in range(0, self.output_table.columnCount()):
                         this_col = self.output_table.item(row, each_col)
@@ -705,16 +705,15 @@ class UiMainWindow:
 
     def go_function(self):
         """The To/From button: converts a date/timestamp, depending on the selected radio button"""
-        global __fmt__
         results = {}
-        __fmt__ = date_formats[self.dt_format_combo.currentText()]
+        self.__fmt__ = date_formats[self.dt_format_combo.currentText()]
         ts_format = self.timestamp_formats.currentText()
         try:
             ts_date = dt.fromisoformat(self.date_time.text()).replace(
                 tzinfo=timezone.utc
             )
         except ValueError:
-            ts_date = dt.strptime(self.date_time.text(), __fmt__).replace(
+            ts_date = dt.strptime(self.date_time.text(), self.__fmt__).replace(
                 tzinfo=timezone.utc
             )
         selected_tz = self.time_zone_offsets.currentText()
@@ -959,9 +958,8 @@ class UiMainWindow:
         self, csv_file, ts_format, column_num, tz_name=None, dt_format=None
     ):
         """Prepares data to submit for csv conversion"""
-        global __fmt__
-        if dt_format is not None and dt_format != __fmt__:
-            __fmt__ = dt_format
+        if dt_format is not None and dt_format != self.__fmt__:
+            self.__fmt__ = dt_format
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
         if not in_ts_types:
             self._msg_box(
@@ -1216,7 +1214,7 @@ class UiMainWindow:
                     except ValueError:
                         split_ts = result.split(" ")
                         ts = f"{split_ts[0]} {split_ts[1]}"
-                        result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                        result_yr = int(dt.strptime(ts, self.__fmt__).strftime("%Y"))
                     if result_yr in range(this_yr - 5, this_yr + 5):
                         for each_col in range(
                             0, self.new_window.output_table.columnCount()
@@ -1669,6 +1667,12 @@ ts_types = {
         "3829216730",
         "UTC",
     ),
+    "horolog": TsTypes(
+        "Horolog Time",
+        "Horolog timestamps are two 5-digit values separated by a comma",
+        "67637,80193",
+        "Local",
+    ),    
     "logtime": TsTypes(
         "JET LogTime",
         "JET LogTime values are 8 bytes, one byte for each YY-MM-DD HH:MM:SS and 2 fillers",
@@ -1710,6 +1714,12 @@ ts_types = {
         "LinkedIn Activity timestamps contain only digits",
         "7324176984442343424",
         "UTC",
+    ),
+    "mars": TsTypes(
+        "Mars Sol Date time",
+        "Mars Sold Date time values are two 5-digit values separated by a decimal",
+        "54103.12581",
+        "TT",
     ),
     "mastodon": TsTypes(
         "Mastodon time",
@@ -1795,6 +1805,12 @@ ts_types = {
         "5a0f9dd1",
         "UTC",
     ),
+    "ntp": TsTypes(
+        "Network Time Protocol time",
+        "NTP timestamps are 10 digits, a decimal, and up to 6 digits",
+        "3981841662.020607",
+        "UTC",
+    ),
     "s32": TsTypes(
         "S32 Encoded (Bluesky) time",
         "S32 encoded (Bluesky) timestamps are 9 characters long",
@@ -1817,6 +1833,18 @@ ts_types = {
         "Symantec AV time",
         "Symantec 6-byte hex timestamps are 12 hex characters",
         "3704040f1232",
+        "UTC",
+    ),
+    "taimilli": TsTypes(
+        "TAI Milliseconds",
+        "TAI (International Atomic Time) values (based on milliseconds) are 13 digits",
+        "1599755800000",
+        "UTC",
+    ),
+    "tai": TsTypes(
+        "TAI Seconds",
+        "TAI (International Atomic Time) values (based on seconds) are 10 digits",
+        "1599755800",
         "UTC",
     ),
     "tiktok": TsTypes(
@@ -1927,6 +1955,8 @@ epochs = {
     1: dt(1, 1, 1, tzinfo=timezone.utc),
     1582: dt(1582, 10, 15, tzinfo=timezone.utc),
     1601: dt(1601, 1, 1, tzinfo=timezone.utc),
+    1840: dt(1840, 12, 31, tzinfo=timezone.utc),
+    1873: dt(1873, 12, 29, tzinfo=timezone.utc),
     1899: dt(1899, 12, 30, tzinfo=timezone.utc),
     1904: dt(1904, 1, 1, tzinfo=timezone.utc),
     1970: dt(1970, 1, 1, tzinfo=timezone.utc),
@@ -1941,6 +1971,8 @@ epochs = {
     "hfs_dec_sub": 2082844800,
     "kstime": 1400000000,
     "ticks": 621355968000000000,
+    "ntp": 2208988800,
+    "tai": 37,
 }
 
 # There have been no further leapseconds since 2017,1,1 at the __date__ of this script
@@ -5179,8 +5211,36 @@ def from_logtime(timestamp):
         ):
             in_logtime = indiv_output = combined_output = ""
         else:
-            vals = [int(timestamp[i:i+2], 16) for i in range(0, len(timestamp), 2)]
-            if len(vals) < 6:
+            try:
+                vals = [int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)]
+                if len(vals) < 6:
+                    in_logtime = indiv_output = combined_output = ""
+                    return in_logtime, indiv_output, combined_output, reason, tz_out                
+                out_of_range = any(
+                    not low <= value < high
+                    for value, (low, high) in zip(
+                        (
+                            vals[5] + 1900,
+                            vals[4],
+                            vals[3],
+                            vals[2],
+                            vals[1],
+                            vals[0],
+                        ),
+                        (
+                            (2000, 3000),
+                            (1, 13),
+                            (0, monthrange(vals[5] + 1900, vals[4])[1] + 1),
+                            (0, 24),
+                            (0, 60),
+                            (0, 60),
+                        ),
+                    )
+                )
+                if out_of_range:
+                    in_logtime = indiv_output = combined_output = ""
+                    return in_logtime, indiv_output, combined_output, reason, tz_out
+            except (IllegalMonthError, ValueError):
                 in_logtime = indiv_output = combined_output = ""
                 return in_logtime, indiv_output, combined_output, reason, tz_out
             dt_obj = dt(vals[5] + 1900, vals[4], vals[3], vals[2], vals[1], vals[0])
@@ -5195,13 +5255,210 @@ def from_logtime(timestamp):
 def to_logtime(dt_obj):
     ts_type, _, _, _ = ts_types["logtime"]
     try:
-        vals = [dt_obj.second, dt_obj.minute, dt_obj.hour, dt_obj.day, dt_obj.month, dt_obj.year - 1900]
-        out_logtime = ''.join(f'{i:02X}' for i in vals) + '0000'
+        vals = [
+            dt_obj.second,
+            dt_obj.minute,
+            dt_obj.hour,
+            dt_obj.day,
+            dt_obj.month,
+            dt_obj.year - 1900,
+        ]
+        out_logtime = "".join(f"{i:02X}" for i in vals) + "0000"
         ts_output, _ = format_output(ts_type, out_logtime)
     except Exception:
         handle(sys.exc_info())
         out_logtime = ts_output = ""
     return out_logtime, ts_output
+
+
+def from_ntp(timestamp):
+    ts_type, reason, _, tz_out = ts_types["ntp"]
+    parts = str(timestamp).split(".")
+    try:
+        if len(parts) > 2:
+            in_ntp = indiv_output = combined_output = ""
+        elif len(parts[0]) != 10 and not parts[0].isdigit():
+            in_ntp = indiv_output = combined_output = ""
+        elif len(parts) == 2 and not parts[1].isdigit():
+            in_ntp = indiv_output = combined_output = ""
+        elif len(parts) == 1 and len(parts[0]) != 10:
+            in_ntp = indiv_output = combined_output = ""
+        else:
+            unix_ts = float(timestamp) - epochs["ntp"]
+            if unix_ts < 0:
+                in_ntp = indiv_output = combined_output = ""
+                return in_ntp, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt.fromtimestamp(unix_ts, timezone.utc)
+            in_ntp = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_ntp, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_ntp = indiv_output = combined_output = ""
+    return in_ntp, indiv_output, combined_output, reason, tz_out
+
+
+def to_ntp(dt_obj):
+    ts_type, _, _, _ = ts_types["ntp"]
+    try:
+        unix_ts = dt_obj.timestamp()
+        out_ntp = str(unix_ts + epochs["ntp"])
+        ts_output, _ = format_output(ts_type, out_ntp)
+    except Exception:
+        handle(sys.exc_info())
+        out_ntp = ts_output = ""
+    return out_ntp, ts_output
+
+
+def from_tai(timestamp):
+    """Convert TAI Seconds value to a date"""
+    ts_type, reason, _, tz_out = ts_types["tai"]
+    try:
+        if len(str(timestamp)) != 10 or not timestamp.isdigit():
+            in_tai = indiv_output = combined_output = ""
+        else:
+            tai_sec_val = float(timestamp)
+            unix_sec_val = tai_sec_val - epochs["tai"]
+            dt_val = dt.fromtimestamp(float(unix_sec_val), timezone.utc)
+            in_tai = dt_val.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_tai, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_tai = indiv_output = combined_output = ""
+    return in_tai, indiv_output, combined_output, reason, tz_out
+
+
+def to_tai(dt_obj):
+    """Convert date to a TAI Seconds value"""
+    ts_type, _, _, _ = ts_types["tai"]
+    try:
+        out_tai = str(int(dt_obj.timestamp() + epochs["tai"]))
+        ts_output, _ = format_output(ts_type, out_tai)
+    except Exception:
+        handle(sys.exc_info())
+        out_tai = ts_output = ""
+    return out_tai, ts_output
+
+
+def from_taimilli(timestamp):
+    """Convert TAI Millisecond value to a date"""
+    ts_type, reason, _, tz_out = ts_types["taimilli"]
+    try:
+        if len(str(timestamp)) != 13 or not str(timestamp).isdigit():
+            in_tai_milli = indiv_output = combined_output = ""
+        else:
+            tai_milli_val = float(timestamp)
+            unix_milli_val = (tai_milli_val / 1000.0) - epochs["tai"]
+            in_tai_milli = dt.fromtimestamp(
+                float(unix_milli_val), timezone.utc
+            ).strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_tai_milli, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_tai_milli = indiv_output = combined_output = ""
+    return in_tai_milli, indiv_output, combined_output, reason, tz_out
+
+
+def to_taimilli(dt_obj):
+    """Convert date to a TAI Millisecond value"""
+    ts_type, _, _, _ = ts_types["taimilli"]
+    try:
+        out_tai_milli = str(int((dt_obj.timestamp() + epochs["tai"]) * 1000))
+        ts_output, _ = format_output(ts_type, out_tai_milli)
+    except Exception:
+        handle(sys.exc_info())
+        out_tai_milli = ts_output = ""
+    return out_tai_milli, ts_output
+
+
+def from_horolog(timestamp):
+    """Convert a Horolog value to a date"""
+    ts_type, reason, _, tz_out = ts_types["horolog"]
+    try:
+        if "," not in timestamp:
+            in_horolog = indiv_output = combined_output = ""
+        elif len(str(timestamp).split(",")) > 2:
+            in_horolog = indiv_output = combined_output = ""
+        try:
+            days, secs = map(int, str(timestamp).split(','))
+        except ValueError:
+            in_horolog = indiv_output = combined_output = ""
+            return in_horolog, indiv_output, combined_output, reason, tz_out
+        if len(str(days)) != 5 and not str(days).isdigit() and not str(secs).isdigit():
+            in_horolog = indiv_output = combined_output = ""
+        else:
+            try:
+                dt_obj = epochs[1840] + timedelta(days=days, seconds=secs)
+            except OverflowError:
+                in_horolog = indiv_output = combined_output = ""
+                return in_horolog, indiv_output, combined_output, reason, tz_out
+            in_horolog = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_horolog, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_horolog = indiv_output = combined_output = ""
+    return in_horolog, indiv_output, combined_output, reason, tz_out
+
+
+def to_horolog(dt_obj):
+    """Convert date to a Horolog value"""
+    ts_type, _, _, _ = ts_types["horolog"]
+    try:
+        delta = dt_obj - epochs[1840]
+        days = delta.days
+        secs = (dt_obj.hour * 3600) + (dt_obj.minute * 60) + dt_obj.second
+        out_horolog = f"{days},{secs}"
+        ts_output, _ = format_output(ts_type, out_horolog)
+    except Exception:
+        handle(sys.exc_info())
+        out_horolog = ts_output = ""
+    return out_horolog, ts_output    
+    
+
+def from_mars(timestamp):
+    """Convert a Mars Sol Date value to a date"""
+    ts_type, reason, _, tz_out = ts_types["mars"]
+    try:
+        if "." not in timestamp:
+            in_mars = indiv_output = combined_output = ""
+        elif len(str(timestamp).split(".")) > 2:
+            in_mars = indiv_output = combined_output = ""
+        try:
+            left, right = map(int, str(timestamp).split('.'))
+        except ValueError:
+            in_mars = indiv_output = combined_output = ""
+            return in_mars, indiv_output, combined_output, reason, tz_out
+        if len(str(left)) != 5 or not str(left).isdigit() or not str(right).isdigit():
+            in_mars = indiv_output = combined_output = ""
+        else:
+            msd = float(timestamp)
+            jd_tt = ((msd + 0.00096) - 44796.0) * 1.02749125242 + 2451549.5
+            jd_utc = jd_tt - ((epochs["tai"] + 32.184) / 86400)
+            unix_ts = (jd_utc - 2440587.5) * 86400
+            if unix_ts >= 32536799999:
+                in_mars = indiv_output = combined_output = ""
+                return in_mars, indiv_output, combined_output, reason, tz_out
+            dt_obj = dt.fromtimestamp(unix_ts, timezone.utc)
+            in_mars = dt_obj.strftime(__fmt__)
+            indiv_output, combined_output = format_output(ts_type, in_mars, tz_out)
+    except Exception:
+        handle(sys.exc_info())
+        in_mars = indiv_output = combined_output = ""
+    return in_mars, indiv_output, combined_output, reason, tz_out
+
+
+def to_mars(dt_obj):
+    """Convert date to a Mars Sol Date value"""
+    ts_type, _, _, _ = ts_types["mars"]
+    try:
+        unix_ts = dt_obj.timestamp()
+        jd_utc = (unix_ts / 86400) + 2440587.5
+        jd_tt = jd_utc + ((epochs["tai"] + 32.184) / 86400)
+        out_mars = str(((jd_tt - 2451549.5) / 1.02749125242) + 44796.0 - 0.00096)
+        ts_output, _ = format_output(ts_type, out_mars)
+    except Exception:
+        handle(sys.exc_info())
+        out_mars = ts_output = ""
+    return out_mars, ts_output    
 
 
 def date_range(start, end, check_date):
@@ -5345,15 +5602,24 @@ def format_output(ts_type, ts, tz=None):
 
 def tzdata_timezones():
     """Get the tzdata timezones and put them in a list for the timezone drop-down"""
-    zoneinfo_dir = os.path.join(tzdata.__path__[0], "zoneinfo")
-    timezones = set()
-    for root, _, files in os.walk(zoneinfo_dir):
-        for name in files:
-            rel_path = os.path.relpath(os.path.join(root, name), zoneinfo_dir)
-            if rel_path.startswith(("posix", "right")):
-                continue
-            timezones.add(rel_path)
-    return sorted(timezones)
+    try:
+        import tzdata
+
+        zoneinfo_dir = os.path.join(tzdata.__path__[0], "zoneinfo")
+        timezones = set()
+        for root, _, files in os.walk(zoneinfo_dir):
+            for name in files:
+                rel_path = os.path.relpath(os.path.join(root, name), zoneinfo_dir)
+                if rel_path.startswith(("posix", "right")):
+                    continue
+                timezones.add(rel_path)
+        return sorted(timezones)
+    except ModuleNotFoundError:
+        from zoneinfo import available_timezones
+
+        return sorted(
+            tz for tz in available_timezones() if not tz.startswith(("posix", "right"))
+        )
 
 
 def common_timezone_offsets(dt_obj):
@@ -5564,6 +5830,7 @@ single_funcs = {
     "hfsbe": [from_hfsbe, to_hfsbe],
     "hfsle": [from_hfsle, to_hfsle],
     "hfsdec": [from_hfsdec, to_hfsdec],
+    "horolog": [from_horolog, to_horolog],
     "logtime": [from_logtime, to_logtime],
     "juliandec": [from_juliandec, to_juliandec],
     "julianhex": [from_julianhex, to_julianhex],
@@ -5571,6 +5838,7 @@ single_funcs = {
     "ksdec": [from_ksdec, to_ksdec],
     "leb128hex": [from_leb128hex, to_leb128hex],
     "linkedin": [from_linkedin, to_linkedin],
+    "mars": [from_mars, to_mars],
     "mastodon": [from_mastodon, to_mastodon],
     "metasploit": [from_metasploit, None],
     "dotnet": [from_dotnet, to_dotnet],
@@ -5585,10 +5853,13 @@ single_funcs = {
     "ns40le": [from_ns40le, to_ns40le],
     "nokia": [from_nokia, to_nokia],
     "nokiale": [from_nokiale, to_nokiale],
+    "ntp": [from_ntp, to_ntp],
     "s32": [from_s32, to_s32],
     "semioctet": [from_semioctet, to_semioctet],
     "sony": [from_sony, to_sony],
     "symantec": [from_symantec, to_symantec],
+    "taimilli": [from_taimilli, to_taimilli],
+    "tai": [from_tai, to_tai],
     "tiktok": [from_tiktok, to_tiktok],
     "twitter": [from_twitter, to_twitter],
     "ulid": [from_ulid, to_ulid],

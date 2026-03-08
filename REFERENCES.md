@@ -82,3 +82,7 @@
 - https://www.academia.edu/81188982/ANALYSIS_AND_RECOVERY_OF_VIDEOS_FROM_THE_WFS_FILE_SYSTEM_Atena_Editora_
 ### JET_LOGTIME
 - https://learn.microsoft.com/en-us/windows/win32/extensible-storage-engine/jet-logtime-structure
+### Horolog
+- https://docs.intersystems.com/irisforhealthlatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vhorolog
+### Mars Sol Date
+- https://www.giss.nasa.gov/tools/mars24/help/notes.html
