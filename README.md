@@ -47,6 +47,7 @@ This python script provides the following conversions from existing timestamps:
 │ HFS / HFS+ 32-bit Hex BE      │ HFS / HFS+ Big-Endian timestamps are 8 hex characters (4 bytes)                   │ e43d35da                                 │ --hfsbe        │
 │ HFS / HFS+ 32-bit Hex LE      │ HFS / HFS+ Little-Endian timestamps are 8 hex characters (4 bytes)                │ da353de4                                 │ --hfsle        │
 │ HFS+ Decimal Time             │ HFS+ Decimal timestamps are 10 digits                                             │ 3829216730                               │ --hfsdec       │
+│ Horolog Time                  │ Horolog timestamps are two 5-digit values separated by a comma                    │ 67637,80193                              │ --horolog      │
 │ JET LogTime                   │ JET LogTime values are 8 bytes, one byte for each YY-MM-DD HH:MM:SS and 2 fillers │ 343a0d17037b0000                         │ --logtime      │
 │ Julian Date decimal           │ Julian Date decimal values are 7 digits, a decimal, and up to 10 digits           │ 2460800.1380787035                       │ --juliandec    │
 │ Julian Date hex               │ Julian Date hex values are 14 characters (7 bytes)                                │ 258c80524d235b                           │ --julianhex    │
@@ -54,6 +55,7 @@ This python script provides the following conversions from existing timestamps:
 │ KSUID Decimal                 │ KSUID decimal timestamps are 9 digits in length                                   │ 346371930                                │ --ksdec        │
 │ LEB128 Hex time               │ LEB128 Hex timestamps are variable-length and even-length                         │ d0cf83dfe932                             │ --leb128hex    │
 │ LinkedIn Activity time        │ LinkedIn Activity timestamps contain only digits                                  │ 7324176984442343424                      │ --linkedin     │
+│ Mars Sol Date time            │ Mars Sold Date time values are two 5-digit values separated by a decimal          │ 54103.12581                              │ --mars         │
 │ Mastodon time                 │ Mastodon timestamps are 18 digits or longer                                       │ 114450230804480000                       │ --mastodon     │
 │ Metasploit Payload UUID       │ Metasploit Payload UUID's are at least 22 chars and base64 urlsafe encoded        │ 4PGoVGYmx8l6F3sVI4Rc8g                   │ --metasploit   │
 │ Microsoft .NET DateTime Ticks │ Microsoft .NET DateTime Ticks values are 18 digits                                │ 638819687300649472                       │ --dotnet       │
@@ -64,6 +66,7 @@ This python script provides the following conversions from existing timestamps:
 │ Microsoft MS-DOS 32-bit Hex   │ Microsoft MS-DOS 32-bit timestamps are 8 hex characters (4 bytes)                 │ 597aa45a                                 │ --msdos        │
 │ Motorola time                 │ Motorola 6-byte hex timestamps are 12 hex characters                              │ 3705040f1232                             │ --moto         │
 │ Mozilla PRTime                │ Mozilla PRTime timestamps are 16 digits                                           │ 1746371930064939                         │ --prtime       │
+│ Network Time Protocol time    │ NTP timestamps are 10 digits, a decimal, and up to 6 digits                       │ 3981841662.020607                        │ --ntp          │
 │ Nokia S40 time                │ Nokia 7-byte hex timestamps are 14 hex characters                                 │ 07e905040f1232                           │ --ns40         │
 │ Nokia S40 time LE             │ Nokia 7-byte hex timestamps are 14 hex characters                                 │ e90705040f1232                           │ --ns40le       │
 │ Nokia time                    │ Nokia 4-byte hex timestamps are 8 hex characters                                  │ d19d0f5a                                 │ --nokia        │
@@ -72,6 +75,8 @@ This python script provides the following conversions from existing timestamps:
 │ Semi-Octet decimal            │ Semi-Octet decimal values are 12 or 14 digits long                                │ 525040518105                             │ --semioctet    │
 │ Sonyflake time                │ Sonyflake values are 15 hex characters                                            │ 65dd4bb89000001                          │ --sony         │
 │ Symantec AV time              │ Symantec 6-byte hex timestamps are 12 hex characters                              │ 3704040f1232                             │ --symantec     │
+│ TAI Milliseconds              │ TAI (International Atomic Time) values (based on milliseconds) are 13 digits      │ 1599755800000                            │ --taimilli     │
+│ TAI Seconds                   │ TAI (International Atomic Time) values (based on seconds) are 10 digits           │ 1599755800                               │ --tai          │
 │ TikTok time                   │ TikTok timestamps are 19 digits long                                              │ 7228142017547750661                      │ --tiktok       │
 │ Twitter time                  │ Twitter timestamps are 18 digits or longer                                        │ 1189581422684274688                      │ --twitter      │
 │ ULID time                     │ ULID timestamp contains only Base32 characters                                    │ 01JTDY1SYGCZWCBPCSEBHV1DW2               │ --ulid         │
