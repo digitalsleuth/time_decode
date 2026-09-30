@@ -69,8 +69,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2026-03-08"
-__version__ = "10.4.0"
+__date__ = "2026-09-29"
+__version__ = "10.4.1"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -588,8 +588,15 @@ class UiMainWindow:
         self.output_table.reset()
         self.output_table.setStyleSheet("border: none")
 
+    def _set_date_format(self, fmt):
+        """Keeps the GUI and module-level date formats in sync"""
+        global __fmt__
+        __fmt__ = fmt
+        self.__fmt__ = fmt
+
     def guess_decode(self):
         """Will take the provided timestamp and run it through the 'from_all' function"""
+        self._set_date_format(date_formats[self.dt_format_combo.currentText()])
         timestamp = self.timestamp_text.text()
         selected_tz = self.time_zone_offsets.currentText()
         tz_name = " ".join(selected_tz.split(" ")[1:])
@@ -664,13 +671,7 @@ class UiMainWindow:
             )
             if self.decode_radio.isChecked():
                 this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                try:
-                    ts = result.split(" ")[0]
-                    result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
-                except ValueError:
-                    split_ts = result.split(" ")
-                    ts = f"{split_ts[0]} {split_ts[1]}"
-                    result_yr = int(dt.strptime(ts, self.__fmt__).strftime("%Y"))
+                result_yr = result_year(result)
                 if result_yr in range(this_yr - 5, this_yr + 5):
                     for each_col in range(0, self.output_table.columnCount()):
                         this_col = self.output_table.item(row, each_col)
@@ -706,7 +707,7 @@ class UiMainWindow:
     def go_function(self):
         """The To/From button: converts a date/timestamp, depending on the selected radio button"""
         results = {}
-        self.__fmt__ = date_formats[self.dt_format_combo.currentText()]
+        self._set_date_format(date_formats[self.dt_format_combo.currentText()])
         ts_format = self.timestamp_formats.currentText()
         try:
             ts_date = dt.fromisoformat(self.date_time.text()).replace(
@@ -959,7 +960,7 @@ class UiMainWindow:
     ):
         """Prepares data to submit for csv conversion"""
         if dt_format is not None and dt_format != self.__fmt__:
-            self.__fmt__ = dt_format
+            self._set_date_format(dt_format)
         in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
         if not in_ts_types:
             self._msg_box(
@@ -977,12 +978,13 @@ class UiMainWindow:
             status, dest, reason = generate_csv(csv_file, ts_type, column_num)
         dest = os.path.normpath(dest)
         if status:
-            self._msg_box(f"Output CSV file saved as {dest}.", "Info")
+            note = f"\n\n{reason}." if reason else ""
+            self._msg_box(f"Output CSV file saved as {dest}.{note}", "Info")
             return
         if reason is None:
             reason = "Unknown"
         self._msg_box(
-            f"CSV could not be processed. {dest} is incomplete.\n\nReason: {reason}",
+            f"CSV could not be processed. No output was written.\n\nReason: {reason}",
             "Error",
         )
 
@@ -1206,15 +1208,8 @@ class UiMainWindow:
                     int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 )
                 if self.decode_radio.isChecked():
-                    ts = result.split(" ")[0]
                     this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                    try:
-                        ts = result.split(" ")[0]
-                        result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
-                    except ValueError:
-                        split_ts = result.split(" ")
-                        ts = f"{split_ts[0]} {split_ts[1]}"
-                        result_yr = int(dt.strptime(ts, self.__fmt__).strftime("%Y"))
+                    result_yr = result_year(result)
                     if result_yr in range(this_yr - 5, this_yr + 5):
                         for each_col in range(
                             0, self.new_window.output_table.columnCount()
@@ -1591,7 +1586,7 @@ ts_types = {
     "dvr": TsTypes(
         "DVR (WFS / DHFS) File System",
         "DVR timestamps are 4 bytes",
-        "00F0063F",
+        "654D7595",
         "Local",
     ),
     "exfat": TsTypes(
@@ -1672,7 +1667,7 @@ ts_types = {
         "Horolog timestamps are two 5-digit values separated by a comma",
         "67637,80193",
         "Local",
-    ),    
+    ),
     "logtime": TsTypes(
         "JET LogTime",
         "JET LogTime values are 8 bytes, one byte for each YY-MM-DD HH:MM:SS and 2 fillers",
@@ -3299,7 +3294,7 @@ def from_eitime(timestamp):
     """Convert a Google ei URL timestamp"""
     ts_type, reason, _, tz_out = ts_types["eitime"]
     try:
-        if not all(char in URLSAFE_CHARS for char in timestamp):
+        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
             in_eitime = indiv_output = combined_output = ""
         else:
             padding_check = len(timestamp) % 4
@@ -3883,10 +3878,10 @@ def from_uuid(timestamp):
         else:
             u_data = uuid.UUID(uuid_lower)
             if u_data.version == 1:
-                unix_ts = int((u_data.time / 10000) - 12219292800000)
-                in_uuid = dt.fromtimestamp(
-                    float(unix_ts) / 1000.0, timezone.utc
-                ).strftime(__fmt__)
+                unix_ts = u_data.time // 10000 - 12219292800000
+                in_uuid = (epochs[1970] + timedelta(milliseconds=unix_ts)).strftime(
+                    __fmt__
+                )
                 indiv_output, combined_output = format_output(ts_type, in_uuid, tz_out)
             else:
                 in_uuid = indiv_output = combined_output = ""
@@ -3900,7 +3895,7 @@ def to_uuid(dt_obj):
     """Convert a date/time value to a UUID"""
     ts_type, _, _, _ = ts_types["uuid"]
     try:
-        timestamp = int((dt_obj - epochs[1582]).total_seconds() * 1e7)
+        timestamp = ((dt_obj - epochs[1582]) // timedelta(microseconds=1)) * 1
         time_lo = timestamp & 0xFFFFFFFF
         time_mid = (timestamp >> 32) & 0xFFFF
         time_hi = (timestamp >> 48) & 0x0FFF
@@ -4699,7 +4694,9 @@ def from_juliandec(timestamp):
             if any(val < 0 for val in dt_vals):
                 in_julian_dec = indiv_output = combined_output = ""
             else:
-                in_julian_dec = (dt(yr, mon, day, hr, mins, sec, mil)).strftime(__fmt__)
+                in_julian_dec = (
+                    dt(yr, mon, day, hr, mins, sec) + timedelta(microseconds=mil)
+                ).strftime(__fmt__)
                 indiv_output, combined_output = format_output(
                     ts_type, in_julian_dec, tz_out
                 )
@@ -4721,6 +4718,7 @@ def to_juliandec(dt_obj):
                 dt_obj.hour,
                 dt_obj.minute,
                 dt_obj.second,
+                dt_obj.microsecond,
             )
         )
         ts_output, _ = format_output(ts_type, out_julian_dec)
@@ -4850,7 +4848,7 @@ def from_ved(timestamp):
     """Convert from a VED urlsafe base64 encoded protobuf"""
     ts_type, reason, _, tz_out = ts_types["ved"]
     try:
-        if not all(char in URLSAFE_CHARS for char in timestamp):
+        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
             in_ved = indiv_output = combined_output = ""
         else:
             decoded_ved = None
@@ -4889,7 +4887,7 @@ def from_gclid(timestamp):
     """Convert from a gclid urlsafe base64 encoded protobuf"""
     ts_type, reason, _, tz_out = ts_types["gclid"]
     try:
-        if not all(char in URLSAFE_CHARS for char in timestamp):
+        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
             in_gclid = indiv_output = combined_output = ""
         else:
             decoded_gclid = None
@@ -5212,10 +5210,12 @@ def from_logtime(timestamp):
             in_logtime = indiv_output = combined_output = ""
         else:
             try:
-                vals = [int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)]
+                vals = [
+                    int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)
+                ]
                 if len(vals) < 6:
                     in_logtime = indiv_output = combined_output = ""
-                    return in_logtime, indiv_output, combined_output, reason, tz_out                
+                    return in_logtime, indiv_output, combined_output, reason, tz_out
                 out_of_range = any(
                     not low <= value < high
                     for value, (low, high) in zip(
@@ -5379,7 +5379,7 @@ def from_horolog(timestamp):
         elif len(str(timestamp).split(",")) > 2:
             in_horolog = indiv_output = combined_output = ""
         try:
-            days, secs = map(int, str(timestamp).split(','))
+            days, secs = map(int, str(timestamp).split(","))
         except ValueError:
             in_horolog = indiv_output = combined_output = ""
             return in_horolog, indiv_output, combined_output, reason, tz_out
@@ -5411,8 +5411,8 @@ def to_horolog(dt_obj):
     except Exception:
         handle(sys.exc_info())
         out_horolog = ts_output = ""
-    return out_horolog, ts_output    
-    
+    return out_horolog, ts_output
+
 
 def from_mars(timestamp):
     """Convert a Mars Sol Date value to a date"""
@@ -5423,7 +5423,7 @@ def from_mars(timestamp):
         elif len(str(timestamp).split(".")) > 2:
             in_mars = indiv_output = combined_output = ""
         try:
-            left, right = map(int, str(timestamp).split('.'))
+            left, right = map(int, str(timestamp).split("."))
         except ValueError:
             in_mars = indiv_output = combined_output = ""
             return in_mars, indiv_output, combined_output, reason, tz_out
@@ -5458,7 +5458,17 @@ def to_mars(dt_obj):
     except Exception:
         handle(sys.exc_info())
         out_mars = ts_output = ""
-    return out_mars, ts_output    
+    return out_mars, ts_output
+
+
+def result_year(result):
+    """Get the year from a formatted result, in any date format, with or without a UTC offset"""
+    parts = result.split(" ")
+    try:
+        return dt.fromisoformat(parts[0]).year
+    except ValueError:
+        clock = re.sub(r"[+-]\d{2}:\d{2}$", "", parts[1])
+        return dt.strptime(f"{parts[0]} {clock}", __fmt__).year
 
 
 def date_range(start, end, check_date):
@@ -5484,13 +5494,7 @@ def from_all(timestamps, tz_name=None):
                     combined_output = combined_output.replace(tz_out, new_tz)
                     tz_out = new_tz
                     result = new_ts
-                try:
-                    ts = result.split(" ")[0]
-                    result_yr = int(dt.fromisoformat(ts).strftime("%Y"))
-                except ValueError:
-                    split_ts = result.split(" ")
-                    ts = f"{split_ts[0]} {split_ts[1]}"
-                    result_yr = int(dt.strptime(ts, __fmt__).strftime("%Y"))
+                result_yr = result_year(result)
                 if result_yr not in range(this_yr - 5, this_yr + 5):
                     combined_output = combined_output.strip(__red__).strip(__clr__)
             full_list[func_name] = [result, combined_output, tz_out]
@@ -5558,7 +5562,10 @@ def handle(error):
         exc_obj.__traceback__
     )
     _, line_no, function_name, _ = error_tb[-1]
-    print(f"{str(exc_type.__name__)}: {str(exc_obj)} - {function_name} line {line_no}")
+    print(
+        f"{str(exc_type.__name__)}: {str(exc_obj)} - {function_name} line {line_no}",
+        file=sys.stderr,
+    )
 
 
 def formats(display="ALL"):
@@ -5609,7 +5616,9 @@ def tzdata_timezones():
         timezones = set()
         for root, _, files in os.walk(zoneinfo_dir):
             for name in files:
-                rel_path = os.path.relpath(os.path.join(root, name), zoneinfo_dir)
+                rel_path = os.path.relpath(
+                    os.path.join(root, name), zoneinfo_dir
+                ).replace(os.sep, "/")
                 if rel_path.startswith(("posix", "right")):
                     continue
                 timezones.add(rel_path)
@@ -5628,19 +5637,19 @@ def common_timezone_offsets(dt_obj):
     duplicates = [
         "Factory",
         "Zulu",
-        "Etc\\Zulu",
-        "Etc\\UTC",
+        "Etc/Zulu",
+        "Etc/UTC",
         "GMT-0",
         "GMT+0",
-        "Etc\\Universal",
+        "Etc/Universal",
         "GMT0",
         "UCT",
-        "Etc\\Greenwich",
-        "Etc\\GMT",
-        "Etc\\GMT+0",
-        "Etc\\GMT-0",
-        "Etc\\GMT0",
-        "Etc\\UCT",
+        "Etc/Greenwich",
+        "Etc/GMT",
+        "Etc/GMT+0",
+        "Etc/GMT-0",
+        "Etc/GMT0",
+        "Etc/UCT",
         "Universal",
     ]
     for tz_name in tzdata_timezones():
@@ -5692,9 +5701,7 @@ def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
     elif column_num is None:
         column_num = 0
     try:
-        with open(src_file, "r", newline="", encoding="utf-8") as src, open(
-            dst_file, "w", newline="", encoding="utf-8"
-        ) as dst:
+        with open(src_file, "r", newline="", encoding="utf-8") as src:
             sample = src.read(2048)
             try:
                 dialect = csv.Sniffer().sniff(sample)
@@ -5706,43 +5713,61 @@ def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
                 has_header = False
                 header_check = sample.count(",")
                 content = sample.split("\n")
-                if header_check == 0:
-                    line_one = content[0]
-                    line_two = content[1]
-                    if len(line_one) != len(line_two):
+                if len(content) < 2:
+                    pass
+                elif header_check == 0:
+                    if len(content[0]) != len(content[1]):
                         has_header = True
-                elif len(content[0].split(",")[0]) != len(content[1].split(",")[1]):
-                    has_header = True
+                else:
+                    line_two = content[1].split(",")
+                    if len(line_two) > 1 and len(content[0].split(",")[0]) != len(
+                        line_two[1]
+                    ):
+                        has_header = True
             src.seek(0)
             reader = csv.reader(src, dialect)
-            columns = len(next(reader, None))
+            columns = len(next(reader, None) or [])
             src.seek(0)
             if has_header:
                 header = next(reader)
-            if column_num > columns:
+            if columns == 0:
+                reason = "The file is empty."
+                return status, dst_file, reason
+            if column_num >= columns:
                 reason = "The selected column number is higher than the amount of actual columns."
                 return status, dst_file, reason
+            type_reason = None
+            skipped = 0
             for row in reader:
-                ts = row[column_num]
-                results = ts_func(ts)
-                result = results[0]
-                reason = results[3]
-                if result == "":
-                    return status, dst_file, reason
-                if tz_name is not None:
-                    new_result, new_tz, _ = convert_timezone(tz_name, result)
-                    if new_tz.startswith("+") or new_tz.startswith("-"):
-                        result = f"{new_result}{new_tz}"
-                    else:
-                        result = f"{new_result} {new_tz}"
+                if not row:
+                    continue
+                result = ""
+                if column_num < len(row):
+                    results = ts_func(row[column_num])
+                    result = results[0]
+                    type_reason = results[3]
+                if result:
+                    if tz_name is not None:
+                        new_result, new_tz, _ = convert_timezone(tz_name, result)
+                        if new_tz.startswith("+") or new_tz.startswith("-"):
+                            result = f"{new_result}{new_tz}"
+                        else:
+                            result = f"{new_result} {new_tz}"
+                else:
+                    skipped += 1
                 row.append(result)
                 csv_output.append(row)
+        if not csv_output or skipped == len(csv_output):
+            reason = type_reason or "No timestamps were found in the selected column."
+            return status, dst_file, reason
+        if skipped:
+            reason = f"{skipped} of {len(csv_output)} rows could not be converted and were left blank"
+        with open(dst_file, "w", newline="", encoding="utf-8") as dst:
             writer = csv.writer(dst, quotechar='"', quoting=csv.QUOTE_MINIMAL)
             if has_header:
                 header.append(f"{ts_choice}_ts")
                 writer.writerow(header)
-            for row in csv_output:
-                writer.writerow(row)
+            writer.writerows(csv_output)
         status = True
     except (FileNotFoundError, PermissionError):
         handle(sys.exc_info())
@@ -6048,6 +6073,8 @@ def main():
                 dst = os.path.normpath(dst)
                 if result:
                     print(f"[+] CSV file was saved as {dst}.")
+                    if reason:
+                        print(f"[!] {reason}.")
                 else:
                     print(f"[!] Unable to complete CSV export to {dst} - {reason}.")
             else:
@@ -6066,6 +6093,8 @@ def main():
                 dst = os.path.normpath(dst)
                 if result:
                     print(f"[+] CSV file was saved as {dst}.")
+                    if reason:
+                        print(f"[!] {reason}.")
                 else:
                     print(f"[!] Unable to complete CSV export to {dst} - {reason}.")
             else:
@@ -6084,7 +6113,7 @@ def main():
         requested = all_args[arg_passed]
         if requested and not args.to:
             date_time, indiv_output, _, reason, _ = funcs[0](requested)
-            if indiv_output is False:
+            if not date_time:
                 print(f"[!] {reason}")
             else:
                 if args.minimal:

@@ -15,7 +15,7 @@
 │ Bitwise Decimal time          │ Bitwise Decimal timestamps are 10 digits                                          │ 2123703250                               │ --bitdec       │
 │ DHCPv6 DUID time              │ DHCPv6 DUID values are at least 14 bytes long                                     │ 000100012faa41da000000000000             │ --dhcp6        │
 │ Discord time                  │ Discord timestamps are 18 digits or longer                                        │ 1102608904745127937                      │ --discord      │
-│ DVR (WFS / DHFS) File System  │ DVR timestamps are 4 bytes                                                        │ 00F0063F                                 │ --dvr          │
+│ DVR (WFS / DHFS) File System  │ DVR timestamps are 4 bytes                                                        │ 654D7595                                 │ --dvr          │
 │ exFAT time                    │ exFAT 32-bit timestamps are 8 hex characters (4 bytes)                            │ 5aa47a59                                 │ --exfat        │
 │ FAT Date + Time               │ FAT (MS-DOS wFatDate wFatTime) timestamps are 8 hex characters (4 bytes)          │ a45a597a                                 │ --fat          │
 │ GMail Boundary time           │ GMail Boundary values are 28 hex chars                                            │ 00000000000089882b063450e600             │ --gbound       │
