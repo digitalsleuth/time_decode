@@ -10,7 +10,7 @@ testpaths = ["tests"]
 
 [project]
 name = "time-decode"
-version = "10.4.1"
+version = "10.4.2"
 dependencies = [
     "PyQt6",
     "colorama",
