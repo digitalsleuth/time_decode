@@ -3,7 +3,10 @@ requires = ["setuptools >= 77.0.30"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-exclude = ["debian*", "binaries*", "build*", "dist*"]
+exclude = ["debian*", "binaries*", "build*", "dist*", "tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [project]
 name = "time-decode"
