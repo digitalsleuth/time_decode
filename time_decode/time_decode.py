@@ -69,8 +69,8 @@ from PyQt6.QtWidgets import (
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2026-09-29"
-__version__ = "10.4.1"
+__date__ = "2026-09-30"
+__version__ = "10.4.2"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -3895,7 +3895,7 @@ def to_uuid(dt_obj):
     """Convert a date/time value to a UUID"""
     ts_type, _, _, _ = ts_types["uuid"]
     try:
-        timestamp = ((dt_obj - epochs[1582]) // timedelta(microseconds=1)) * 1
+        timestamp = ((dt_obj - epochs[1582]) // timedelta(microseconds=1)) * 10
         time_lo = timestamp & 0xFFFFFFFF
         time_mid = (timestamp >> 32) & 0xFFFF
         time_hi = (timestamp >> 48) & 0x0FFF

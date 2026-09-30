@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-__version__ = '10.4.1'
+__version__ = '10.4.2'
 
 a = Analysis(
     ['time_decode/time_decode.py'],
