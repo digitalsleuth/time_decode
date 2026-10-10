@@ -6,4 +6,7 @@ debian
 __pycache__
 .DS_Store
 @eaDir
-tests
+tests*
+entry_*
+newver.py
+.pytest*

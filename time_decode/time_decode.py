@@ -6,11 +6,12 @@ is provided in the REFERENCES.md file at https://github.com/digitalsleuth/time_d
 """
 
 from datetime import datetime as dt, timedelta, timezone
+import functools
+import math
+from fractions import Fraction
 import struct
 from string import hexdigits, ascii_lowercase
 import argparse
-import inspect
-import math
 import re
 import sys
 import os
@@ -19,1480 +20,25 @@ import uuid
 import traceback
 import warnings
 import csv
-from calendar import monthrange, IllegalMonthError
 from typing import NamedTuple
-from zoneinfo import ZoneInfo as tzone
-import juliandate as jd
+from zoneinfo import ZoneInfo as tzone, ZoneInfoNotFoundError
 from colorama import init
 import blackboxprotobuf
 from blackboxprotobuf.lib.exceptions import DecoderException
 from ulid import ULID
 from prettytable import PrettyTable, TableStyle
-from PyQt6.QtCore import (
-    QRect,
-    Qt,
-    QMetaObject,
-    QCoreApplication,
-    QDate,
-    QSize,
-)
-from PyQt6.QtGui import (
-    QAction,
-    QPixmap,
-    QIcon,
-    QFont,
-    QKeySequence,
-    QColor,
-)
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QLabel,
-    QLineEdit,
-    QDateTimeEdit,
-    QComboBox,
-    QPushButton,
-    QRadioButton,
-    QApplication,
-    QMenu,
-    QMessageBox,
-    QTableWidget,
-    QTableWidgetItem,
-    QSizePolicy,
-    QMainWindow,
-    QStyle,
-    QFileDialog,
-)
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2026-09-30"
-__version__ = "10.4.2"
+__date__ = "2026-10-09"
+__version__ = "11.0.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
 __clr__ = "\033[1;m"
 __source__ = "https://github.com/digitalsleuth/time_decode"
 __appname__ = f"Time Decode v{__version__}"
-
-
-class NewWindow(QWidget):
-    """This class sets the structure for a new window"""
-
-    def __init__(self, parent=None):
-        """Sets up the new window table and context menu"""
-        super().__init__(parent)
-        if parent:
-            self.setPalette(parent.palette())
-            self.setFont(parent.font())
-        self.setStyleSheet("background-color: white;")
-        layout = QVBoxLayout(self)
-        self.window_label = QLabel(self)
-        self.output_table = QTableWidget(self)
-        self.output_table.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.output_table.setStyleSheet(
-            "border: none; selection-background-color: #1644b9;"
-        )
-        self.output_table.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self.context_menu = ContextMenu(self.output_table)
-        self.output_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.output_table.customContextMenuRequested.connect(
-            self.context_menu.show_context_menu
-        )
-        layout.addWidget(self.output_table)
-        layout.addWidget(self.window_label)
-        self.stylesheet = TimeDecodeGui.stylesheet
-        self.setLayout(layout)
-
-    def key_press_event(self, event):
-        """Sets the Ctrl+C KeyPress for the window"""
-        if event.matches(QKeySequence.StandardKey.Copy):
-            self.context_menu.copy()
-        else:
-            super().key_press_event(event)
-
-
-class CsvWindow(QWidget):
-    """This class sets the structure for a new window"""
-
-    def __init__(
-        self,
-        ts_formats: QComboBox,
-        time_zones: QComboBox,
-        dt_formats: QComboBox,
-        parent=None,
-    ):
-        """Sets up the new window table and context menu"""
-        super().__init__(parent)
-        if parent:
-            self.setPalette(parent.palette())
-            self.setFont(parent.font())
-        self.window_label = QLabel(self)
-        self.output_table = QTableWidget(self)
-        self.ts_formats = QComboBox(self)
-        self.time_zones = QComboBox(self)
-        self.dt_formats = QComboBox(self)
-        for i in range(ts_formats.count()):
-            self.ts_formats.addItem(ts_formats.itemText(i), ts_formats.itemData(i))
-        for i in range(time_zones.count()):
-            self.time_zones.addItem(time_zones.itemText(i), time_zones.itemData(i))
-        for i in range(dt_formats.count()):
-            self.dt_formats.addItem(dt_formats.itemText(i), dt_formats.itemData(i))
-        self.output_table.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.output_table.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-
-
-class AboutWindow(QWidget):
-    """Sets the structure for the About window"""
-
-    def __init__(self):
-        super().__init__()
-        layout = QGridLayout()
-        self.about_label = QLabel()
-        self.url_label = QLabel()
-        self.logo_label = QLabel()
-        spacer = QLabel()
-        layout.addWidget(self.about_label, 0, 0)
-        layout.addWidget(spacer, 0, 1)
-        layout.addWidget(self.url_label, 1, 0)
-        layout.addWidget(self.logo_label, 0, 2)
-        self.setStyleSheet("background-color: white; color: black;")
-        self.setFixedHeight(100)
-        self.setFixedWidth(350)
-        self.setLayout(layout)
-
-
-class ContextMenu:
-    """Shows a context menu for a QTableWidget"""
-
-    def __init__(self, tbl_widget):
-        """Associate the tbl_widget variable"""
-        self.tbl_widget = tbl_widget
-
-    def show_context_menu(self, pos):
-        """Sets the context menu structure and style"""
-        stylesheet = TimeDecodeGui.stylesheet
-        context_menu = QMenu(self.tbl_widget)
-        copy_event = context_menu.addAction("Copy")
-        copy_event.setShortcut(QKeySequence("Ctrl+C"))
-        copy_event.setShortcutVisibleInContextMenu(True)
-        context_menu.setStyleSheet(stylesheet)
-        copy_event.triggered.connect(self.copy)
-        context_menu.exec(self.tbl_widget.mapToGlobal(pos))
-
-    def copy(self):
-        """Sets up the Copy option for the context menu"""
-        selected = self.tbl_widget.selectedItems()
-        if selected:
-            clipboard = QApplication.clipboard()
-            text = (
-                "\n".join(
-                    [
-                        "\t".join(
-                            [
-                                item.text()
-                                for item in self.tbl_widget.selectedItems()
-                                if item.row() == row
-                            ]
-                        )
-                        for row in range(self.tbl_widget.rowCount())
-                    ]
-                )
-            ).rstrip()
-            text = text.lstrip()
-            clipboard.setText(text)
-
-
-class UiMainWindow:
-    """Sets the structure for the main user interface"""
-
-    def __init__(self):
-        super().__init__()
-        self.window_width = 490
-        self.window_height = 130
-        self.text_font = QFont()
-        self.text_font.setPointSize(9)
-        self.results = {}
-        self.examples_window = None
-        self.new_window = None
-        self.timestamp_text = None
-        self.date_time = None
-        self.now_button = None
-        self.update_button = None
-        self.button_layout = None
-        self.calendar_buttons = None
-        self.timestamp_formats = None
-        self.time_zone_offsets = None
-        self.output_table = None
-        self.context_menu = None
-        self.guess_button = None
-        self.to_all_button = None
-        self.encode_radio = None
-        self.decode_radio = None
-        self.go_button = None
-        self.new_window_button = None
-        self.menu_bar = None
-        self.file_menu = None
-        self.exit_action = None
-        self.view_menu = None
-        self.view_action = None
-        self.help_menu = None
-        self.about_action = None
-        self.msg_box = None
-        self.about_window = None
-        self.logo = None
-        self.timestamp_count_label = None
-        self.dt_format_combo = None
-        self.decode_from_file_button = None
-        self.selected_header = None
-        self.csv_path = None
-        self.csv_content_window = None
-        self.csv_go_button = None
-        self.csv_decode_action = None
-        self.select_new_csv = None
-        self.csv_close_button = None
-        self.__fmt__ = "%Y-%m-%d %H:%M:%S.%f"
-        self.screen_layout = QApplication.primaryScreen().availableGeometry()
-        self.center_x = (self.screen_layout.width() // 2) - (self.window_width // 2)
-        self.center_y = (self.screen_layout.height() // 2) - (self.window_height // 2)
-
-    def setup_ui(self, main_window):
-        """Sets up the core UI"""
-        if not main_window.objectName():
-            main_window.setObjectName(__appname__)
-        main_window.setFixedWidth(self.window_width)
-        main_window.setMinimumHeight(self.window_height)
-        main_window.setStyleSheet(main_window.stylesheet)
-        main_window.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        main_window.setWindowFlags(
-            main_window.windowFlags() & ~Qt.WindowType.WindowMaximizeButtonHint
-        )
-        main_window.move(self.center_x, self.center_y)
-        self.timestamp_text = QLineEdit(main_window)
-        self.timestamp_text.setObjectName("timestamp_text")
-        self.timestamp_text.setGeometry(QRect(10, 30, 225, 22))
-        self.timestamp_text.setHidden(False)
-        self.timestamp_text.setEnabled(True)
-        self.timestamp_text.setStyleSheet(main_window.stylesheet)
-        self.timestamp_text.setFont(self.text_font)
-        self.timestamp_text.setToolTip(
-            "Enter your timestamp. To verify your timestamp format, select 'View -> Examples'."
-        )
-        utc_time = dt.now(timezone.utc)
-        self.date_time = QDateTimeEdit(main_window)
-        self.date_time.setObjectName("date_time")
-        self.date_time.setDisplayFormat("yyyy-MM-dd HH:mm:ss.zzz")
-        self.date_time.setGeometry(QRect(10, 30, 225, 22))
-        self.date_time.setDateTime(utc_time)
-        self.date_time.setCalendarPopup(True)
-        self.date_time.calendarWidget().setFixedHeight(220)
-        self.date_time.calendarWidget().setGridVisible(True)
-        self.date_time.setHidden(True)
-        self.date_time.setEnabled(False)
-        self.date_time.setStyleSheet(main_window.stylesheet)
-        self.date_time.calendarWidget().setStyleSheet(
-            "alternate-background-color: #EAF6FF; background-color: white; color: black;"
-        )
-        self.date_time.setFont(self.text_font)
-        self.date_time.calendarWidget().setFont(self.text_font)
-        self.date_time.setToolTip(
-            "Enter your date/time as 'YYYY-mm-dd HH:MM:SS.fff' and only 3 digits for milliseconds."
-        )
-        self.now_button = QPushButton("&Now", clicked=self.set_now)
-        self.now_button.setFont(self.text_font)
-        self.update_button = QPushButton(
-            "&Update Time Zones", clicked=self.update_timezones
-        )
-        self.update_button.setFont(self.text_font)
-        self.button_layout = QHBoxLayout()
-        self.button_layout.addWidget(self.now_button)
-        self.button_layout.addWidget(self.update_button)
-        self.calendar_buttons = self.date_time.calendarWidget().layout()
-        self.calendar_buttons.addLayout(self.button_layout)
-        self.timestamp_formats = QComboBox(main_window)
-        self.timestamp_formats.setObjectName("timestamp_formats")
-        self.timestamp_formats.setGeometry(QRect(10, 60, 225, 22))
-        self.timestamp_formats.setStyleSheet(
-            "combobox-popup: 0; background-color: white; color: black;"
-        )
-        self.timestamp_formats.view().setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self.timestamp_formats.setFont(self.text_font)
-        types = {}
-        for _, this_type in ts_types.items():
-            types[this_type[0]] = this_type[1]
-        types = dict(sorted(types.items(), key=lambda item: item[0].casefold()))
-        for k, v in enumerate(types.items()):
-            self.timestamp_formats.addItem(v[0])
-            self.timestamp_formats.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
-        self.time_zone_offsets = QComboBox(main_window)
-        self.time_zone_offsets.setObjectName("time_zone_offsets")
-        self.time_zone_offsets.setGeometry(QRect(10, 90, 305, 22))
-        self.time_zone_offsets.setStyleSheet(
-            "combobox-popup: 0; background-color: white; color: black;"
-        )
-        self.time_zone_offsets.view().setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self.time_zone_offsets.setFont(self.text_font)
-        try:
-            dt_obj = dt.fromisoformat(self.date_time.text()).replace(
-                tzinfo=timezone.utc
-            )
-        except ValueError:
-            dt_obj = dt.strptime(self.date_time.text(), self.__fmt__).replace(
-                tzinfo=timezone.utc
-            )
-        ts_offsets = common_timezone_offsets(dt_obj)
-        for k, v in enumerate(ts_offsets):
-            self.time_zone_offsets.addItem(f"{v[0]} {v[1]}")
-            self.time_zone_offsets.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
-        self.time_zone_offsets.setEnabled(True)
-        self.time_zone_offsets.setHidden(False)
-        tz_tooltip = (
-            "Time Zones in the drop-down box are displayed based on the current date/time.\n"
-            "The actual UTC Offset (whether observing DST or not) will be calculated\naccordingly"
-            " when generating output.\n\n"
-            "For example: Europe/Amsterdam time zone is UTC+01:00 before 29 March 2026 at 2AM,\n"
-            "then it is UTC+02:00 until 29 October 2026 at 3AM.\n\n"
-            "If YOUR current date/time falls between these two times, the time zone will display "
-            "UTC+02:00.\n"
-            "Otherwise, it will display UTC+01:00.\n\nThe output will adjust based on the date/time"
-            " value provided or determined."
-        )
-        self.time_zone_offsets.setToolTip(tz_tooltip)
-        self.output_table = QTableWidget(main_window)
-        self.output_table.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.output_table.setGeometry(QRect(10, 120, 440, 22))
-        self.output_table.setStyleSheet(
-            "border: none; background-color: white; color: black; font-size: 10;"
-        )
-        self.output_table.setVisible(False)
-        self.output_table.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
-        )
-        self.output_table.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self.context_menu = ContextMenu(self.output_table)
-        self.output_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.output_table.customContextMenuRequested.connect(
-            self.context_menu.show_context_menu
-        )
-        self.output_table.setFont(self.text_font)
-        self.guess_button = QPushButton(main_window)
-        self.guess_button.setObjectName("guess_button")
-        self.guess_button.setEnabled(True)
-        self.guess_button.setHidden(False)
-        self.guess_button.setGeometry(QRect(245, 30, 70, 22))
-        self.guess_button.setStyleSheet("background-color: white; color: black;")
-        self.guess_button.setFont(self.text_font)
-        self.guess_button.clicked.connect(self.guess_decode)
-        self.guess_button.setToolTip(
-            "Run the current timestamp through all functions to 'Guess' the format."
-        )
-        self.to_all_button = QPushButton(main_window)
-        self.to_all_button.setObjectName("to_all_button")
-        self.to_all_button.setEnabled(False)
-        self.to_all_button.setHidden(True)
-        self.to_all_button.setGeometry(QRect(245, 30, 70, 22))
-        self.to_all_button.setStyleSheet("background-color: white; color: black;")
-        self.to_all_button.setFont(self.text_font)
-        self.to_all_button.clicked.connect(self.encode_toall)
-        self.to_all_button.setToolTip(
-            "Convert the selected date/time value to all timestamp formats."
-        )
-        self.encode_radio = QRadioButton(main_window)
-        self.encode_radio.setObjectName("encode_radio")
-        self.encode_radio.setGeometry(QRect(400, 30, 72, 20))
-        self.encode_radio.setStyleSheet("background-color: white; color: black;")
-        self.encode_radio.setFont(self.text_font)
-        self.encode_radio.toggled.connect(self._encode_select)
-        self.decode_radio = QRadioButton(main_window)
-        self.decode_radio.setObjectName("decode_radio")
-        self.decode_radio.setGeometry(QRect(325, 30, 72, 20))
-        self.decode_radio.setChecked(True)
-        self.decode_radio.setStyleSheet("background-color: white; color: black;")
-        self.decode_radio.setFont(self.text_font)
-        self.decode_radio.toggled.connect(self._decode_select)
-        self.decode_from_file_button = QPushButton(main_window)
-        self.decode_from_file_button.setObjectName("decode_from_file_button")
-        self.decode_from_file_button.setEnabled(True)
-        self.decode_from_file_button.setHidden(False)
-        self.decode_from_file_button.setGeometry(QRect(322, 60, 72, 22))
-        self.decode_from_file_button.setStyleSheet(
-            "background-color: white; color: black;"
-        )
-        self.decode_from_file_button.setFont(self.text_font)
-        self.decode_from_file_button.clicked.connect(self.csv_decode)
-        self.decode_from_file_button.setToolTip(
-            "Decode timestamps from a CSV/TXT file."
-        )
-        self.dt_format_combo = QComboBox(main_window)
-        self.dt_format_combo.setObjectName("dt_format_combo")
-        self.dt_format_combo.setEnabled(True)
-        self.dt_format_combo.setHidden(False)
-        self.dt_format_combo.setFont(self.text_font)
-        self.dt_format_combo.setGeometry(QRect(400, 60, 70, 22))
-        for k, v in enumerate(date_formats.items()):
-            self.dt_format_combo.addItem(f"{v[0]}")
-            self.dt_format_combo.setItemData(
-                k, v[1].replace("%", ""), Qt.ItemDataRole.ToolTipRole
-            )
-        self.dt_format_combo.setStyleSheet("background-color: white; color: black;")
-        self.dt_format_combo.setToolTip("Choose your desired date/time format.")
-        self.go_button = QPushButton(main_window)
-        self.go_button.setObjectName("go_button")
-        self.go_button.setGeometry(QRect(245, 60, 70, 22))
-        self.go_button.setStyleSheet("background-color: white; color: black;")
-        self.go_button.setFont(self.text_font)
-        self.go_button.clicked.connect(self.go_function)
-        self.go_button.setToolTip("Convert to/from the timestamp selected to the left.")
-        new_window_pixmap = QStyle.StandardPixmap.SP_ArrowUp
-        icon = main_window.style().standardIcon(new_window_pixmap)
-        self.new_window_button = QPushButton(main_window)
-        self.new_window_button.setObjectName("new_window_button")
-        self.new_window_button.setGeometry(QRect(325, 90, 22, 22))
-        self.new_window_button.setStyleSheet(
-            "background-color: white; color: black; border: 0;"
-        )
-        self.new_window_button.setFont(self.text_font)
-        self.new_window_button.setIcon(icon)
-        self.new_window_button.setIconSize(QSize(22, 22))
-        self.new_window_button.setToolTip("Open results in a new window")
-        self.new_window_button.clicked.connect(self._new_window)
-        if os.sys.platform == "linux":
-            vert = 415
-        else:
-            vert = 370
-        self.timestamp_count_label = QLabel(main_window)
-        self.timestamp_count_label.setGeometry(QRect(vert, 94, 90, 22))
-        self.timestamp_count_label.setStyleSheet(
-            "background-color: white; color: black;"
-        )
-        self.timestamp_count_label.setFont(self.text_font)
-        self.timestamp_count_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.retranslate_ui(main_window)
-        QMetaObject.connectSlotsByName(main_window)
-
-    def retranslate_ui(self, main_window):
-        """Retranslate the Ui"""
-        _translate = QCoreApplication.translate
-        main_window.setWindowTitle(_translate("main_window", __appname__, None))
-        self.date_time.setDisplayFormat(
-            _translate("main_window", "yyyy-MM-dd HH:mm:ss.zzz", None)
-        )
-        self.timestamp_text.setPlaceholderText(
-            _translate("main_window", "Timestamp", None)
-        )
-        self.guess_button.setText(_translate("main_window", "Guess", None))
-        self.to_all_button.setText(_translate("main_window", "To All", None))
-        self.encode_radio.setText(_translate("main_window", "Encode", None))
-        self.decode_radio.setText(_translate("main_window", "Decode", None))
-        self.go_button.setText(_translate("main_window", "\u2190 From", None))
-        self.decode_from_file_button.setText(
-            _translate("main_window", "From file..", None)
-        )
-        self.new_window_button.setHidden(True)
-        self.new_window_button.setEnabled(False)
-        self._menu_bar()
-
-    def set_now(self):
-        """Sets the current date / time on the Calendar Widget"""
-        today = QDate.currentDate()
-        now = dt.now(timezone.utc)
-        self.date_time.calendarWidget().setSelectedDate(today)
-        self.date_time.setDateTime(now)
-
-    def update_timezones(self):
-        """Updates the time_zone_offsets combo box to reflect the selected Calendar date/time"""
-        try:
-            dt_obj = dt.fromisoformat(self.date_time.text()).replace(
-                tzinfo=timezone.utc
-            )
-        except ValueError:
-            dt_obj = dt.strptime(self.date_time.text(), self.__fmt__).replace(
-                tzinfo=timezone.utc
-            )
-        ts_offsets = common_timezone_offsets(dt_obj)
-        self.time_zone_offsets.clear()
-        for k, v in enumerate(ts_offsets):
-            self.time_zone_offsets.addItem(f"{v[0]} {v[1]}")
-            self.time_zone_offsets.setItemData(k, v[1], Qt.ItemDataRole.ToolTipRole)
-
-    def _decode_select(self):
-        """Sets the structure for the decode radio button"""
-        self.date_time.setHidden(True)
-        self.date_time.setEnabled(False)
-        self.timestamp_text.setHidden(False)
-        self.timestamp_text.setEnabled(True)
-        self.guess_button.setEnabled(True)
-        self.guess_button.setHidden(False)
-        self.to_all_button.setEnabled(False)
-        self.to_all_button.setHidden(True)
-        self.go_button.setText("\u2190 From")
-        self.new_window_button.setHidden(True)
-        self.new_window_button.setEnabled(False)
-        self.timestamp_count_label.setText("")
-        self.decode_from_file_button.setEnabled(True)
-        self.decode_from_file_button.setHidden(False)
-        self.dt_format_combo.setEnabled(True)
-        self.dt_format_combo.setHidden(False)
-        self._reset_table()
-
-    def _encode_select(self):
-        """Sets the structure for the encode radio button"""
-        self.timestamp_text.setHidden(True)
-        self.timestamp_text.setEnabled(False)
-        self.date_time.setHidden(False)
-        self.date_time.setEnabled(True)
-        self.guess_button.setEnabled(False)
-        self.guess_button.setHidden(True)
-        self.to_all_button.setEnabled(True)
-        self.to_all_button.setHidden(False)
-        self.go_button.setText("\u2190 To")
-        self.new_window_button.setHidden(True)
-        self.new_window_button.setEnabled(False)
-        self.timestamp_count_label.setText("")
-        self.decode_from_file_button.setEnabled(False)
-        self.decode_from_file_button.setHidden(True)
-        self.dt_format_combo.setEnabled(False)
-        self.dt_format_combo.setHidden(True)
-        self._reset_table()
-
-    def _reset_table(self):
-        """Resets the GUI structure"""
-        self.adjustSize()
-        self.setFixedWidth(490)
-        self.setFixedHeight(130)
-        self.output_table.setVisible(False)
-        self.output_table.clearContents()
-        self.output_table.setColumnCount(0)
-        self.output_table.setRowCount(0)
-        self.output_table.reset()
-        self.output_table.setStyleSheet("border: none")
-
-    def _set_date_format(self, fmt):
-        """Keeps the GUI and module-level date formats in sync"""
-        global __fmt__
-        __fmt__ = fmt
-        self.__fmt__ = fmt
-
-    def guess_decode(self):
-        """Will take the provided timestamp and run it through the 'from_all' function"""
-        self._set_date_format(date_formats[self.dt_format_combo.currentText()])
-        timestamp = self.timestamp_text.text()
-        selected_tz = self.time_zone_offsets.currentText()
-        tz_name = " ".join(selected_tz.split(" ")[1:])
-        if timestamp == "":
-            self._msg_box("You must enter a timestamp!", "Info")
-            return
-        if "UTC - Default" in selected_tz:
-            all_ts = from_all(timestamp)
-        else:
-            all_ts = from_all(timestamp, tz_name)
-        results = {}
-        for k, _ in all_ts.items():
-            results[k] = f"{all_ts[k][0]} {all_ts[k][2]}"
-        self.results = results
-        self.display_output(results)
-
-    def encode_toall(self):
-        """Takes the date_time object, passes it to the to_timestamps function which encodes it"""
-        dt_val = self.date_time.text()
-        try:
-            dt_obj = dt.fromisoformat(dt_val)
-        except ValueError:
-            dt_obj = dt.strptime(dt_val, self.__fmt__)
-        if dt_obj.tzinfo is None:
-            dt_obj = dt_obj.replace(tzinfo=timezone.utc)
-        selected_tz = self.time_zone_offsets.currentText()
-        if "UTC - Default" not in selected_tz:
-            tz_name = " ".join(selected_tz.split(" ")[1:])
-            tz = tzone(tz_name)
-            dt_obj = dt_obj.replace(tzinfo=tz)
-        results, _ = to_timestamps(dt_obj)
-        self.results = results
-        self.display_output(results)
-
-    def display_output(self, ts_list):
-        """Configures the output format for the provided values"""
-        self._reset_table()
-        tbl_fixed_width = 475
-        col2_width = 235
-        self_fixed_width = 490
-        if os.sys.platform == "linux":
-            tbl_fixed_width = 520
-            col2_width = 280
-            self_fixed_width = 535
-        self.output_table.setVisible(True)
-        self.output_table.setColumnCount(2)
-        self.output_table.setAlternatingRowColors(True)
-        self.output_table.setStyleSheet(
-            """
-            border: none;
-            alternate-background-color: #EAF6FF;
-            background-color: white;
-            color: black;
-            selection-background-color: #1644b9;
-            """
-        )
-        for ts_type, result in ts_list.items():
-            row = self.output_table.rowCount()
-            self.output_table.insertRow(row)
-            widget0 = QTableWidgetItem(ts_types[ts_type][0])
-            widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            widget0.setToolTip(ts_types[ts_type][1])
-            widget1 = QTableWidgetItem(result)
-            widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.output_table.setItem(row, 0, widget0)
-            self.output_table.item(row, 0).setTextAlignment(
-                int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            )
-            self.output_table.setItem(row, 1, widget1)
-            self.output_table.item(row, 1).setTextAlignment(
-                int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            )
-            if self.decode_radio.isChecked():
-                this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                result_yr = result_year(result)
-                if result_yr in range(this_yr - 5, this_yr + 5):
-                    for each_col in range(0, self.output_table.columnCount()):
-                        this_col = self.output_table.item(row, each_col)
-                        this_col.setBackground(QColor("lightgreen"))
-                        this_col.setForeground(QColor("black"))
-        self.output_table.horizontalHeader().setFixedHeight(1)
-        self.output_table.verticalHeader().setFixedWidth(1)
-        self.output_table.setFixedWidth(tbl_fixed_width)
-        self.output_table.setColumnWidth(0, 220)
-        self.output_table.setColumnWidth(1, col2_width)
-        self.output_table.resizeRowsToContents()
-        self.output_table.setShowGrid(True)
-        total_row_height = sum(
-            self.output_table.rowHeight(row)
-            for row in range(self.output_table.rowCount())
-        )
-        self.output_table.setFixedHeight(400)
-        if total_row_height > 500:
-            self.setFixedHeight(540)
-            self.output_table.verticalScrollBar().show()
-        else:
-            self.setFixedHeight(self.height() + int(total_row_height + 12))
-            self.output_table.verticalScrollBar().hide()
-        self.setFixedWidth(self_fixed_width)
-        self.new_window_button.setEnabled(True)
-        self.new_window_button.setHidden(False)
-        if len(ts_list) > 1:
-            txt = "timestamps"
-        else:
-            txt = "timestamp"
-        self.timestamp_count_label.setText(f"{len(ts_list)} {txt}")
-
-    def go_function(self):
-        """The To/From button: converts a date/timestamp, depending on the selected radio button"""
-        results = {}
-        self._set_date_format(date_formats[self.dt_format_combo.currentText()])
-        ts_format = self.timestamp_formats.currentText()
-        try:
-            ts_date = dt.fromisoformat(self.date_time.text()).replace(
-                tzinfo=timezone.utc
-            )
-        except ValueError:
-            ts_date = dt.strptime(self.date_time.text(), self.__fmt__).replace(
-                tzinfo=timezone.utc
-            )
-        selected_tz = self.time_zone_offsets.currentText()
-        if "UTC - Default" not in selected_tz:
-            tz_name = " ".join(selected_tz.split(" ")[1:])
-            tz = tzone(tz_name)
-            ts_date = ts_date.replace(tzinfo=tz)
-        in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
-        if not in_ts_types:
-            self._msg_box(
-                f"For some reason {ts_format} is not in the list of available conversions!",
-                "Error",
-            )
-            return
-        ts_type = in_ts_types[0]
-        if self.encode_radio.isChecked():
-            is_func = False
-            ts_selection = f"to_{ts_type}"
-            for _, funcs in single_funcs.items():
-                this_func = funcs[1]
-                if inspect.isfunction(this_func):
-                    func_name = this_func.__name__
-                    if func_name == ts_selection:
-                        is_func = True
-            if not is_func:
-                msg = (
-                    f"Cannot convert to {ts_format}, information required to do this is "
-                    "unavailable.\n\n"
-                    "This is typically because the timestamp is only a small part of a larger "
-                    "value, and the other 'parts' of the value are not available to combine with"
-                    " the timestamp to provide a reasonable output."
-                )
-                self._msg_box(
-                    msg,
-                    "Warning",
-                )
-                return
-            ts_func = globals()[ts_selection]
-            result, _ = ts_func(ts_date)
-            results[ts_type] = result
-            self.results = results
-            self.display_output(results)
-        elif self.decode_radio.isChecked():
-            is_func = False
-            ts_text = self.timestamp_text.text()
-            if ts_text == "":
-                self._msg_box("You must enter a timestamp!", "Info")
-                return
-            ts_selection = f"from_{ts_type}"
-            for _, funcs in single_funcs.items():
-                this_func = funcs[0]
-                if inspect.isfunction(this_func):
-                    func_name = this_func.__name__
-                    if func_name == ts_selection:
-                        is_func = True
-            if not is_func:
-                msg = (
-                    f"Cannot convert from {ts_format}, information required to do this is "
-                    "unavailable.\n\n"
-                    "This is typically because the timestamp is only a small part of a larger "
-                    "value, and the other 'parts' of are not available within your value to provide"
-                    " a reasonable output."
-                )
-                self._msg_box(
-                    msg,
-                    "Warning",
-                )
-                return
-            ts_func = globals()[ts_selection]
-            result, _, _, reason, tz_out = ts_func(ts_text)
-            if not result:
-                self._msg_box(reason, "Error")
-                return
-            if "UTC - Default" not in selected_tz:
-                result, tz_out, _ = convert_timezone(tz_name, result)
-            if tz_out.startswith("+") or tz_out.startswith("-"):
-                results[ts_type] = f"{result}{tz_out}"
-            else:
-                results[ts_type] = f"{result} {tz_out}"
-            self.results = results
-            self.display_output(results)
-
-    def csv_decode(self):
-        """GUI function to decode contents a CSV/TXT file from selected timestamp format"""
-        csv_file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select a csv or txt document ...", "", "csv/txt files (*.csv *.txt)"
-        )
-        self.selected_header = None
-        combo_style = """
-            combobox-popup: 0; 
-            background-color: white;
-            color: black;
-            selection-background-color: white;
-            selection-color: black;
-            """
-        sample_rows = []
-        if csv_file_path:
-            self.csv_path = os.path.normpath(os.path.abspath(csv_file_path))
-            self.csv_content_window = CsvWindow(
-                self.timestamp_formats, self.time_zone_offsets, self.dt_format_combo
-            )
-            self.csv_content_window.setStyleSheet("background: white; color: black;")
-            self.csv_content_window.window_label.setFont(self.text_font)
-            self.csv_content_window.setWindowTitle("Choose your options for conversion")
-            self.csv_content_window.setMaximumWidth(330)
-            self.csv_go_button = QPushButton(self.csv_content_window)
-            self.csv_go_button.setObjectName("csv_go_button")
-            self.csv_go_button.setEnabled(True)
-            self.csv_go_button.setHidden(False)
-            self.csv_go_button.setFont(self.text_font)
-            self.csv_go_button.setText("Go")
-            self.csv_go_button.setGeometry(QRect(315, 230, 70, 22))
-            self.csv_go_button.setStyleSheet("background: white; color: black;")
-            self.csv_go_button.clicked.connect(
-                lambda: self.submit_csv_data(
-                    csv_file_path,
-                    self.csv_content_window.ts_formats.currentText(),
-                    self.selected_header,
-                    tz_name=self.csv_content_window.time_zones.currentText(),
-                    dt_format=date_formats[
-                        self.csv_content_window.dt_formats.currentText()
-                    ],
-                )
-            )
-            self.select_new_csv = QPushButton(self.csv_content_window)
-            self.select_new_csv.setObjectName("select_new_csv")
-            self.select_new_csv.setEnabled(True)
-            self.select_new_csv.setHidden(False)
-            self.select_new_csv.setFont(self.text_font)
-            self.select_new_csv.setText("Load new..")
-            self.select_new_csv.setGeometry(QRect(240, 260, 70, 22))
-            self.select_new_csv.clicked.connect(self.select_new_file)
-            self.select_new_csv.setToolTip(
-                "Load a new CSV/TXT file to replace the current one."
-            )
-            self.csv_content_window.ts_formats.setGeometry(QRect(10, 230, 225, 22))
-            self.csv_content_window.ts_formats.setStyleSheet(combo_style)
-            self.csv_content_window.ts_formats.view().setVerticalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAsNeeded
-            )
-            self.csv_content_window.ts_formats.setFont(self.text_font)
-            self.csv_content_window.time_zones.setGeometry(QRect(10, 260, 225, 22))
-            self.csv_content_window.time_zones.setStyleSheet(combo_style)
-            self.csv_content_window.time_zones.view().setVerticalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAsNeeded
-            )
-            self.csv_content_window.time_zones.setFont(self.text_font)
-            self.csv_content_window.dt_formats.setGeometry(QRect(240, 230, 70, 22))
-            self.csv_content_window.dt_formats.setToolTip(
-                "Choose your desired date/time format."
-            )
-            self.csv_content_window.dt_formats.setFont(self.text_font)
-            self.csv_close_button = QPushButton(self.csv_content_window)
-            self.csv_close_button.setObjectName("csv_close_button")
-            self.csv_close_button.setFont(self.text_font)
-            self.csv_close_button.setText("Close")
-            self.csv_close_button.setGeometry(QRect(315, 260, 70, 22))
-            self.csv_close_button.clicked.connect(self.csv_content_window.close)
-            try:
-                with open(csv_file_path, "r", newline="", encoding="utf-8") as src:
-                    sample = src.read(1024)
-                    try:
-                        dialect = csv.Sniffer().sniff(sample)
-                    except csv.Error:
-                        dialect = csv.get_dialect("excel")
-                    src.seek(0)
-                    reader = csv.reader(src, dialect)
-                    columns = len(next(reader, None))
-                    src.seek(0)
-                    rows = 5
-                    for row in reader:
-                        sample_rows.append(row)
-                        rows -= 1
-                        if rows == 0:
-                            break
-            except (FileNotFoundError, PermissionError):
-                handle(sys.exc_info())
-            self.csv_content_window.output_table.setColumnCount(columns)
-            self.csv_content_window.output_table.setRowCount(len(sample_rows))
-            self.csv_content_window.output_table.setHorizontalHeaderLabels(
-                [str(i + 1) for i in range(columns)]
-            )
-            self.csv_content_window.output_table.setAlternatingRowColors(True)
-            self.csv_content_window.output_table.setStyleSheet(
-                """
-                border: none;
-                alternate-background-color: #EAF6FF;
-                background-color: white;
-                color: black;
-                selection-background-color: #1644b9;
-                """
-            )
-            self.csv_content_window.output_table.setFont(self.text_font)
-            for row_index, row in enumerate(sample_rows):
-                for col_index in range(columns):
-                    cell_text = row[col_index] if col_index < len(row) else ""
-                    item = QTableWidgetItem(cell_text)
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    self.csv_content_window.output_table.setItem(
-                        row_index, col_index, item
-                    )
-            self.csv_content_window.output_table.verticalHeader().setFixedWidth(1)
-            self.csv_content_window.output_table.horizontalHeader().setFixedHeight(1)
-            self.csv_content_window.output_table.resizeColumnsToContents()
-            self.csv_content_window.output_table.setGeometry(
-                QRect(
-                    10,
-                    50,
-                    380,
-                    self.csv_content_window.output_table.verticalHeader().length() + 20,
-                )
-            )
-            self.csv_content_window.setFixedSize(
-                400,
-                290,
-            )
-            self.csv_content_window.output_table.itemSelectionChanged.connect(
-                self.get_column_number
-            )
-            window_width = self.csv_content_window.width()
-            window_height = self.csv_content_window.height()
-            self.csv_content_window.window_label.setGeometry(
-                QRect(10, 10, window_width - 10, 30)
-            )
-            self.csv_content_window.window_label.setText(
-                (
-                    "Select the column which contains your timestamps, then\n "
-                    "choose a timestamp format and time zone, then click 'Go'."
-                )
-            )
-            x = (self.screen_layout.width() // 2) - (window_width // 2)
-            y = (self.screen_layout.height() // 2) - (window_height // 2)
-            self.csv_content_window.move(x, y)
-            self.csv_content_window.show()
-
-    def select_new_file(self):
-        """Simply closes the open CSV window and reloads to select a new file"""
-        self.csv_content_window.close()
-        self.csv_decode()
-
-    def submit_csv_data(
-        self, csv_file, ts_format, column_num, tz_name=None, dt_format=None
-    ):
-        """Prepares data to submit for csv conversion"""
-        if dt_format is not None and dt_format != self.__fmt__:
-            self._set_date_format(dt_format)
-        in_ts_types = [k for k, v in ts_types.items() if ts_format in v]
-        if not in_ts_types:
-            self._msg_box(
-                f"For some reason {ts_format} is not in the list of available conversions!",
-                "Error",
-            )
-            return
-        ts_type = in_ts_types[0]
-        if tz_name is not None and "UTC - Default" not in tz_name:
-            tz_name = " ".join(tz_name.split(" ")[1:])
-            status, dest, reason = generate_csv(
-                csv_file, ts_type, column_num, tz_name=tz_name
-            )
-        else:
-            status, dest, reason = generate_csv(csv_file, ts_type, column_num)
-        dest = os.path.normpath(dest)
-        if status:
-            note = f"\n\n{reason}." if reason else ""
-            self._msg_box(f"Output CSV file saved as {dest}.{note}", "Info")
-            return
-        if reason is None:
-            reason = "Unknown"
-        self._msg_box(
-            f"CSV could not be processed. No output was written.\n\nReason: {reason}",
-            "Error",
-        )
-
-    def get_column_number(self):
-        """Gets the selected column number from the sample data and sets it into a variable"""
-        table = self.csv_content_window.output_table
-        selected_items = table.selectedItems()
-        if selected_items:
-            self.selected_header = selected_items[0].column() + 1
-
-    def _menu_bar(self):
-        """Add a menu bar"""
-        self.menu_bar = self.menuBar()
-        self.menu_bar.setStyleSheet(self.stylesheet)
-        self.file_menu = self.menu_bar.addMenu("&File")
-        self.exit_action = QAction("&Exit", self)
-        self.exit_action.triggered.connect(QApplication.instance().quit)
-        self.exit_action.setFont(self.text_font)
-        self.csv_decode_action = QAction("&Decode from file ...", self)
-        self.csv_decode_action.triggered.connect(self.csv_decode)
-        self.csv_decode_action.setFont(self.text_font)
-        self.file_menu.addAction(self.csv_decode_action)
-        self.file_menu.addAction(self.exit_action)
-        self.menu_bar.addMenu(self.file_menu)
-        self.view_menu = self.menu_bar.addMenu("&View")
-        self.view_action = QAction("E&xamples", self)
-        self.view_action.triggered.connect(self._examples)
-        self.view_action.setFont(self.text_font)
-        self.view_menu.addAction(self.view_action)
-        self.menu_bar.addMenu(self.view_menu)
-        self.help_menu = self.menu_bar.addMenu("&Help")
-        self.about_action = QAction("&About", self)
-        self.about_action.triggered.connect(self._about)
-        self.about_action.setFont(self.text_font)
-        self.help_menu.addAction(self.about_action)
-        self.menu_bar.setFont(self.text_font)
-
-    def _msg_box(self, message, msg_type, buttons="ok"):
-        button_choice = None
-        if buttons == "ok":
-            button_choice = QMessageBox.StandardButton.Ok
-        elif buttons == "ok_cancel":
-            button_choice = (
-                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-            )
-        elif buttons == "yes_no_cancel":
-            button_choice = (
-                QMessageBox.StandardButton.Yes
-                | QMessageBox.StandardButton.No
-                | QMessageBox.StandardButton.Cancel
-            )
-        elif buttons == "yes_no":
-            button_choice = (
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-        self.msg_box = QMessageBox()
-        self.msg_box.setStyleSheet("background-color: white; color: black;")
-        self.msg_box.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        if msg_type == "Error":
-            self.msg_box.setIcon(QMessageBox.Icon.Critical)
-        elif msg_type == "Info":
-            self.msg_box.setIcon(QMessageBox.Icon.Information)
-        elif msg_type == "Warning":
-            self.msg_box.setIcon(QMessageBox.Icon.Warning)
-        elif msg_type == "":
-            self.msg_box.setIcon(QMessageBox.Icon.NoIcon)
-            msg_type = "Unidentified"
-        self.msg_box.setWindowTitle(msg_type)
-        self.msg_box.setFixedSize(300, 300)
-        self.msg_box.setText(f"{message}\t")
-        self.msg_box.setStandardButtons(button_choice)
-        x = (self.screen_layout.width() // 2) - (self.msg_box.width() // 2)
-        y = (self.screen_layout.height() // 2) - (self.msg_box.height() // 2)
-        self.msg_box.move(x, y)
-        self.msg_box.exec()
-
-    def _about(self):
-        self.about_window = AboutWindow()
-        self.about_window.setWindowFlags(
-            self.about_window.windowFlags() & ~Qt.WindowType.WindowMinMaxButtonsHint
-        )
-        github_link = f'<a href="{__source__}">View the source on GitHub</a>'
-        self.about_window.setWindowTitle("About")
-        self.about_window.about_label.setText(
-            f"Version: {__appname__}\nLast Updated: {__date__}\nAuthor: {__author__}"
-        )
-        self.about_window.about_label.setFont(self.text_font)
-        self.about_window.url_label.setOpenExternalLinks(True)
-        self.about_window.url_label.setText(github_link)
-        self.about_window.url_label.setFont(self.text_font)
-        self.logo = QPixmap()
-        self.logo.loadFromData(base64.b64decode(self.__fingerprint__))
-        self.about_window.logo_label.setPixmap(self.logo)
-        self.about_window.logo_label.resize(20, 20)
-        about_width = self.about_window.width()
-        about_height = self.about_window.height()
-        x = (self.screen_layout.width() // 2) - (about_width // 2)
-        y = (self.screen_layout.height() // 2) - (about_height // 2)
-        self.about_window.move(x, y)
-        self.about_window.show()
-
-    def _examples(self):
-        if self.examples_window is None:
-            structures = {}
-            for _, data_list in ts_types.items():
-                structures[data_list[0]] = (
-                    data_list[1],
-                    data_list[2],
-                )
-            structures = sorted(structures.items(), key=lambda item: item[0].casefold())
-            self.examples_window = NewWindow()
-            self.examples_window.window_label.setGeometry(QRect(0, 0, 200, 24))
-            self.examples_window.setWindowTitle("Timestamp Examples")
-            self.examples_window.setStyleSheet(
-                """
-                border: none; alternate-background-color: #EAF6FF;
-                background-color: white; color: black;
-                """
-            )
-            self.examples_window.output_table.setColumnCount(2)
-            for example in structures:
-                row = self.examples_window.output_table.rowCount()
-                self.examples_window.output_table.insertRow(row)
-                widget0 = QTableWidgetItem(example[1][0])
-                widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                widget0.setToolTip(example[0])
-                widget1 = QTableWidgetItem(example[1][1])
-                widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.examples_window.output_table.setItem(row, 0, widget0)
-                self.examples_window.output_table.item(row, 0).setTextAlignment(
-                    int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                )
-                self.examples_window.output_table.item(row, 0)
-                self.examples_window.output_table.setItem(row, 1, widget1)
-                self.examples_window.output_table.item(row, 1).setTextAlignment(
-                    int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                )
-            self.examples_window.output_table.horizontalHeader().setFixedHeight(1)
-            self.examples_window.output_table.verticalHeader().setFixedWidth(1)
-            self.examples_window.output_table.setGeometry(
-                QRect(
-                    0,
-                    0,
-                    self.examples_window.output_table.horizontalHeader().length(),
-                    self.examples_window.output_table.verticalHeader().length(),
-                )
-            )
-            self.examples_window.output_table.resizeColumnsToContents()
-            self.examples_window.output_table.resizeRowsToContents()
-            self.examples_window.output_table.setShowGrid(True)
-            self.examples_window.output_table.setAlternatingRowColors(True)
-            self.examples_window.setFixedSize(
-                self.examples_window.output_table.horizontalHeader().length() + 48,
-                400,
-            )
-            self.examples_window.output_table.setFont(self.text_font)
-            text = (
-                f"{self.examples_window.output_table.rowCount()} timestamp examples. "
-                "NOTE: Not all timestamp can be converted TO, as a timestamp may be only PART"
-                " of the total value."
-            )
-            self.examples_window.window_label.setText(text)
-            self.examples_window.window_label.setFont(self.text_font)
-            x = (self.screen_layout.width() // 2) - (self.examples_window.width() // 2)
-            y = (self.screen_layout.height() // 2) - (
-                self.examples_window.height() // 2
-            )
-            self.examples_window.move(x, y)
-            self.examples_window.show()
-        else:
-            self.examples_window.close()
-            self.examples_window = None
-            self._examples()
-
-    def _new_window(self):
-        table_data = self.results
-        selected_tz = self.time_zone_offsets.currentText()
-        msg = title = ""
-        if self.encode_radio.isChecked():
-            entered_value = self.date_time.text()
-            title = f"Encoded: {entered_value}"
-            if "UTC - Default" not in selected_tz:
-                entered_value = f"{entered_value} {selected_tz}"
-            msg = f"Encoded: {entered_value}"
-        elif self.decode_radio.isChecked():
-            entered_value = self.timestamp_text.text()
-            title = f"Decoded: {entered_value}"
-            if "UTC - Default" not in selected_tz:
-                entered_value = f"{entered_value} {selected_tz}"
-            msg = f"Decoded: {entered_value}"
-        if self.new_window is None:
-            self.new_window = NewWindow()
-            self.new_window.window_label.setGeometry(QRect(0, 0, 200, 24))
-            self.new_window.window_label.setText(msg)
-            self.new_window.window_label.setFont(self.text_font)
-            self.new_window.setWindowTitle(title)
-            self.new_window.setStyleSheet(
-                """
-                border: none; alternate-background-color: #EAF6FF;
-                background-color: white; color: black;
-                """
-            )
-            self.new_window.output_table.setColumnCount(2)
-            for ts_type, result in table_data.items():
-                row = self.new_window.output_table.rowCount()
-                self.new_window.output_table.insertRow(row)
-                widget0 = QTableWidgetItem(ts_types[ts_type][0])
-                widget0.setFlags(widget0.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                widget0.setToolTip(ts_types[ts_type][1])
-                widget1 = QTableWidgetItem(result)
-                widget1.setFlags(widget1.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.new_window.output_table.setItem(row, 0, widget0)
-                self.new_window.output_table.item(row, 0).setTextAlignment(
-                    int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                )
-                self.new_window.output_table.item(row, 0)
-                self.new_window.output_table.setItem(row, 1, widget1)
-                self.new_window.output_table.item(row, 1).setTextAlignment(
-                    int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                )
-                if self.decode_radio.isChecked():
-                    this_yr = int(dt.now(timezone.utc).strftime("%Y"))
-                    result_yr = result_year(result)
-                    if result_yr in range(this_yr - 5, this_yr + 5):
-                        for each_col in range(
-                            0, self.new_window.output_table.columnCount()
-                        ):
-                            this_col = self.new_window.output_table.item(row, each_col)
-                            this_col.setBackground(QColor("lightgreen"))
-                            this_col.setForeground(QColor("black"))
-            self.new_window.output_table.horizontalHeader().setFixedHeight(1)
-            self.new_window.output_table.verticalHeader().setFixedWidth(1)
-            self.new_window.output_table.setGeometry(
-                QRect(
-                    0,
-                    0,
-                    self.new_window.output_table.horizontalHeader().length(),
-                    self.new_window.output_table.verticalHeader().length(),
-                )
-            )
-            self.new_window.output_table.resizeColumnsToContents()
-            for col in range(0, self.new_window.output_table.columnCount()):
-                col_width = self.new_window.output_table.columnWidth(col)
-                self.new_window.output_table.setColumnWidth(col, col_width + 10)
-            self.new_window.output_table.resizeRowsToContents()
-            row_height = self.new_window.output_table.rowHeight(row)
-            total_row_height = sum(
-                row_height for row in range(self.new_window.output_table.rowCount())
-            )
-            if total_row_height < 400:
-                window_height = total_row_height + (row_height * 2) + 8
-            else:
-                window_height = 400
-            self.new_window.output_table.setShowGrid(True)
-            self.new_window.output_table.setAlternatingRowColors(True)
-            self.new_window.setFixedSize(
-                self.new_window.output_table.horizontalHeader().length() + 38,
-                window_height,
-            )
-            self.new_window.output_table.setFont(self.text_font)
-            x = (self.screen_layout.width() // 2) - (self.new_window.width() // 2)
-            y = (self.screen_layout.height() // 2) - (self.new_window.height() // 2)
-            self.new_window.move(x, y)
-            self.new_window.show()
-        else:
-            self.new_window.close()
-            self.new_window = None
-            self._new_window()
-
-
-class TimeDecodeGui(QMainWindow, UiMainWindow):
-    """TimeDecode Class"""
-
-    stylesheet = """
-        QMainWindow {
-            background-color: white; color: black;
-        }
-        QLineEdit {
-            background-color: white; color: black;
-        }
-        QDateTimeEdit {
-            background-color: white; color: black;
-        }
-        QMenu {
-            background-color: white; color: black; border: 1px solid black; margin: 0;
-        }
-        QMenu::item {
-            background-color: white; color: black; margin: 0; padding: 4px 20px 4px 20px;
-        }
-        QMenu::item:selected {
-            background-color: #1644b9; color: white; margin: 0; padding: 4px 20px 4px 20px;
-        }
-        QMenuBar {
-            background-color: white; color: black;
-        }
-        QMenuBar::item {
-            background-color: white; color: black;
-        }
-        QMenuBar::item:selected {
-            background-color: #1644b9; color: white;
-        }
-        """
-    __fingerprint__ = """
-    AAABAAIAMDAAAAEAIACoJQAAJgAAABAQAAABACAAaAQAAM4lAAAoAAAAMAAAAGAAAAABACAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAC9hGcXr4JvPgAAAAAAAAAAwoJYDrZ+V2qwgWEDAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAC/hGd/uIRsVgAAAAC9gmJPqH1n/Zp8bn+hh4UBwYBUH7N6UPCnelWY
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAMWKcAy+h29Juot5BQAAAAC/hGV7s4Bm+6t/aaGpgW4KpX1o
-    VpZ4ZfaReGaGAAAAALB7UUCjdk74nHdRcwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    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
-    """
-
-    def __init__(self):
-        """Call and setup the UI"""
-        super().__init__()
-        self.setup_ui(self)
-
-    def key_press_event(self, event):
-        """Create a KeyPress event for a Ctrl+C (Copy) event for selected text"""
-        if event.matches(QKeySequence.StandardKey.Copy):
-            self.context_menu.copy()
-        else:
-            super().key_press_event(event)
 
 
 class TsTypes(NamedTuple):
@@ -1507,19 +53,25 @@ class TsTypes(NamedTuple):
 ts_types = {
     "active": TsTypes(
         "Active Directory/LDAP",
-        "Active Directory/LDAP timestamps are 18 digits",
+        "Active Directory/LDAP timestamps are up to 19 digits",
         "133908455300649390",
         "UTC",
     ),
     "apache": TsTypes(
         "Apache Cookie Hex time",
-        "Apache Cookie hex timestamps are 13 hex characters long",
+        "Apache Cookie hex timestamps are up to 15 hex characters long",
         "63450e689882b",
+        "UTC",
+    ),
+    "apfs": TsTypes(
+        "APFS time",
+        "APFS timestamps are 16 hex characters (8 bytes), little-endian",
+        "f8e73b89045c3c18",
         "UTC",
     ),
     "biome64": TsTypes(
         "Apple Biome 64-bit decimal",
-        "Apple Biome 64-bit decimal is 19 digits in length",
+        "Apple Biome 64-bit decimal is up to 20 digits in length",
         "4739726202305531884",
         "UTC",
     ),
@@ -1531,26 +83,32 @@ ts_types = {
     ),
     "nsdate": TsTypes(
         "Apple NSDate - All",
-        "Apple NSDates are 9, 9.6, or 15-19 digits in length",
+        "Apple NSDates are up to 12, up to 12.6, or 15-18 digits in length",
         "704656778.285777",
         "UTC",
     ),
     "bplist": TsTypes(
         "Apple NSDate - bplist / Cocoa",
-        "Apple NSDates (bplist) are 9 digits in length",
+        "Apple NSDates (bplist) are up to 12 digits in length",
         "768064730",
         "UTC",
     ),
     "iostime": TsTypes(
         "Apple NSDate - iOS 11+",
-        "Apple NSDates (iOS) are 15-19 digits in length",
+        "Apple NSDates (iOS) are 15-18 digits in length",
         "768064730064939008",
         "UTC",
     ),
     "mac": TsTypes(
         "Apple NSDate - Mac Absolute",
-        "Apple NSDates (Mac) are 9 digits '.' 6 digits",
+        "Apple NSDates (Mac) are up to 12 digits '.' up to 6 digits",
         "768064730.064939",
+        "UTC",
+    ),
+    "xray": TsTypes(
+        "AWS X-Ray trace ID time",
+        "AWS X-Ray trace IDs are in the format 1-00000000-000000000000000000000000",
+        "1-6817855a-a006649127e371903a2de979",
         "UTC",
     ),
     "bcd": TsTypes(
@@ -1567,9 +125,33 @@ ts_types = {
     ),
     "bitdec": TsTypes(
         "Bitwise Decimal time",
-        "Bitwise Decimal timestamps are 10 digits",
+        "Bitwise Decimal timestamps are up to 10 digits",
         "2123703250",
         "Local",
+    ),
+    "tid": TsTypes(
+        "Bluesky TID time",
+        "Bluesky TIDs are 13 characters, from 234567a-z",
+        "3loe5ncn43f5v",
+        "UTC",
+    ),
+    "btrfs": TsTypes(
+        "Btrfs inode time",
+        "Btrfs inode times are 24 hex characters little-endian",
+        "5a85176800000000f8e3de03",
+        "UTC",
+    ),
+    "cdma": TsTypes(
+        "CDMA SMS time",
+        "CDMA SMS times are 12 digits (6 BCD bytes)",
+        "990712151030",
+        "Local",
+    ),
+    "cuid": TsTypes(
+        "cuid time",
+        "cuid values are 25 characters, starting with c",
+        "cma9sr9ao0000k2w9b3qzd5r6",
+        "UTC",
     ),
     "dhcp6": TsTypes(
         "DHCPv6 DUID time",
@@ -1579,7 +161,7 @@ ts_types = {
     ),
     "discord": TsTypes(
         "Discord time",
-        "Discord timestamps are 18 digits or longer",
+        "Discord timestamps are up to 20 digits",
         "1102608904745127937",
         "UTC",
     ),
@@ -1595,11 +177,41 @@ ts_types = {
         "5aa47a59",
         "Local",
     ),
+    "exfatext": TsTypes(
+        "exFAT time with extras",
+        "exFAT times with extras are 12 hex characters",
+        "5aa47a590700",
+        "Local / UTC",
+    ),
+    "ext4": TsTypes(
+        "ext4 inode time",
+        "ext4 inode times are 8 hex characters",
+        "6817855a:0f7b8fe0",
+        "UTC",
+    ),
+    "fbcookie": TsTypes(
+        "Facebook cookie time",
+        "Facebook _fbp/_fbc values are in the format fb.1.0000000000000.0000000000",
+        "fb.1.1746371930064.1116446470",
+        "UTC",
+    ),
     "fat": TsTypes(
         "FAT Date + Time",
         "FAT (MS-DOS wFatDate wFatTime) timestamps are 8 hex characters (4 bytes)",
         "a45a597a",
         "Local",
+    ),
+    "firebase": TsTypes(
+        "Firebase Push ID time",
+        "Firebase Push IDs are 20 characters, from A-Za-z0-9-_",
+        "-OPQsDUF7Gkq3VtZb0Xa",
+        "UTC",
+    ),
+    "garmin": TsTypes(
+        "Garmin FIT time",
+        "Garmin FIT timestamps are 1 to 10 digits, seconds since 1989-12-31",
+        "1115306330",
+        "UTC",
     ),
     "gbound": TsTypes(
         "GMail Boundary time",
@@ -1609,13 +221,19 @@ ts_types = {
     ),
     "gmsgid": TsTypes(
         "GMail Message ID time",
-        "GMail Message ID values are 16 hex chars or 19 digits (IMAP)",
+        "GMail Message ID values are 6-17 hex chars or 19 digits (IMAP)",
         "1969be0e7d000000",
+        "UTC",
+    ),
+    "gacookie": TsTypes(
+        "Google Analytics cookie time",
+        "Google Analytics _ga/_gid values are in the format GA1.2.0000000000.0000000000",
+        "GA1.2.1033914209.1746371930",
         "UTC",
     ),
     "chrome": TsTypes(
         "Google Chrome",
-        "Google Chrome/Webkit timestamp is 17 digits",
+        "Google Chrome/Webkit timestamp is up to 18 digits",
         "13390845530064940",
         "UTC",
     ),
@@ -1637,7 +255,9 @@ ts_types = {
         "0ahUKEwilufv7joqNAxW3nYkEHd0vMyIQ4dUDCA8",
         "UTC",
     ),
-    "gps": TsTypes("GPS time", "GPS timestamps are 10 digits", "1430407111", "UTC"),
+    "gps": TsTypes(
+        "GPS time", "GPS timestamps are up to 12 digits", "1430407111", "UTC"
+    ),
     "gsm": TsTypes(
         "GSM time",
         "GSM timestamps are 14 hex characters (7 bytes)",
@@ -1658,15 +278,27 @@ ts_types = {
     ),
     "hfsdec": TsTypes(
         "HFS+ Decimal Time",
-        "HFS+ Decimal timestamps are 10 digits",
+        "HFS+ Decimal timestamps are up to 12 digits",
         "3829216730",
         "UTC",
     ),
     "horolog": TsTypes(
         "Horolog Time",
-        "Horolog timestamps are two 5-digit values separated by a comma",
+        "Horolog timestamps are two whole numbers separated by a comma (days, seconds)",
         "67637,80193",
         "Local",
+    ),
+    "instagram": TsTypes(
+        "Instagram time",
+        "Instagram IDs are up to 20 digits",
+        "3625152955542620216",
+        "UTC",
+    ),
+    "iso9660": TsTypes(
+        "ISO 9660 recording date",
+        "ISO 9660 recording dates are 14 hex characters (7 bytes)",
+        "7d05040f123200",
+        "UTC",
     ),
     "logtime": TsTypes(
         "JET LogTime",
@@ -1676,7 +308,7 @@ ts_types = {
     ),
     "juliandec": TsTypes(
         "Julian Date decimal",
-        "Julian Date decimal values are 7 digits, a decimal, and up to 10 digits",
+        "Julian Date decimal values are 7 digits '.' up to 10 digits",
         "2460800.1380787035",
         "UTC",
     ),
@@ -1694,7 +326,7 @@ ts_types = {
     ),
     "ksdec": TsTypes(
         "KSUID Decimal",
-        "KSUID decimal timestamps are 9 digits in length",
+        "KSUID decimal timestamps are up to 10 digits in length",
         "346371930",
         "UTC",
     ),
@@ -1712,14 +344,26 @@ ts_types = {
     ),
     "mars": TsTypes(
         "Mars Sol Date time",
-        "Mars Sold Date time values are two 5-digit values separated by a decimal",
+        "Mars Sol Date time values are up to 7 digits '.' 1 or more digits",
         "54103.12581",
         "TT",
     ),
     "mastodon": TsTypes(
         "Mastodon time",
-        "Mastodon timestamps are 18 digits or longer",
+        "Mastodon timestamps are up to 20 digits",
         "114450230804480000",
+        "UTC",
+    ),
+    "matlab": TsTypes(
+        "MATLAB datenum",
+        "MATLAB datenum values are up to 7 digits, optionally '.' up to 15 digits",
+        "739741.638079455312",
+        "Local / UTC",
+    ),
+    "matroska": TsTypes(
+        "Matroska/WebM time",
+        "Matroska/WebM dates are up to 19 digits",
+        "768064730064939000",
         "UTC",
     ),
     "metasploit": TsTypes(
@@ -1729,9 +373,15 @@ ts_types = {
         "UTC",
     ),
     "dotnet": TsTypes(
-        "Microsoft .NET DateTime Ticks",
-        "Microsoft .NET DateTime Ticks values are 18 digits",
+        "Microsoft .NET Ticks",
+        "Microsoft .NET Ticks values are up to 19 digits",
         "638819687300649472",
+        "UTC",
+    ),
+    "dotnetbin": TsTypes(
+        "Microsoft .NET ToBinary",
+        "Microsoft .NET ToBinary values are up to 19 digits",
+        "5250505705728037294",
         "UTC",
     ),
     "systemtime": TsTypes(
@@ -1741,14 +391,14 @@ ts_types = {
         "UTC",
     ),
     "dttm": TsTypes(
-        "Microsoft DTTM Date",
+        "Microsoft DTTM date",
         "Microsoft DTTM timestamps are 4 bytes",
         "8768f513",
         "Local",
     ),
     "ms1904": TsTypes(
-        "Microsoft Excel 1904 Date",
-        "Microsoft Excel 1904 timestamps are 2 ints, separated by a dot",
+        "Microsoft Excel 1904 date",
+        "Microsoft Excel 1904 timestamps are up to 7 digits '.' up to 15 digits",
         "44319.638079455312",
         "UTC",
     ),
@@ -1764,6 +414,30 @@ ts_types = {
         "597aa45a",
         "Local",
     ),
+    "mssql": TsTypes(
+        "Microsoft SQL Server date",
+        "Microsoft SQL Server date values are 16 hex characters",
+        "0000b2d300fc5d78",
+        "Local",
+    ),
+    "mssqlle": TsTypes(
+        "Microsoft SQL Server date LE",
+        "Microsoft SQL Server date LE values are 16 hex characters",
+        "785dfc00d3b20000",
+        "Local",
+    ),
+    "mjd": TsTypes(
+        "Modified Julian Date",
+        "Modified Julian Dates are up to 7 digits, optionally '.' up to 15 digits",
+        "60799.638079455312",
+        "UTC",
+    ),
+    "objectid": TsTypes(
+        "MongoDB ObjectId time",
+        "MongoDB ObjectIds are 24 hex characters (12 bytes)",
+        "6817855a1b2c3d4e5f607182",
+        "UTC",
+    ),
     "moto": TsTypes(
         "Motorola time",
         "Motorola 6-byte hex timestamps are 12 hex characters",
@@ -1772,15 +446,15 @@ ts_types = {
     ),
     "prtime": TsTypes(
         "Mozilla PRTime",
-        "Mozilla PRTime timestamps are 16 digits",
+        "Mozilla PRTime timestamps are up to 18 digits",
         "1746371930064939",
         "UTC",
     ),
-    "nokia": TsTypes(
-        "Nokia time",
-        "Nokia 4-byte hex timestamps are 8 hex characters",
-        "d19d0f5a",
-        "UTC",
+    "mysql": TsTypes(
+        "MySQL DATETIME",
+        "MySQL DATETIME values are 10 hex characters, then 2, 4 or 6 more for a fraction",
+        "99b688f4b200fdab",
+        "Local",
     ),
     "ns40": TsTypes(
         "Nokia S40 time",
@@ -1794,17 +468,77 @@ ts_types = {
         "e90705040f1232",
         "UTC",
     ),
+    "nokia": TsTypes(
+        "Nokia time",
+        "Nokia 4-byte hex timestamps are 8 hex characters",
+        "d19d0f5a",
+        "UTC",
+    ),
     "nokiale": TsTypes(
         "Nokia time LE",
         "Nokia 4-byte hex timestamps are 8 hex characters",
         "5a0f9dd1",
         "UTC",
     ),
+    "ntp64": TsTypes(
+        "NTP 64-bit hex",
+        "NTP 64-bit timestamps are 16 hex characters (8 bytes)",
+        "ebc203da109fd7a1",
+        "UTC",
+    ),
     "ntp": TsTypes(
-        "Network Time Protocol time",
-        "NTP timestamps are 10 digits, a decimal, and up to 6 digits",
+        "NTP time",
+        "NTP timestamps are up to 12 digits, optionally '.' up to 30 digits",
         "3981841662.020607",
         "UTC",
+    ),
+    "oracle": TsTypes(
+        "Oracle DATE",
+        "Oracle DATE values are 14 hex characters (7 bytes) or 7 comma separated numbers",
+        "787d0504101333",
+        "Local",
+    ),
+    "int96": TsTypes(
+        "Parquet INT96 time",
+        "Parquet INT96 timestamps are 24 hex characters (12 bytes)",
+        "f8e7eff723320000808c2500",
+        "Local / UTC",
+    ),
+    "pcap": TsTypes(
+        "pcap record time",
+        "pcap record times are 16 hex characters: seconds, microseconds, little-endian",
+        "5a851768abfd0000",
+        "UTC",
+    ),
+    "pcapbe": TsTypes(
+        "pcap record time BE",
+        "pcap record times are 16 hex characters: seconds, microseconds, big-endian",
+        "6817855a0000fdab",
+        "UTC",
+    ),
+    "postgres": TsTypes(
+        "PostgreSQL timestamp",
+        "PostgreSQL timestamp values are up to 19 digits",
+        "799687130064939",
+        "Local / UTC",
+    ),
+    "postgresbe": TsTypes(
+        "PostgreSQL timestamp hex BE",
+        "PostgreSQL timestamp hex BE values are 16 hex characters",
+        "0002d74fab51a82b",
+        "Local / UTC",
+    ),
+    "postgresle": TsTypes(
+        "PostgreSQL timestamp hex LE",
+        "PostgreSQL timestamp hex LE values are 16 hex characters",
+        "2ba851ab4fd70200",
+        "Local / UTC",
+    ),
+    "quicktime": TsTypes(
+        "QuickTime/MP4 time",
+        "QuickTime/MP4 times are 8 hex characters (4 bytes) or 16 hex characters (8 bytes)",
+        "e43d35da",
+        "Local / UTC",
     ),
     "s32": TsTypes(
         "S32 Encoded (Bluesky) time",
@@ -1812,17 +546,53 @@ ts_types = {
         "3muhy3twk",
         "UTC",
     ),
+    "sasdate": TsTypes(
+        "SAS date",
+        "SAS date values are up to 7 digits",
+        "23865",
+        "Local / UTC",
+    ),
+    "sas": TsTypes(
+        "SAS datetime",
+        "SAS datetime values are up to 12 digits, optionally '.' up to 9 digits",
+        "2061991130.064939",
+        "Local / UTC",
+    ),
     "semioctet": TsTypes(
         "Semi-Octet decimal",
-        "Semi-Octet decimal values are 12 or 14 digits long",
+        "Semi-Octet decimal values are 12 digits long",
         "525040518105",
         "Local",
     ),
     "sony": TsTypes(
         "Sonyflake time",
-        "Sonyflake values are 15 hex characters",
+        "Sonyflake values are up to 16 hex characters",
         "65dd4bb89000001",
         "UTC",
+    ),
+    "spss": TsTypes(
+        "SPSS date",
+        "SPSS date values are up to 12 digits, optionally '.' up to 9 digits",
+        "13965751130.064939",
+        "Local / UTC",
+    ),
+    "stardatetng": TsTypes(
+        "Star Trek TNG Stardate",
+        "Star Trek TNG Stardates are up to 7 digits, optionally '.' up to 6 digits",
+        "41153.7",
+        "UTC",
+    ),
+    "stardatetos": TsTypes(
+        "Star Trek TOS Stardate",
+        "Star Trek TOS Stardates are up to 8 digits, optionally '.' up to 6 digits",
+        "1312.4",
+        "UTC",
+    ),
+    "stata": TsTypes(
+        "Stata %tc time",
+        "Stata %tc values are up to 15 digits",
+        "2061991130064",
+        "Local / UTC",
     ),
     "symantec": TsTypes(
         "Symantec AV time",
@@ -1830,34 +600,76 @@ ts_types = {
         "3704040f1232",
         "UTC",
     ),
+    "symbian": TsTypes(
+        "Symbian time",
+        "Symbian time values are up to 18 digits, microseconds since the year 0",
+        "63913591130064939",
+        "UTC",
+    ),
     "taimilli": TsTypes(
         "TAI Milliseconds",
-        "TAI (International Atomic Time) values (based on milliseconds) are 13 digits",
+        "TAI (International Atomic Time) values (based on ms) are up to 15 digits",
         "1599755800000",
         "UTC",
     ),
     "tai": TsTypes(
         "TAI Seconds",
-        "TAI (International Atomic Time) values (based on seconds) are 10 digits",
+        "TAI (International Atomic Time) values (based on sec) are up to 12 digits",
         "1599755800",
+        "UTC",
+    ),
+    "tai64n": TsTypes(
+        "TAI64N time",
+        "TAI64N labels are 24 hex characters, optionally with a leading '@'",
+        "400000006817856403dee3f8",
+        "UTC",
+    ),
+    "tar": TsTypes(
+        "tar header time",
+        "tar header times are 1 to 12 octal digits",
+        "15005702532",
+        "UTC",
+    ),
+    "telegram": TsTypes(
+        "Telegram MTProto ID time",
+        "Telegram MTProto message IDs are up to 20 digits",
+        "7500610326281312160",
         "UTC",
     ),
     "tiktok": TsTypes(
         "TikTok time",
-        "TikTok timestamps are 19 digits long",
+        "TikTok timestamps are up to 20 digits long",
         "7228142017547750661",
         "UTC",
     ),
     "twitter": TsTypes(
         "Twitter time",
-        "Twitter timestamps are 18 digits or longer",
+        "Twitter timestamps are up to 20 digits",
         "1189581422684274688",
         "UTC",
+    ),
+    "udf": TsTypes(
+        "UDF timestamp",
+        "UDF timestamps are 24 hex characters (12 bytes)",
+        "0118e90705040f1232063127",
+        "Local / UTC",
+    ),
+    "efitime": TsTypes(
+        "UEFI EFI_TIME",
+        "UEFI EFI_TIME values are 32 hex characters (16 bytes)",
+        "e90705040f123200f8e3de03ff070000",
+        "Local / UTC",
     ),
     "ulid": TsTypes(
         "ULID time",
         "ULID timestamp contains only Base32 characters",
         "01JTDY1SYGCZWCBPCSEBHV1DW2",
+        "UTC",
+    ),
+    "unixdays": TsTypes(
+        "Unix Days",
+        "Unix days timestamp is up to 7 digits in length",
+        "20212",
         "UTC",
     ),
     "unixhex32be": TsTypes(
@@ -1874,20 +686,32 @@ ts_types = {
     ),
     "unixmilli": TsTypes(
         "Unix Milliseconds",
-        "Unix milliseconds timestamp is 13 digits in length",
+        "Unix milliseconds timestamp is 1 to 15 digits in length",
         "1746371930064",
         "UTC",
     ),
     "unixmillihex": TsTypes(
         "Unix Milliseconds hex",
-        "Unix Milliseconds hex timestamp is 12 hex characters (6 bytes)",
+        "Unix Milliseconds hex timestamp is up to 12 hex characters (6 bytes)",
         "01969be0e7d0",
+        "UTC",
+    ),
+    "unixnano": TsTypes(
+        "Unix Nanoseconds",
+        "Unix nanoseconds timestamp is up to 21 digits in length",
+        "1746371930064939000",
         "UTC",
     ),
     "unixsec": TsTypes(
         "Unix Seconds",
-        "Unix seconds timestamp is 10 digits in length",
+        "Unix seconds timestamp is up to 12 digits in length",
         "1746371930",
+        "UTC",
+    ),
+    "unixsecfrac": TsTypes(
+        "Unix Seconds with fraction",
+        "Unix seconds with a fraction are up to 12 digits '.' up to 9 digits",
+        "1746371930.064939",
         "UTC",
     ),
     "uuid": TsTypes(
@@ -1896,9 +720,21 @@ ts_types = {
         "d93026f0-e857-11ed-a05b-0242ac120003",
         "UTC",
     ),
+    "uuid6": TsTypes(
+        "UUID v6 time",
+        "UUID v6 values are in the format 00000000-0000-6000-8000-000000000000",
+        "1f028fb1-4e09-61ae-8c4f-0342ac120003",
+        "UTC",
+    ),
+    "uuid7": TsTypes(
+        "UUID v7 time",
+        "UUID v7 values are in the format 00000000-0000-7000-8000-000000000000",
+        "01969be0-e7d0-7a3c-9b2e-5f60718293a4",
+        "UTC",
+    ),
     "vm": TsTypes(
         "VMSD time",
-        "VMSD values are a 6-digit value and a signed/unsigned int at least 9 digits",
+        "VMSD values are two signed whole numbers separated by a comma",
         "406608,-427259264",
         "UTC",
     ),
@@ -1910,7 +746,7 @@ ts_types = {
     ),
     "filetimelohi": TsTypes(
         "Windows FILETIME (Low|High)",
-        "Windows FILETIME Low|High times are 2x 8 hex chars (4 bytes) colon separated",
+        "Windows FILETIME Low|High times are 8 hex chars, a colon, and up to 8 hex chars",
         "d69dd1ae:01dbbd07",
         "UTC",
     ),
@@ -1940,8 +776,26 @@ ts_types = {
     ),
     "oleauto": TsTypes(
         "Windows OLE Automation Date",
-        "Windows OLE Automation timestamps are 2 ints, separated by a dot",
+        "Windows OLE Automation timestamps are up to 7 digits '.' up to 15 digits",
         "45781.638079455312",
+        "UTC",
+    ),
+    "xfsbig": TsTypes(
+        "XFS bigtime",
+        "XFS bigtime values are 16 hex characters (8 bytes), big-endian",
+        "3609c104893be7f8",
+        "UTC",
+    ),
+    "xfs": TsTypes(
+        "XFS inode time",
+        "XFS inode times are 16 hex characters big-endian",
+        "6817855a03dee3f8",
+        "UTC",
+    ),
+    "xid": TsTypes(
+        "xid time",
+        "xid values are 20 characters, 0-9 and a-v",
+        "d0boaml1mb1t9pfm0sc0",
         "UTC",
     ),
 }
@@ -1959,8 +813,6 @@ epochs = {
     2000: dt(2000, 1, 1, tzinfo=timezone.utc),
     2001: dt(2001, 1, 1, tzinfo=timezone.utc),
     2050: dt(2050, 1, 1, tzinfo=timezone.utc),
-    "hundreds_nano": 10000000,
-    "nano_2001": 1000000000,
     "active": 116444736000000000,
     "win_unix": 11644473600,
     "hfs_dec_sub": 2082844800,
@@ -2020,3445 +872,2896 @@ S32_CHARS = "234567abcdefghijklmnopqrstuvwxyz"
 BASE32_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 URLSAFE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890=-_"
 KSALNUM_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+IOSTIME_DIGITS = range(15, 19)
+PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
+UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+_JULIAN_UNIX_EPOCH = Fraction(4881175, 2)
+_DAY_MICROSECONDS = 86400 * 10**6
+_JULIAN_FIXED_DIGITS = 0x800000
+_UTC = timezone.utc
+_MICROSECOND = timedelta(microseconds=1)
+_AWARE_MIN = dt.min.replace(tzinfo=_UTC)
+_AWARE_MAX = dt.max.replace(tzinfo=_UTC)
+_UINT32 = 0x100000000
+_STARDATE_TNG_ORIGIN = dt(2318, 7, 5, 12, tzinfo=_UTC)
+_STARDATE_TNG_UNIT = 34367056400
+_STARDATE_TOS_ORIGIN = dt(2265, 4, 25, tzinfo=_UTC)
+_STARDATE_TOS_UNIT = 86400 * 10**6 * Fraction("365.2422") / Fraction("2635.10833")
+_INSTAGRAM_EPOCH_MILLISECONDS = 1314220021721
+_DOTNET_KIND_UTC = 0x4000000000000000
+_DOTNET_TICKS_MASK = 0x3FFFFFFFFFFFFFFF
+_MSSQL_TICKS_PER_DAY = 86400 * 300
+_SYMBIAN_YEAR_ZERO_SECONDS = 62167219200
+_MATLAB_UNIX_EPOCH = 719529
+_MATROSKA_SPAN = timedelta(microseconds=2**63 // 1000)
+_INT96_UNIX_DAY = 2440588
+_XFS_BIGTIME_EPOCH = dt(1970, 1, 1, tzinfo=timezone.utc) - timedelta(seconds=2**31)
+XID_CHARS = "0123456789abcdefghijklmnopqrstuv"
+BASE36_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
-def from_unixsec(timestamp):
-    """Convert Unix Seconds value to a date"""
-    ts_type, reason, _, tz_out = ts_types["unixsec"]
+"""
+Where necessary (during --guess scenarios), the max accepted date for
+some conversions 3001-01-19 02:59:59 UTC, because this is the max
+Windows can handle for conversion. Additionally, for others, the max
+year to be accepted will be one of 2499, 3000 or 4769. Anything higher generates an error.
+
+Since these time scenarios are currently not feasible for results, these are
+being considered as acceptable boundaries.
+"""
+
+
+def microseconds_since(dt_obj, epoch):
+    """Whole microseconds from an epoch to a date, without float rounding"""
+    return (dt_obj - epoch) // timedelta(microseconds=1)
+
+
+def seconds_since(dt_obj, epoch):
+    """Whole seconds from an epoch to a date, rounded down, without float rounding"""
+    return (dt_obj - epoch) // timedelta(seconds=1)
+
+
+def days_since(dt_obj, epoch):
+    """Days, with their fraction, from an epoch to a date as an exact fraction"""
+    return Fraction(microseconds_since(dt_obj, epoch), 86400 * 10**6)
+
+
+def date_string(dt_obj):
+    return dt_obj.strftime(__fmt__.replace("%Y", f"{dt_obj.year:04d}"))
+
+
+def date_text(epoch, microseconds):
+    """An epoch plus a count of microseconds, in the current date format. "" beyond the dates allowed"""
     try:
-        if len(str(timestamp)) != 10 or not timestamp.isdigit():
-            in_unix_sec = indiv_output = combined_output = ""
-        else:
-            in_unix_sec = dt.fromtimestamp(float(timestamp), timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(ts_type, in_unix_sec, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_unix_sec = indiv_output = combined_output = ""
-    return in_unix_sec, indiv_output, combined_output, reason, tz_out
+        return date_string(epoch + timedelta(microseconds=microseconds))
+    except OverflowError:
+        return ""
 
 
+def units_to_microseconds(count, per_second):
+    """A count of units that are 1 / per_second of a second, as whole microseconds rounded half to even"""
+    return round(Fraction(count * 10**6, per_second))
+
+
+def is_digits(text, longest, shortest=1):
+    """Whether text is made of ASCII digits and its length is from shortest to longest"""
+    return text.isascii() and text.isdigit() and shortest <= len(text) <= longest
+
+
+def is_hex(text, longest, shortest=1):
+    """Whether text is made of hex digits and its length is from shortest to longest"""
+    return all(char in hexdigits for char in text) and shortest <= len(text) <= longest
+
+
+def dos_datetime(value):
+    """The date in a 32 bit DOS value, or None where its fields are not a date"""
+    try:
+        return dt(
+            (value >> 25) + 1980,
+            (value >> 21) & 0xF,
+            (value >> 16) & 0x1F,
+            (value >> 11) & 0x1F,
+            (value >> 5) & 0x3F,
+            (value & 0x1F) * 2,
+        )
+    except ValueError:
+        return None
+
+
+def utc_offset_label(zone, quarters):
+    """A zone label with an offset in quarter hours, such as UTC+5.5"""
+    hours = quarters * 0.25
+    return f"{zone}{'+' if hours > 0 else ''}{hours:g}" if hours else zone
+
+
+def formatted(ts_type, text, tz_out):
+    """A date text with its two output forms, or three empty strings where there is no date"""
+    if not text:
+        return "", "", ""
+    indiv_output, combined_output = format_output(ts_type, text, tz_out)
+    return text, indiv_output, combined_output
+
+
+def decoder(name):
+    """Make the decoder of a type from a function that turns a value into the text of a date"""
+
+    def decorate(read):
+        @functools.wraps(read)
+        def decode(timestamp, *args, **kwargs):
+            ts_type, reason, _, tz_out = ts_types[name]
+            try:
+                found = read(timestamp, *args, **kwargs)
+                text, tz_out = found if isinstance(found, tuple) else (found, tz_out)
+                return (*formatted(ts_type, text, tz_out), reason, tz_out)
+            except Exception:
+                handle(sys.exc_info())
+                return "", "", "", reason, tz_out
+
+        return decode
+
+    return decorate
+
+
+def encoder(name):
+    """Make the encoder of a type from a function that turns a date into the text of a timestamp"""
+
+    def decorate(write):
+        @functools.wraps(write)
+        def encode(dt_obj):
+            try:
+                text = write(dt_obj)
+                if not text:
+                    return "", ""
+                return text, format_output(ts_types[name].ts_type, text)[0]
+            except Exception:
+                handle(sys.exc_info())
+                return "", ""
+
+        return encode
+
+    return decorate
+
+
+def seconds_to_date_text(epoch, seconds):
+    """An epoch plus a number of seconds, which may be a float, as text. "" beyond the dates allowed"""
+    try:
+        return date_text(epoch, round(Fraction(seconds) * 10**6))
+    except (ValueError, OverflowError):
+        return ""
+
+
+def biome_seconds(raw):
+    """Seconds since 2001 in 8 bytes that are a double, in either byte order"""
+    plausible = set(range(0x3F, 0x44)) | set(range(0xBF, 0xC4))
+    if raw[-1] in plausible and raw[0] not in plausible:
+        return struct.unpack("<d", raw)[0]
+    return struct.unpack(">d", raw)[0]
+
+
+def days_to_date_text(epoch, days):
+    """An epoch plus a number of days, or an exact fraction of them, as text. "" beyond the dates allowed"""
+    try:
+        return date_text(epoch, round(Fraction(days) * 86400 * 10**6))
+    except (ValueError, OverflowError):
+        return ""
+
+
+def decimal_days(dt_obj, epoch, offset=0):
+    """Days from an epoch to a date as text with 12 decimal places, rounded without float error"""
+    scaled = round((days_since(dt_obj, epoch) + offset) * 10**12)
+    return f"{scaled // 10**12}.{scaled % 10**12:012d}"
+
+
+@decoder("unixsec")
+def from_unixsec(timestamp, guess=False):
+    """Convert Unix Seconds value to a date"""
+    if not is_digits(timestamp, 10 if guess else 12, 10 if guess else 1):
+        return ""
+    return date_text(epochs[1970], int(timestamp) * 10**6)
+
+
+@encoder("unixsec")
 def to_unixsec(dt_obj):
     """Convert date to a Unix Seconds value"""
-    ts_type, _, _, _ = ts_types["unixsec"]
-    try:
-        out_unix_sec = str(int(dt_obj.timestamp()))
-        ts_output, _ = format_output(ts_type, out_unix_sec)
-    except Exception:
-        handle(sys.exc_info())
-        out_unix_sec = ts_output = ""
-    return out_unix_sec, ts_output
+    return str(seconds_since(dt_obj, epochs[1970]))
 
 
-def from_unixmilli(timestamp):
+@decoder("unixmilli")
+def from_unixmilli(timestamp, guess=False):
     """Convert Unix Millisecond value to a date"""
-    ts_type, reason, _, tz_out = ts_types["unixmilli"]
-    try:
-        if len(str(timestamp)) != 13 or not str(timestamp).isdigit():
-            in_unix_milli = indiv_output = combined_output = ""
-        else:
-            in_unix_milli = dt.fromtimestamp(
-                float(timestamp) / 1000.0, timezone.utc
-            ).strftime(__fmt__)
-            indiv_output, combined_output = format_output(
-                ts_type, in_unix_milli, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_unix_milli = indiv_output = combined_output = ""
-    return in_unix_milli, indiv_output, combined_output, reason, tz_out
+    if not is_digits(str(timestamp), 13 if guess else 15, 13 if guess else 1):
+        return ""
+    return date_text(epochs[1970], int(timestamp) * 1000)
 
 
+@encoder("unixmilli")
 def to_unixmilli(dt_obj):
     """Convert date to a Unix Millisecond value"""
-    ts_type, _, _, _ = ts_types["unixmilli"]
-    try:
-        out_unix_milli = str(int(dt_obj.timestamp() * 1000))
-        ts_output, _ = format_output(ts_type, out_unix_milli)
-    except Exception:
-        handle(sys.exc_info())
-        out_unix_milli = ts_output = ""
-    return out_unix_milli, ts_output
+    return str(microseconds_since(dt_obj, epochs[1970]) // 1000)
 
 
-def from_unixmillihex(timestamp):
+@decoder("unixmillihex")
+def from_unixmillihex(timestamp, guess=False):
     """Convert a Unix Millisecond hex value to a date"""
-    ts_type, reason, _, tz_out = ts_types["unixmillihex"]
-    try:
-        if len(str(timestamp)) != 12 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_unix_milli_hex = indiv_output = combined_output = ""
-        else:
-            unix_mil = int(str(timestamp), 16)
-            in_unix_milli_hex, _, _, _, _ = from_unixmilli(unix_mil)
-            indiv_output, combined_output = format_output(
-                ts_type, in_unix_milli_hex, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_unix_milli_hex = indiv_output = combined_output = ""
-    return in_unix_milli_hex, indiv_output, combined_output, reason, tz_out
+    timestamp = str(timestamp)
+    if not is_hex(timestamp, 12, 12 if guess else 1):
+        return ""
+    unix_mil = int(timestamp, 16)
+    if guess and len(str(unix_mil)) != 13:
+        return ""
+    return date_text(epochs[1970], unix_mil * 1000)
 
 
+@encoder("unixmillihex")
 def to_unixmillihex(dt_obj):
     """Convert a date to a Unix Millisecond hex value"""
-    ts_type, _, _, _ = ts_types["unixmillihex"]
-    try:
-        unix_mil, _ = to_unixmilli(dt_obj)
-        out_unix_milli_hex = f"{int(unix_mil):012x}"
-        ts_output, _ = format_output(ts_type, out_unix_milli_hex)
-    except Exception:
-        handle(sys.exc_info())
-        out_unix_milli_hex = ts_output = ""
-    return out_unix_milli_hex, ts_output
+    unix_mil, _ = to_unixmilli(dt_obj)
+    return f"{int(unix_mil):012x}"
 
 
-def from_filetimebe(timestamp):
+@decoder("filetimebe")
+def from_filetimebe(timestamp, guess=False):
     """Convert a Windows 64 Hex Big-Endian value to a date"""
-    ts_type, reason, _, tz_out = ts_types["filetimebe"]
-    try:
-        if not len(timestamp) == 16 or not all(char in hexdigits for char in timestamp):
-            in_filetime_be = indiv_output = combined_output = ""
-        else:
-            base10_microseconds = int(timestamp, 16) / 10
-            if base10_microseconds >= 1e17:
-                in_filetime_be = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[1601] + timedelta(microseconds=base10_microseconds)
-                in_filetime_be = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_filetime_be, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_filetime_be = indiv_output = combined_output = ""
-    return in_filetime_be, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    ticks = int(timestamp, 16)
+    if guess and ticks >= 10**18:
+        return ""
+    return date_text(epochs[1601], units_to_microseconds(ticks, 10**7))
 
 
+@encoder("filetimebe")
 def to_filetimebe(dt_obj):
     """Convert a date to a Windows 64 Hex Big-Endian value"""
-    ts_type, _, _, _ = ts_types["filetimebe"]
-    try:
-        minus_epoch = dt_obj - epochs[1601]
-        calc_time = (
-            minus_epoch.microseconds
-            + (minus_epoch.seconds * 1000000)
-            + (minus_epoch.days * 86400000000)
-        )
-        out_filetime_be = str(hex(int(calc_time) * 10))[2:].zfill(16)
-        ts_output, _ = format_output(ts_type, out_filetime_be)
-    except Exception:
-        handle(sys.exc_info())
-        out_filetime_be = ts_output = ""
-    return out_filetime_be, ts_output
+    return f"{microseconds_since(dt_obj, epochs[1601]) * 10:016x}"
 
 
-def from_filetimele(timestamp):
+@decoder("filetimele")
+def from_filetimele(timestamp, guess=False):
     """Convert a Windows 64 Hex Little-Endian value to a date"""
-    ts_type, reason, _, tz_out = ts_types["filetimele"]
-    try:
-        if not len(timestamp) == 16 or not all(char in hexdigits for char in timestamp):
-            in_filetime_le = indiv_output = combined_output = ""
-        else:
-            indiv_output = combined_output = ""
-            endianness_change = int.from_bytes(
-                struct.pack("<Q", int(timestamp, 16)), "big"
-            )
-            converted_time = endianness_change / 10
-            if converted_time >= 1e17:
-                in_filetime_le = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[1601] + timedelta(microseconds=converted_time)
-                in_filetime_le = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_filetime_le, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_filetime_le = indiv_output = combined_output = ""
-    return in_filetime_le, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    ticks = int.from_bytes(struct.pack("<Q", int(timestamp, 16)), "big")
+    if guess and ticks >= 10**18:
+        return ""
+    return date_text(epochs[1601], units_to_microseconds(ticks, 10**7))
 
 
+@encoder("filetimele")
 def to_filetimele(dt_obj):
     """Convert a date to a Windows 64 Hex Little-Endian value"""
-    ts_type, _, _, _ = ts_types["filetimele"]
-    try:
-        minus_epoch = dt_obj - epochs[1601]
-        calc_time = (
-            minus_epoch.microseconds
-            + (minus_epoch.seconds * 1000000)
-            + (minus_epoch.days * 86400000000)
-        )
-        out_filetime_le = str(struct.pack("<Q", int(calc_time * 10)).hex()).zfill(16)
-        ts_output, _ = format_output(ts_type, out_filetime_le)
-    except Exception:
-        handle(sys.exc_info())
-        out_filetime_le = ts_output = ""
-    return out_filetime_le, ts_output
+    return struct.pack("<Q", microseconds_since(dt_obj, epochs[1601]) * 10).hex()
 
 
-def from_chrome(timestamp):
+@decoder("chrome")
+def from_chrome(timestamp, guess=False):
     """Convert a Chrome Timestamp/Webkit Value to a date"""
-    ts_type, reason, _, tz_out = ts_types["chrome"]
-    try:
-        if not len(timestamp) == 17 or not timestamp.isdigit():
-            in_chrome = indiv_output = combined_output = ""
-        else:
-            delta = timedelta(microseconds=int(timestamp))
-            converted_time = epochs[1601] + delta
-            in_chrome = converted_time.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_chrome, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_chrome = indiv_output = combined_output = ""
-    return in_chrome, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 17 if guess else 18, 17 if guess else 1):
+        return ""
+    return date_text(epochs[1601], int(timestamp))
 
 
+@encoder("chrome")
 def to_chrome(dt_obj):
     """Convert a date to a Chrome Timestamp/Webkit value"""
-    ts_type, _, _, _ = ts_types["chrome"]
-    try:
-        chrome_time = (dt_obj - epochs[1601]).total_seconds()
-        out_chrome = str(int(chrome_time * 1000000))
-        ts_output, _ = format_output(ts_type, out_chrome)
-    except Exception:
-        handle(sys.exc_info())
-        out_chrome = ts_output = ""
-    return out_chrome, ts_output
+    return str(microseconds_since(dt_obj, epochs[1601]))
 
 
-def from_active(timestamp):
+@decoder("active")
+def from_active(timestamp, guess=False):
     """Convert an Active Directory/LDAP timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["active"]
-    try:
-        if not len(timestamp) == 18 or not timestamp.isdigit():
-            in_ad = indiv_output = combined_output = ""
-        else:
-            val_check = (
-                float(int(timestamp) - epochs["active"]) / epochs["hundreds_nano"]
-            )
-            if val_check < 0 or val_check >= 32536799999:
-                # This is the Windows maximum for parsing a unix TS
-                # and is 3001-01-19 02:59:59 UTC
-                in_ad = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt.fromtimestamp(val_check, timezone.utc)
-                in_ad = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(ts_type, in_ad, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ad = indiv_output = combined_output = ""
-    return in_ad, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 18 if guess else 19, 18 if guess else 1):
+        return ""
+    microseconds = units_to_microseconds(int(timestamp), 10**7)
+    unix_microseconds = microseconds - epochs["win_unix"] * 10**6
+    if guess and not 0 <= unix_microseconds < 32536799999 * 10**6:
+        return ""
+    return date_text(epochs[1601], microseconds)
 
 
+@encoder("active")
 def to_active(dt_obj):
     """Convert a date to an Active Directory/LDAP timestamp"""
-    ts_type, _, _, _ = ts_types["active"]
-    try:
-        nano_convert = int(dt_obj.timestamp() * epochs["hundreds_nano"])
-        out_adtime = str(int(nano_convert) + int(epochs["active"]))
-        ts_output, _ = format_output(ts_type, out_adtime)
-    except Exception:
-        handle(sys.exc_info())
-        out_adtime = ts_output = ""
-    return out_adtime, ts_output
+    return str(microseconds_since(dt_obj, epochs[1601]) * 10)
 
 
+@decoder("unixhex32be")
 def from_unixhex32be(timestamp):
     """Convert a Unix Hex 32-bit Big-Endian timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["unixhex32be"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_unix_hex_32 = indiv_output = combined_output = ""
-        else:
-            to_dec = int(timestamp, 16)
-            in_unix_hex_32 = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(
-                ts_type, in_unix_hex_32, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_unix_hex_32 = indiv_output = combined_output = ""
-    return in_unix_hex_32, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return date_text(epochs[1970], int(timestamp, 16) * 10**6)
 
 
+@encoder("unixhex32be")
 def to_unixhex32be(dt_obj):
     """Convert a date to a Unix Hex 32-bit Big-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["unixhex32be"]
-    try:
-        unix_time = int(dt_obj.timestamp())
-        out_unix_hex_32 = str(struct.pack(">L", unix_time).hex())
-        ts_output, _ = format_output(ts_type, out_unix_hex_32)
-    except Exception:
-        handle(sys.exc_info())
-        out_unix_hex_32 = ts_output = ""
-    return out_unix_hex_32, ts_output
+    return struct.pack(">L", seconds_since(dt_obj, epochs[1970])).hex()
 
 
+@decoder("unixhex32le")
 def from_unixhex32le(timestamp):
     """Convert a Unix Hex 32-bit Little-Endian timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["unixhex32le"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_unix_hex_32le = indiv_output = combined_output = ""
-        else:
-            to_dec = int.from_bytes(struct.pack("<L", int(timestamp, 16)), "big")
-            in_unix_hex_32le = dt.fromtimestamp(float(to_dec), timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(
-                ts_type, in_unix_hex_32le, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_unix_hex_32le = indiv_output = combined_output = ""
-    return in_unix_hex_32le, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    seconds = int.from_bytes(struct.pack("<L", int(timestamp, 16)), "big")
+    return date_text(epochs[1970], seconds * 10**6)
 
 
+@encoder("unixhex32le")
 def to_unixhex32le(dt_obj):
     """Convert a date to a Unix Hex 32-bit Little-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["unixhex32le"]
-    try:
-        unix_time = int((dt_obj - epochs[1970]).total_seconds())
-        out_unix_hex_32le = str(struct.pack("<L", unix_time).hex())
-        ts_output, _ = format_output(ts_type, out_unix_hex_32le)
-    except Exception:
-        handle(sys.exc_info())
-        out_unix_hex_32le = ts_output = ""
-    return out_unix_hex_32le, ts_output
+    return struct.pack("<L", seconds_since(dt_obj, epochs[1970])).hex()
 
 
-def from_cookie(timestamp):
+@decoder("cookie")
+def from_cookie(timestamp, guess=False):
     """Convert an Internet Explorer timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["cookie"]
-    try:
-        if not ("," in timestamp) or not (
-            timestamp.split(",")[0].isdigit() and timestamp.split(",")[1].isdigit()
-        ):
-            in_cookie = indiv_output = combined_output = ""
-        else:
-            low, high = [int(h, base=10) for h in timestamp.split(",")]
-            calc = 10**-7 * (high * 2**32 + low) - epochs["win_unix"]
-            if calc >= 32536799999 or calc < 0:
-                in_cookie = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt.fromtimestamp(calc, timezone.utc)
-                in_cookie = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_cookie, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_cookie = indiv_output = combined_output = ""
-    return in_cookie, indiv_output, combined_output, reason, tz_out
+    parts = timestamp.split(",")
+    if len(parts) != 2 or not all(is_digits(part, 20) for part in parts):
+        return ""
+    low, high = [int(part) for part in parts]
+    microseconds = units_to_microseconds(high * 2**32 + low, 10**7)
+    unix_microseconds = microseconds - epochs["win_unix"] * 10**6
+    if guess and not 0 <= unix_microseconds < 32536799999 * 10**6:
+        return ""
+    return date_text(epochs[1601], microseconds)
 
 
+@encoder("cookie")
 def to_cookie(dt_obj):
     """Convert a date to Internet Explorer timestamp values"""
-    ts_type, _, _, _ = ts_types["cookie"]
-    try:
-        unix_time = int(dt_obj.timestamp())
-        high = int(((unix_time + epochs["win_unix"]) * 10**7) / 2**32)
-        low = (
-            int((unix_time + epochs["win_unix"]) * 10**7)
-            - (high * 2**32)
-            + (dt_obj.microsecond * 10)
-        )
-        out_cookie = f"{str(low)},{str(high)}"
-        ts_output, _ = format_output(ts_type, out_cookie)
-    except Exception:
-        handle(sys.exc_info())
-        out_cookie = ts_output = ""
-    return out_cookie, ts_output
+    high, low = divmod(microseconds_since(dt_obj, epochs[1601]) * 10, 2**32)
+    return f"{low},{high}"
 
 
-def from_olebe(timestamp):
+@decoder("olebe")
+def from_olebe(timestamp, guess=False):
     """Convert an OLE Big-Endian timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["olebe"]
-    try:
-        if not len(timestamp) == 16 or not all(char in hexdigits for char in timestamp):
-            in_ole_be = indiv_output = combined_output = ""
-        else:
-            delta = struct.unpack(">d", struct.pack(">Q", int(timestamp, 16)))[0]
-            if int(delta) < 0 or int(delta) > 2e6:
-                in_ole_be = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[1899] + timedelta(days=delta)
-                in_ole_be = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_ole_be, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_ole_be = indiv_output = combined_output = ""
-    return in_ole_be, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    delta = struct.unpack(">d", bytes.fromhex(timestamp))[0]
+    if guess and not 0 <= delta <= 2e6:
+        return ""
+    return days_to_date_text(epochs[1899], delta)
 
 
+@encoder("olebe")
 def to_olebe(dt_obj):
     """Convert a date to an OLE Big-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["olebe"]
-    try:
-        delta = ((dt_obj - epochs[1899]).total_seconds()) / 86400
-        conv = struct.unpack("<Q", struct.pack("<d", delta))[0]
-        out_ole_be = str(struct.pack(">Q", conv).hex())
-        ts_output, _ = format_output(ts_type, out_ole_be)
-    except Exception:
-        handle(sys.exc_info())
-        out_ole_be = ts_output = ""
-    return out_ole_be, ts_output
+    return struct.pack(">d", float(days_since(dt_obj, epochs[1899]))).hex()
 
 
-def from_olele(timestamp):
+@decoder("olele")
+def from_olele(timestamp, guess=False):
     """Convert an OLE Little-Endian timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["olele"]
-    try:
-        if not len(timestamp) == 16 or not all(char in hexdigits for char in timestamp):
-            in_ole_le = indiv_output = combined_output = ""
-        else:
-            to_le = hex(int.from_bytes(struct.pack("<Q", int(timestamp, 16)), "big"))
-            delta = struct.unpack(">d", struct.pack(">Q", int(to_le[2:], 16)))[0]
-            if int(delta) < 0 or int(delta) > 99999:
-                in_ole_le = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[1899] + timedelta(days=delta)
-                in_ole_le = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_ole_le, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_ole_le = indiv_output = combined_output = ""
-    return in_ole_le, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    delta = struct.unpack("<d", bytes.fromhex(timestamp))[0]
+    if guess and not 0 <= delta <= 99999:
+        return ""
+    return days_to_date_text(epochs[1899], delta)
 
 
+@encoder("olele")
 def to_olele(dt_obj):
     """Convert a date to an OLE Little-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["olele"]
-    try:
-        delta = ((dt_obj - epochs[1899]).total_seconds()) / 86400
-        conv = struct.unpack("<Q", struct.pack("<d", delta))[0]
-        out_ole_le = str(struct.pack("<Q", conv).hex())
-        ts_output, _ = format_output(ts_type, out_ole_le)
-    except Exception:
-        handle(sys.exc_info())
-        out_ole_le = ts_output = ""
-    return out_ole_le, ts_output
+    return struct.pack("<d", float(days_since(dt_obj, epochs[1899]))).hex()
 
 
-def from_bplist(timestamp):
+@decoder("bplist")
+def from_bplist(timestamp, guess=False):
     """Convert a bplist NSDate timestamp to a date value"""
-    _, reason, _, tz_out = ts_types["bplist"]
-    if len(timestamp) == 9 and timestamp.isdigit():
-        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-            timestamp, "bplist"
-        )
-    else:
-        in_nsdate = indiv_output = combined_output = ""
-    return in_nsdate, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 9 if guess else 12, 9 if guess else 1):
+        return ""
+    return date_text(epochs[2001], int(timestamp) * 10**6)
 
 
+@encoder("bplist")
 def to_bplist(dt_obj):
     """Convert a date to a Binary Plist timestamp"""
-    ts_type, _, _, _ = ts_types["bplist"]
-    try:
-        out_bplist = str(int((dt_obj - epochs[2001]).total_seconds()))
-        if int(out_bplist) < 0:
-            out_bplist = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output, _ = format_output(ts_type, out_bplist)
-    except Exception:
-        handle(sys.exc_info())
-        out_bplist = ts_output = ""
-    return out_bplist, ts_output
+    return str(seconds_since(dt_obj, epochs[2001]))
 
 
+@decoder("iostime")
 def from_iostime(timestamp):
     """Convert an iOS NSDate timestamp to a date value"""
-    _, reason, _, tz_out = ts_types["iostime"]
-    if len(timestamp) in range(15, 19) and timestamp.isdigit():
-        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-            timestamp, "iostime"
-        )
-    else:
-        in_nsdate = indiv_output = combined_output = ""
-    return in_nsdate, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, IOSTIME_DIGITS[-1], IOSTIME_DIGITS[0]):
+        return ""
+    return date_text(epochs[2001], units_to_microseconds(int(timestamp), 10**9))
 
 
+@encoder("iostime")
 def to_iostime(dt_obj):
     """Convert a date to an iOS 11 timestamp"""
-    ts_type, _, _, _ = ts_types["iostime"]
-    try:
-        out_iostime = str(
-            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
-        )
-        if int(out_iostime) < 0:
-            out_iostime = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output, _ = format_output(ts_type, out_iostime)
-    except Exception:
-        handle(sys.exc_info())
-        out_iostime = ts_output = ""
-    return out_iostime, ts_output
+    return str(microseconds_since(dt_obj, epochs[2001]) * 1000)
 
 
-def from_mac(timestamp):
+@decoder("mac")
+def from_mac(timestamp, guess=False):
     """Convert a mac NSDate timestamp to a date value"""
-    _, reason, _, tz_out = ts_types["mac"]
-    if (
-        "." in timestamp
-        and (
-            (len(timestamp.split(".")[0]) == 9)
-            and (len(timestamp.split(".")[1]) in range(0, 7))
-        )
-        and "".join(timestamp.split(".")).isdigit()
-    ):
-        in_nsdate, indiv_output, combined_output, reason, tz_out = from_nsdate(
-            timestamp, "mac"
-        )
-    else:
-        in_nsdate = indiv_output = combined_output = ""
-    return in_nsdate, indiv_output, combined_output, reason, tz_out
+    whole, point, fraction = timestamp.partition(".")
+    if not (point and is_digits(whole, 9 if guess else 12, 9 if guess else 1)):
+        return ""
+    if fraction and not is_digits(fraction, 6):
+        return ""
+    return date_text(epochs[2001], int(whole) * 10**6 + int(fraction.ljust(6, "0")))
 
 
+@encoder("mac")
 def to_mac(dt_obj):
     """Convert a date to a Mac Absolute timestamp"""
-    ts_type, _, _, _ = ts_types["mac"]
-    try:
-        mac_ts = (
-            int(((dt_obj - epochs[2001]).total_seconds()) * epochs["nano_2001"])
-            / 1000000000
-        )
-        if mac_ts < 0:
-            out_mac = "[!] Timestamp Boundary Exceeded [!]"
-        else:
-            out_mac = str(f"{mac_ts:.6f}")
-        ts_output, _ = format_output(ts_type, out_mac)
-    except Exception:
-        handle(sys.exc_info())
-        out_mac = ts_output = ""
-    return out_mac, ts_output
+    seconds, fraction = divmod(microseconds_since(dt_obj, epochs[2001]), 10**6)
+    return f"{seconds}.{fraction:06d}"
 
 
-def from_nsdate(timestamp, val_type):
-    """Convert an Apple NSDate timestamp (Mac Absolute, BPlist, Cocoa, iOS) to a date"""
-    ts_type, reason, _, tz_out = ts_types[val_type]
-    in_nsdate = indiv_output = combined_output = ""
-    try:
-        if val_type in {"mac", "bplist"}:
-            try:
-                dt_obj = epochs[2001] + timedelta(seconds=float(timestamp))
-            except (ValueError, OverflowError):
-                in_nsdate = indiv_output = combined_output = ""
-                return in_nsdate, indiv_output, combined_output, reason, tz_out
-            in_nsdate = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
-        elif val_type == "iostime":
-            try:
-                dt_obj = (int(timestamp) / int(epochs["nano_2001"])) + 978307200
-            except (ValueError, OverflowError):
-                in_nsdate = indiv_output = combined_output = ""
-                return in_nsdate, indiv_output, combined_output, reason, tz_out
-            in_nsdate = dt.fromtimestamp(dt_obj, timezone.utc).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_nsdate, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_nsdate = indiv_output = combined_output = ""
-    return in_nsdate, indiv_output, combined_output, reason, tz_out
-
-
-def from_hfsdec(timestamp):
+@decoder("hfsdec")
+def from_hfsdec(timestamp, guess=False):
     """Convert a Mac OS/HFS+ Decimal Timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["hfsdec"]
-    try:
-        if len(str(timestamp)) != 10 or not (timestamp).isdigit():
-            in_hfs_dec = indiv_output = combined_output = ""
-        else:
-            minus_epoch = float(int(timestamp) - epochs["hfs_dec_sub"])
-            if minus_epoch < 0:
-                in_hfs_dec = indiv_output = combined_output = ""
-            else:
-                in_hfs_dec = dt.fromtimestamp(minus_epoch, timezone.utc).strftime(
-                    __fmt__
-                )
-                indiv_output, combined_output = format_output(
-                    ts_type, in_hfs_dec, tz_out
-                )
-    except Exception:
-        in_hfs_dec = indiv_output = combined_output = ""
-        handle(sys.exc_info())
-    return in_hfs_dec, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 10 if guess else 12, 10 if guess else 1):
+        return ""
+    if guess and int(timestamp) < epochs["hfs_dec_sub"]:
+        return ""
+    return date_text(epochs[1904], int(timestamp) * 10**6)
 
 
+@encoder("hfsdec")
 def to_hfsdec(dt_obj):
     """Convert a date to a Mac OS/HFS+ Decimal Timestamp"""
-    ts_type, _, _, _ = ts_types["hfsdec"]
-    try:
-        out_hfs_dec = str(int((dt_obj - epochs[1904]).total_seconds()))
-        ts_output, _ = format_output(ts_type, out_hfs_dec)
-    except Exception:
-        handle(sys.exc_info())
-        out_hfs_dec = ts_output = ""
-    return out_hfs_dec, ts_output
+    return str(seconds_since(dt_obj, epochs[1904]))
 
 
+@decoder("hfsbe")
 def from_hfsbe(timestamp):
     """Convert an HFS / HFS+ Big-Endian timestamp to a date (HFS+ is in UTC)"""
-    ts_type, reason, _, tz_out = ts_types["hfsbe"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_hfs_be = indiv_output = combined_output = ""
-        else:
-            dt_obj = epochs[1904] + timedelta(seconds=int(timestamp, 16))
-            in_hfs_be = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_hfs_be, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_hfs_be = indiv_output = combined_output = ""
-    return in_hfs_be, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return date_text(epochs[1904], int(timestamp, 16) * 10**6)
 
 
+@encoder("hfsbe")
 def to_hfsbe(dt_obj):
     """Convert a date to an HFS / HFS+ Big-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["hfsbe"]
-    try:
-        conv = int((dt_obj - epochs[1904]).total_seconds())
-        if conv > 4294967295:
-            out_hfs_be = "[!] Timestamp Boundary Exceeded [!]"
-        else:
-            out_hfs_be = f"{conv:08x}"
-        ts_output, _ = format_output(ts_type, out_hfs_be)
-    except Exception:
-        handle(sys.exc_info())
-        out_hfs_be = ts_output = ""
-    return out_hfs_be, ts_output
+    return f"{seconds_since(dt_obj, epochs[1904]):08x}"
 
 
+@decoder("hfsle")
 def from_hfsle(timestamp):
     """Convert an HFS / HFS+ Little-Endian timestamp to a date (HFS+ is in UTC)"""
-    ts_type, reason, _, tz_out = ts_types["hfsle"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_hfs_le = indiv_output = combined_output = ""
-        else:
-            to_le = struct.unpack(">I", struct.pack("<I", int(timestamp, 16)))[0]
-            dt_obj = epochs[1904] + timedelta(seconds=to_le)
-            in_hfs_le = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_hfs_le, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_hfs_le = indiv_output = combined_output = ""
-    return in_hfs_le, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    seconds = int.from_bytes(bytes.fromhex(timestamp), "little")
+    return date_text(epochs[1904], seconds * 10**6)
 
 
+@encoder("hfsle")
 def to_hfsle(dt_obj):
     """Convert a date to an HFS / HFS+ Little-Endian timestamp"""
-    ts_type, _, _, _ = ts_types["hfsle"]
+    return struct.pack("<I", seconds_since(dt_obj, epochs[1904])).hex()
+
+
+def fields_date_text(*fields):
+    """
+    The date of year, month, day and the following fields in the current date format.
+    "" where they are not a date.
+    """
     try:
-        conv = int((dt_obj - epochs[1904]).total_seconds())
-        if conv > 4294967295:
-            out_hfs_le = "[!] Timestamp Boundary Exceeded [!]"
-        else:
-            out_hfs_le = str(struct.pack("<I", conv).hex())
-        ts_output, _ = format_output(ts_type, out_hfs_le)
-    except Exception:
-        handle(sys.exc_info())
-        out_hfs_le = ts_output = ""
-    return out_hfs_le, ts_output
+        return date_string(dt(*fields))
+    except ValueError:
+        return ""
 
 
-def from_fat(timestamp):
+def dos_date_text(value, guess):
+    """
+    The date in a 32 bit DOS value, or "" where its fields are not a date.
+    From the top bit the fields are the year from 1980 (7 bits), month (4), day (5), hour (5),
+    minute (6) and seconds in twos (5). When guessing, only the years up to 2099 are taken.
+    """
+    year = (value >> 25) + 1980
+    if guess and year >= 2100:
+        return ""
+    return fields_date_text(
+        year,
+        (value >> 21) & 0xF,
+        (value >> 16) & 0x1F,
+        (value >> 11) & 0x1F,
+        (value >> 5) & 0x3F,
+        (value & 0x1F) * 2,
+    )
+
+
+def dos_value(dt_obj):
+    """The 32-bit DOS value of a date, in the layout read by dos_date_text"""
+    return (
+        (dt_obj.year - 1980) << 25
+        | dt_obj.month << 21
+        | dt_obj.day << 16
+        | dt_obj.hour << 11
+        | dt_obj.minute << 5
+        | dt_obj.second // 2
+    )
+
+
+@decoder("fat")
+def from_fat(timestamp, guess=False):
     """Convert an MS-DOS wFatDate wFatTime timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["fat"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_fat = indiv_output = combined_output = ""
-        else:
-            byte_swap = [timestamp[i : i + 2] for i in range(0, len(timestamp), 2)]
-            to_le = byte_swap[1] + byte_swap[0] + byte_swap[3] + byte_swap[2]
-            binary = f"{int(to_le, 16):032b}"
-            stamp = [
-                binary[:7],
-                binary[7:11],
-                binary[11:16],
-                binary[16:21],
-                binary[21:27],
-                binary[27:32],
-            ]
-            for binary in stamp[:]:
-                dec = int(binary, 2)
-                stamp.remove(binary)
-                stamp.append(dec)
-            fat_year = stamp[0] + 1980
-            fat_month = stamp[1]
-            fat_day = stamp[2]
-            fat_hour = stamp[3]
-            fat_min = stamp[4]
-            fat_sec = stamp[5] * 2
-            try:
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec),
-                        (
-                            (1970, 2100),
-                            (1, 13),
-                            (1, monthrange(fat_year, fat_month)[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_fat = indiv_output = combined_output = ""
-                    return in_fat, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_fat = indiv_output = combined_output = ""
-                return in_fat, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(fat_year, fat_month, fat_day, fat_hour, fat_min, fat_sec)
-            in_fat = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_fat, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_fat = indiv_output = combined_output = ""
-    return in_fat, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    date_word, time_word = struct.unpack("<HH", bytes.fromhex(timestamp))
+    return dos_date_text(date_word << 16 | time_word, guess)
 
 
+@encoder("fat")
 def to_fat(dt_obj):
     """Convert a date to an MS-DOS wFatDate wFatTime timestamp"""
-    ts_type, _, _, _ = ts_types["fat"]
-    try:
-        year = f"{(dt_obj.year - 1980):07b}"
-        month = f"{dt_obj.month:04b}"
-        day = f"{dt_obj.day:05b}"
-        hour = f"{dt_obj.hour:05b}"
-        minute = f"{dt_obj.minute:06b}"
-        seconds = f"{int(dt_obj.second / 2):05b}"
-        to_hex = str(
-            struct.pack(
-                ">I", int(year + month + day + hour + minute + seconds, 2)
-            ).hex()
-        )
-        byte_swap = "".join([to_hex[i : i + 2] for i in range(0, len(to_hex), 2)][::-1])
-        out_fat = "".join(
-            [byte_swap[i : i + 4] for i in range(0, len(byte_swap), 4)][::-1]
-        )
-        ts_output, _ = format_output(ts_type, out_fat)
-    except Exception:
-        handle(sys.exc_info())
-        out_fat = ts_output = ""
-    return out_fat, ts_output
+    value = dos_value(dt_obj)
+    return struct.pack("<HH", value >> 16, value & 0xFFFF).hex()
 
 
-def from_msdos(timestamp):
+@decoder("msdos")
+def from_msdos(timestamp, guess=False):
     """Convert an MS-DOS timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["msdos"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_msdos = indiv_output = combined_output = ""
-        else:
-            swap = "".join(
-                [timestamp[i : i + 2] for i in range(0, len(timestamp), 2)][::-1]
-            )
-            binary = f"{int(swap, 16):032b}"
-            stamp = [
-                binary[:7],
-                binary[7:11],
-                binary[11:16],
-                binary[16:21],
-                binary[21:27],
-                binary[27:32],
-            ]
-            for val in stamp[:]:
-                dec = int(val, 2)
-                stamp.remove(val)
-                stamp.append(dec)
-            dos_year = stamp[0] + 1980
-            dos_month = stamp[1]
-            dos_day = stamp[2]
-            dos_hour = stamp[3]
-            dos_min = stamp[4]
-            dos_sec = stamp[5] * 2
-            try:
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec),
-                        (
-                            (1970, 2100),
-                            (1, 13),
-                            (1, monthrange(dos_year, dos_month)[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_msdos = indiv_output = combined_output = ""
-                    return in_msdos, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_msdos = indiv_output = combined_output = ""
-                return in_msdos, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(dos_year, dos_month, dos_day, dos_hour, dos_min, dos_sec)
-            in_msdos = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_msdos, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_msdos = indiv_output = combined_output = ""
-    return in_msdos, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return dos_date_text(int.from_bytes(bytes.fromhex(timestamp), "little"), guess)
 
 
+@encoder("msdos")
 def to_msdos(dt_obj):
     """Convert a date to an MS-DOS timestamp"""
-    ts_type, _, _, _ = ts_types["msdos"]
-    try:
-        year = f"{(dt_obj.year - 1980):07b}"
-        month = f"{dt_obj.month:04b}"
-        day = f"{dt_obj.day:05b}"
-        hour = f"{dt_obj.hour:05b}"
-        minute = f"{dt_obj.minute:06b}"
-        seconds = f"{int(dt_obj.second / 2):05b}"
-        hexval = str(
-            struct.pack(
-                ">I", int(year + month + day + hour + minute + seconds, 2)
-            ).hex()
-        )
-        out_msdos = "".join([hexval[i : i + 2] for i in range(0, len(hexval), 2)][::-1])
-        ts_output, _ = format_output(ts_type, out_msdos)
-    except Exception:
-        handle(sys.exc_info())
-        out_msdos = ts_output = ""
-    return out_msdos, ts_output
+    return struct.pack("<I", dos_value(dt_obj)).hex()
 
 
-def from_exfat(timestamp):
+@decoder("exfat")
+def from_exfat(timestamp, guess=False):
     """Convert an exFAT timestamp (LE) to a date"""
-    ts_type, reason, _, tz_out = ts_types["exfat"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_exfat = indiv_output = combined_output = ""
-        else:
-            binary = f"{int(timestamp, 16):032b}"
-            stamp = [
-                binary[:7],
-                binary[7:11],
-                binary[11:16],
-                binary[16:21],
-                binary[21:27],
-                binary[27:32],
-            ]
-            for val in stamp[:]:
-                dec = int(val, 2)
-                stamp.remove(val)
-                stamp.append(dec)
-            exfat_year = stamp[0] + 1980
-            exfat_month = stamp[1]
-            exfat_day = stamp[2]
-            exfat_hour = stamp[3]
-            exfat_min = stamp[4]
-            exfat_sec = stamp[5] * 2
-            try:
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (
-                            exfat_year,
-                            exfat_month,
-                            exfat_day,
-                            exfat_hour,
-                            exfat_min,
-                            exfat_sec,
-                        ),
-                        (
-                            (1970, 2100),
-                            (1, 13),
-                            (1, monthrange(exfat_year, exfat_month)[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_exfat = indiv_output = combined_output = ""
-                    return in_exfat, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_exfat = indiv_output = combined_output = ""
-                return in_exfat, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(
-                exfat_year, exfat_month, exfat_day, exfat_hour, exfat_min, exfat_sec
-            )
-            in_exfat = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_exfat, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_exfat = indiv_output = combined_output = ""
-    return in_exfat, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return dos_date_text(int(timestamp, 16), guess)
 
 
+@encoder("exfat")
 def to_exfat(dt_obj):
     """Convert a date to an exFAT timestamp (LE)"""
-    ts_type, _, _, _ = ts_types["exfat"]
-    try:
-        year = f"{(dt_obj.year - 1980):07b}"
-        month = f"{dt_obj.month:04b}"
-        day = f"{dt_obj.day:05b}"
-        hour = f"{dt_obj.hour:05b}"
-        minute = f"{dt_obj.minute:06b}"
-        seconds = f"{int(dt_obj.second / 2):05b}"
-        out_exfat = str(
-            struct.pack(
-                ">I", int(year + month + day + hour + minute + seconds, 2)
-            ).hex()
-        )
-        ts_output, _ = format_output(ts_type, out_exfat)
-    except Exception:
-        handle(sys.exc_info())
-        out_exfat = ts_output = ""
-    return out_exfat, ts_output
+    return struct.pack(">I", dos_value(dt_obj)).hex()
 
 
-def from_systemtime(timestamp):
+@decoder("systemtime")
+def from_systemtime(timestamp, guess=False):
     """Convert a Microsoft 128-bit SYSTEMTIME timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["systemtime"]
-    try:
-        if not len(timestamp) == 32 or not all(char in hexdigits for char in timestamp):
-            in_systemtime = indiv_output = combined_output = ""
-        else:
-            to_le = "".join(
-                [timestamp[i : i + 2] for i in range(0, len(timestamp), 2)][::-1]
-            )
-            converted = [to_le[i : i + 4] for i in range(0, len(to_le), 4)][::-1]
-            stamp = []
-            for i in converted:
-                dec = int(i, 16)
-                stamp.append(dec)
-            if (stamp[0] > 3000) or (stamp[1] > 12) or (stamp[2] > 31):
-                in_systemtime = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(
-                    stamp[0],
-                    stamp[1],
-                    stamp[3],
-                    stamp[4],
-                    stamp[5],
-                    stamp[6],
-                    stamp[7] * 1000,
-                )
-                in_systemtime = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(
-                ts_type, in_systemtime, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_systemtime = indiv_output = combined_output = ""
-    return in_systemtime, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 32, 32):
+        return ""
+    year, month, day_of_week, day, hour, minute, second, millisecond = struct.unpack(
+        "<8H", bytes.fromhex(timestamp)
+    )
+    if (guess and year > 3000) or month > 12 or day_of_week > 31:
+        return ""
+    return fields_date_text(year, month, day, hour, minute, second, millisecond * 1000)
 
 
+@encoder("systemtime")
 def to_systemtime(dt_obj):
     """Convert a date to a Microsoft 128-bit SYSTEMTIME timestamp"""
-    ts_type, _, _, _ = ts_types["systemtime"]
-    try:
-        micro = int(dt_obj.microsecond / 1000)
-        full_date = dt_obj.strftime(f"%Y, %m, %w, %d, %H, %M, %S, {micro}")
-        stamp = []
-        for val in full_date.split(","):
-            to_hex = int(
-                hex(int.from_bytes(struct.pack("<H", int(val)), "big"))[2:], 16
-            )
-            stamp.append(f"{to_hex:04x}")
-        out_systemtime = "".join(stamp)
-        ts_output, _ = format_output(ts_type, out_systemtime)
-    except Exception:
-        handle(sys.exc_info())
-        out_systemtime = ts_output = ""
-    return out_systemtime, ts_output
+    utc = dt_obj.astimezone(timezone.utc)
+    return struct.pack(
+        "<8H",
+        utc.year,
+        utc.month,
+        utc.isoweekday() % 7,
+        utc.day,
+        utc.hour,
+        utc.minute,
+        utc.second,
+        utc.microsecond // 1000,
+    ).hex()
 
 
-def from_filetimelohi(timestamp):
+@decoder("filetimelohi")
+def from_filetimelohi(timestamp, guess=False):
     """Convert a Microsoft FILETIME timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["filetimelohi"]
-    try:
-        if not (":" in timestamp) or not (
-            all(char in hexdigits for char in timestamp[0:8])
-            and all(char in hexdigits for char in timestamp[9:])
-        ):
-            in_filetime_lo_hi = indiv_output = combined_output = ""
-        else:
-            part2, part1 = [int(h, base=16) for h in timestamp.split(":")]
-            converted_time = struct.unpack(">Q", struct.pack(">LL", part1, part2))[0]
-            if converted_time >= 1e18:
-                in_filetime_lo_hi = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt.fromtimestamp(
-                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"],
-                    timezone.utc,
-                )
-                in_filetime_lo_hi = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_filetime_lo_hi, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_filetime_lo_hi = indiv_output = combined_output = ""
-    return in_filetime_lo_hi, indiv_output, combined_output, reason, tz_out
+    parts = timestamp.split(":")
+    if len(parts) != 2 or not is_hex(parts[0], 8, 8) or not is_hex(parts[1], 8):
+        return ""
+    low, high = [int(part, 16) for part in parts]
+    ticks = high << 32 | low
+    if guess and not epochs["active"] <= ticks < 10**18:
+        return ""
+    return date_text(epochs[1601], units_to_microseconds(ticks, 10**7))
 
 
+@encoder("filetimelohi")
 def to_filetimelohi(dt_obj):
     """Convert a date to a Microsoft FILETIME timestamp"""
-    ts_type, _, _, _ = ts_types["filetimelohi"]
-    try:
-        minus_epoch = dt_obj - epochs[1601]
-        calc_time = (
-            minus_epoch.microseconds
-            + (minus_epoch.seconds * 1000000)
-            + (minus_epoch.days * 86400000000)
-        )
-        indiv_output = str(struct.pack(">Q", int(calc_time * 10)).hex())
-        out_filetime_lo_hi = f"{str(indiv_output[8:])}:{str(indiv_output[:8])}"
-        ts_output, _ = format_output(ts_type, out_filetime_lo_hi)
-    except Exception:
-        handle(sys.exc_info())
-        out_filetime_lo_hi = ts_output = ""
-    return out_filetime_lo_hi, ts_output
+    ticks = struct.pack(">Q", microseconds_since(dt_obj, epochs[1601]) * 10).hex()
+    return f"{ticks[8:]}:{ticks[:8]}"
 
 
-def from_hotmail(timestamp):
+@decoder("hotmail")
+def from_hotmail(timestamp, guess=False):
     """Convert a Microsoft Hotmail timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["hotmail"]
-    try:
-        if ":" not in timestamp or not (
-            all(char in hexdigits for char in timestamp[0:8])
-            and all(char in hexdigits for char in timestamp[9:])
-        ):
-            in_hotmail = indiv_output = combined_output = ""
-        else:
-            hm_repl = timestamp.replace(":", "")
-            byte_swap = "".join(
-                [hm_repl[i : i + 2] for i in range(0, len(hm_repl), 2)][::-1]
-            )
-            part2 = int(byte_swap[:8], base=16)
-            part1 = int(byte_swap[8:], base=16)
-            converted_time = struct.unpack(">Q", struct.pack(">LL", part1, part2))[0]
-            if converted_time >= 1e18:
-                in_hotmail = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt.fromtimestamp(
-                    float(converted_time - epochs["active"]) / epochs["hundreds_nano"],
-                    timezone.utc,
-                )
-                in_hotmail = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_hotmail, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_hotmail = indiv_output = combined_output = ""
-    return in_hotmail, indiv_output, combined_output, reason, tz_out
+    parts = timestamp.split(":")
+    if len(parts) != 2 or not is_hex(parts[0], 8, 8) or not is_hex(parts[1], 8, 8):
+        return ""
+    high, low = struct.unpack("<LL", bytes.fromhex("".join(parts)))
+    ticks = high << 32 | low
+    if guess and not epochs["active"] <= ticks < 10**18:
+        return ""
+    return date_text(epochs[1601], units_to_microseconds(ticks, 10**7))
 
 
+@encoder("hotmail")
 def to_hotmail(dt_obj):
     """Convert a date to a Microsoft Hotmail timestamp"""
-    ts_type, _, _, _ = ts_types["hotmail"]
-    try:
-        minus_epoch = dt_obj - epochs[1601]
-        calc_time = (
-            minus_epoch.microseconds
-            + (minus_epoch.seconds * 1000000)
-            + (minus_epoch.days * 86400000000)
-        )
-        indiv_output = str(struct.pack(">Q", int(calc_time * 10)).hex())
-        byte_swap = "".join(
-            [indiv_output[i : i + 2] for i in range(0, len(indiv_output), 2)][::-1]
-        )
-        out_hotmail = f"{str(byte_swap[8:])}:{str(byte_swap[:8])}"
-        ts_output, _ = format_output(ts_type, out_hotmail)
-    except Exception:
-        handle(sys.exc_info())
-        out_hotmail = ts_output = ""
-    return out_hotmail, ts_output
+    ticks = microseconds_since(dt_obj, epochs[1601]) * 10
+    halves = struct.pack("<LL", ticks >> 32, ticks & 0xFFFFFFFF).hex()
+    return f"{halves[:8]}:{halves[8:]}"
 
 
-def from_prtime(timestamp):
+@decoder("prtime")
+def from_prtime(timestamp, guess=False):
     """Convert a Mozilla PRTime timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["prtime"]
-    try:
-        if not len(timestamp) == 16 or not timestamp.isdigit():
-            in_prtime = indiv_output = combined_output = ""
-        else:
-            dt_obj = epochs[1970] + timedelta(microseconds=int(timestamp))
-            in_prtime = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_prtime, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_prtime = indiv_output = combined_output = ""
-    return in_prtime, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 16 if guess else 18, 16 if guess else 1):
+        return ""
+    return date_text(epochs[1970], int(timestamp))
 
 
+@encoder("prtime")
 def to_prtime(dt_obj):
     """Convert a date to Mozilla's PRTime timestamp"""
-    ts_type, _, _, _ = ts_types["prtime"]
-    try:
-        out_prtime = str(int(((dt_obj - epochs[1970]).total_seconds()) * 1000000))
-        ts_output, _ = format_output(ts_type, out_prtime)
-    except Exception:
-        handle(sys.exc_info())
-        out_prtime = ts_output = ""
-    return out_prtime, ts_output
+    return str(microseconds_since(dt_obj, epochs[1970]))
 
 
-def from_oleauto(timestamp):
+def decimal_days_text(epoch, timestamp, guess):
+    """
+    The date of days and their decimals from an epoch.
+    When guessing, only 5 digits of days and 9 to 12 decimals are taken.
+    """
+    whole, point, fraction = timestamp.partition(".")
+    if not point or not is_digits(whole, 5 if guess else 7, 5 if guess else 1):
+        return ""
+    if not is_digits(fraction, 12 if guess else 15, 9 if guess else 1):
+        return ""
+    return days_to_date_text(
+        epoch, Fraction(int(whole + fraction), 10 ** len(fraction))
+    )
+
+
+@decoder("oleauto")
+def from_oleauto(timestamp, guess=False):
     """Convert an OLE Automation timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["oleauto"]
-    try:
-        if (
-            "." not in timestamp
-            or not (
-                (len(timestamp.split(".")[0]) == 5)
-                and (len(timestamp.split(".")[1]) in range(9, 13))
-            )
-            or not "".join(timestamp.split(".")).isdigit()
-        ):
-            in_ole_auto = indiv_output = combined_output = ""
-        else:
-            dt_obj = epochs[1899] + timedelta(days=float(timestamp))
-            in_ole_auto = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ole_auto, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ole_auto = indiv_output = combined_output = ""
-    return in_ole_auto, indiv_output, combined_output, reason, tz_out
+    return decimal_days_text(epochs[1899], timestamp, guess)
 
 
+@encoder("oleauto")
 def to_oleauto(dt_obj):
     """Convert a date to an OLE Automation timestamp"""
-    ts_type, _, _, _ = ts_types["oleauto"]
-    try:
-        ole_ts = ((dt_obj - epochs[1899]).total_seconds()) / 86400
-        out_ole_auto = f"{ole_ts:.12f}"
-        ts_output, _ = format_output(ts_type, out_ole_auto)
-    except Exception:
-        handle(sys.exc_info())
-        out_ole_auto = ts_output = ""
-    return out_ole_auto, ts_output
+    return decimal_days(dt_obj, epochs[1899])
 
 
-def from_ms1904(timestamp):
+@decoder("ms1904")
+def from_ms1904(timestamp, guess=False):
     """Convert a Microsoft Excel 1904 timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["ms1904"]
-    try:
-        if (
-            "." not in timestamp
-            or not (
-                (len(timestamp.split(".")[0]) == 5)
-                and (len(timestamp.split(".")[1]) in range(9, 13))
-            )
-            or not "".join(timestamp.split(".")).isdigit()
-        ):
-            in_ms1904 = indiv_output = combined_output = ""
-        else:
-            dt_obj = epochs[1904] + timedelta(days=float(timestamp))
-            in_ms1904 = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ms1904, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ms1904 = indiv_output = combined_output = ""
-    return in_ms1904, indiv_output, combined_output, reason, tz_out
+    return decimal_days_text(epochs[1904], timestamp, guess)
 
 
+@encoder("ms1904")
 def to_ms1904(dt_obj):
     """Convert a date to a Microsoft Excel 1904 timestamp"""
-    ts_type, _, _, _ = ts_types["ms1904"]
-    try:
-        ms1904_ts = ((dt_obj - epochs[1904]).total_seconds()) / 86400
-        out_ms1904 = f"{ms1904_ts:.12f}"
-        ts_output, _ = format_output(ts_type, out_ms1904)
-    except Exception:
-        handle(sys.exc_info())
-        out_ms1904 = ts_output = ""
-    return out_ms1904, ts_output
+    return decimal_days(dt_obj, epochs[1904])
 
 
+@decoder("symantec")
 def from_symantec(timestamp):
     """Convert a Symantec 6-byte hex timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["symantec"]
-    try:
-        if not len(timestamp) == 12 or not all(char in hexdigits for char in timestamp):
-            in_symtime = indiv_output = combined_output = ""
-        else:
-            hex_to_dec = [
-                int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)
-            ]
-            hex_to_dec[0] = hex_to_dec[0] + 1970
-            hex_to_dec[1] = hex_to_dec[1] + 1
-            if hex_to_dec[1] not in range(1, 13):
-                in_symtime = indiv_output = combined_output = ""
-            else:
-                try:
-                    dt_obj = dt(
-                        hex_to_dec[0],
-                        hex_to_dec[1],
-                        hex_to_dec[2],
-                        hex_to_dec[3],
-                        hex_to_dec[4],
-                        hex_to_dec[5],
-                    )
-                except ValueError:
-                    in_symtime = indiv_output = combined_output = ""
-                    return in_symtime, indiv_output, combined_output, reason, tz_out
-                in_symtime = dt_obj.strftime(__fmt__)
-        indiv_output, combined_output = format_output(ts_type, in_symtime, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_symtime = indiv_output = combined_output = ""
-    return in_symtime, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 12, 12):
+        return ""
+    year, month, day, hour, minute, second = bytes.fromhex(timestamp)
+    return fields_date_text(year + 1970, month + 1, day, hour, minute, second)
 
 
+@encoder("symantec")
 def to_symantec(dt_obj):
     """Convert a date to Symantec's 6-byte hex timestamp"""
-    ts_type, _, _, _ = ts_types["symantec"]
-    try:
-        sym_year = f"{(dt_obj.year - 1970):02x}"
-        sym_month = f"{(dt_obj.month - 1):02x}"
-        sym_day = f"{(dt_obj.day):02x}"
-        sym_hour = f"{(dt_obj.hour):02x}"
-        sym_minute = f"{(dt_obj.minute):02x}"
-        sym_second = f"{(dt_obj.second):02x}"
-        out_symtime = (
-            f"{sym_year}{sym_month}{sym_day}{sym_hour}{sym_minute}{sym_second}"
-        )
-        ts_output, _ = format_output(ts_type, out_symtime)
-    except Exception:
-        handle(sys.exc_info())
-        out_symtime = ts_output = ""
-    return out_symtime, ts_output
+    utc = dt_obj.astimezone(timezone.utc)
+    return bytes(
+        [utc.year - 1970, utc.month - 1, utc.day, utc.hour, utc.minute, utc.second]
+    ).hex()
 
 
-def from_gps(timestamp):
+def leap_offset(utc_date):
+    """
+    TAI minus UTC in seconds at a UTC date, or None before the first leap second entry.
+    The offset of the latest entry applies to every later date, since
+    there have been no leap seconds added since 2017.
+    """
+    offset = None
+    for seconds, (start, _) in leapseconds.items():
+        if start <= utc_date:
+            offset = seconds
+    return offset
+
+
+def gps_to_utc(gps_seconds):
+    """The UTC date for a count of GPS seconds since 1980-01-06"""
+    latest = max(leapseconds)
+    for offset, (start, end) in leapseconds.items():
+        try:
+            utc_date = epochs[1980] + timedelta(seconds=gps_seconds - (offset - 19))
+        except OverflowError:
+            continue
+        if start <= utc_date and (utc_date < end or offset == latest):
+            return utc_date
+    return None
+
+
+@decoder("gps")
+def from_gps(timestamp, guess=False):
     """Convert a GPS timestamp to a date (involves leap seconds)"""
-    ts_type, reason, _, tz_out = ts_types["gps"]
-    try:
-        if not len(timestamp) == 10 or not timestamp.isdigit():
-            in_gpstime = indiv_output = combined_output = ""
-        else:
-            gps_stamp = epochs[1980] + timedelta(seconds=float(timestamp))
-            tai_convert = gps_stamp + timedelta(seconds=19)
-            epoch_convert = (tai_convert - epochs[1970]).total_seconds()
-            check_date = dt.fromtimestamp(epoch_convert, timezone.utc)
-            for entry in leapseconds:
-                check = date_range(
-                    leapseconds.get(entry)[0], leapseconds.get(entry)[1], check_date
-                )
-                if check is True:
-                    variance = entry
-                else:
-                    variance = 0
-            gps_out = check_date - timedelta(seconds=variance)
-            in_gpstime = gps_out.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_gpstime, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_gpstime = indiv_output = combined_output = ""
-    return in_gpstime, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 10 if guess else 12, 10 if guess else 1):
+        return ""
+    utc_date = gps_to_utc(int(timestamp))
+    return date_string(utc_date) if utc_date else ""
 
 
+@encoder("gps")
 def to_gps(dt_obj):
     """Convert a date to a GPS timestamp (involves leap seconds)"""
-    ts_type, _, _, _ = ts_types["gps"]
-    try:
-        for entry in leapseconds:
-            check = date_range(
-                leapseconds.get(entry)[0], leapseconds.get(entry)[1], dt_obj
-            )
-            if check is True:
-                variance = entry
-            else:
-                variance = 0
-        leap_correction = dt_obj + timedelta(seconds=variance)
-        epoch_shift = leap_correction - epochs[1970]
-        gps_stamp = (
-            dt.fromtimestamp(epoch_shift.total_seconds(), timezone.utc) - epochs[1980]
-        ).total_seconds() - 19
-        out_gpstime = str(int(gps_stamp))
-        ts_output, _ = format_output(ts_type, out_gpstime)
-    except Exception:
-        handle(sys.exc_info())
-        out_gpstime = ts_output = ""
-    return out_gpstime, ts_output
+    return str(seconds_since(dt_obj, epochs[1980]) + leap_offset(dt_obj) - 19)
 
 
+@decoder("eitime")
 def from_eitime(timestamp):
     """Convert a Google ei URL timestamp"""
-    ts_type, reason, _, tz_out = ts_types["eitime"]
+    if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
+        return ""
     try:
-        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
-            in_eitime = indiv_output = combined_output = ""
-        else:
-            padding_check = len(timestamp) % 4
-            if padding_check != 0:
-                padding_reqd = 4 - padding_check
-                result_eitime = timestamp + (padding_reqd * "=")
-            else:
-                result_eitime = timestamp
-            try:
-                decoded_eitime = base64.urlsafe_b64decode(result_eitime).hex()[:8]
-                unix_ts = int.from_bytes(
-                    struct.pack("<L", int(decoded_eitime, 16)), "big"
-                )
-                in_eitime = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_eitime, tz_out
-                )
-            except base64.binascii.Error:
-                in_eitime = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_eitime = indiv_output = combined_output = ""
-    return in_eitime, indiv_output, combined_output, reason, tz_out
+        decoded = base64.urlsafe_b64decode(timestamp + "=" * (-len(timestamp) % 4))
+    except base64.binascii.Error:
+        return ""
+    seconds = int.from_bytes(struct.pack("<L", int(decoded.hex()[:8], 16)), "big")
+    return date_text(epochs[1970], seconds * 10**6)
 
 
+@encoder("eitime")
 def to_eitime(dt_obj):
     """Try to convert a value to an ei URL timestamp"""
-    ts_type, _, _, _ = ts_types["eitime"]
-    try:
-        unix_time = int((dt_obj - epochs[1970]).total_seconds())
-        unix_hex = struct.pack("<L", unix_time)
-        urlsafe_encode = base64.urlsafe_b64encode(unix_hex)
-        out_eitime = urlsafe_encode.decode(encoding="UTF-8").strip("=")
-        ts_output, _ = format_output(ts_type, out_eitime)
-    except Exception:
-        handle(sys.exc_info())
-        out_eitime = ts_output = ""
-    return out_eitime, ts_output
+    unix_hex = struct.pack("<L", seconds_since(dt_obj, epochs[1970]))
+    return base64.urlsafe_b64encode(unix_hex).decode("UTF-8").strip("=")
 
 
-def from_gsm(timestamp):
+def gsm_quarters(octet):
+    """
+    The signed quarter hours of the offset in a GSM time zone byte.
+    The byte is two BCD digits with their nibbles swapped and the sign in bit 3 of the tens digit.
+    Offsets from -12 hours to +14 hours are real.
+    """
+    value = int(octet, 16)
+    tens, ones = value & 0x0F, value >> 4
+    negative = bool(tens & 8)
+    quarters = (tens & 7) * 10 + ones
+    if ones > 9 or not (quarters <= 56 if not negative else quarters <= 48):
+        return None
+    return -quarters if negative else quarters
+
+
+@decoder("gsm")
+def from_gsm(timestamp, guess=False):
     """Convert a GSM timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["gsm"]
-    # The last byte of the GSM timestamp is a hex representation of the timezone.
-    # If the timezone bitwise operation on this byte results in a timezone offset
-    # of less than -12 or greater than 12, then the value is incorrect.
-    # The values in tz_in_range are hex bytes which return proper timezones.
-    tz_in_range = [
-        "00",
-        "01",
-        "02",
-        "03",
-        "04",
-        "05",
-        "06",
-        "07",
-        "08",
-        "09",
-        "0a",
-        "0b",
-        "0c",
-        "0d",
-        "0e",
-        "0f",
-        "10",
-        "11",
-        "12",
-        "13",
-        "14",
-        "15",
-        "16",
-        "17",
-        "18",
-        "19",
-        "20",
-        "21",
-        "22",
-        "23",
-        "24",
-        "25",
-        "26",
-        "27",
-        "28",
-        "29",
-        "30",
-        "31",
-        "32",
-        "33",
-        "34",
-        "35",
-        "36",
-        "37",
-        "38",
-        "39",
-        "40",
-        "41",
-        "42",
-        "43",
-        "44",
-        "45",
-        "46",
-        "47",
-        "48",
-        "80",
-        "81",
-        "82",
-        "83",
-        "84",
-        "85",
-        "86",
-        "87",
-        "88",
-        "89",
-        "8a",
-        "8b",
-        "8c",
-        "8d",
-        "8e",
-        "8f",
-        "90",
-        "91",
-        "92",
-        "93",
-        "94",
-        "95",
-        "96",
-        "97",
-        "98",
-        "99",
-        "a0",
-        "a1",
-        "a2",
-        "a3",
-        "a4",
-        "a5",
-        "a6",
-        "a7",
-        "a8",
-        "a9",
-        "b0",
-        "b1",
-        "b2",
-        "b3",
-        "b4",
-        "b5",
-        "b6",
-        "b7",
-        "b8",
-        "b9",
-        "c0",
-        "c1",
-        "c2",
-        "c3",
-        "c4",
-        "c5",
-        "c6",
-        "c7",
-        "c8",
+    if not is_hex(timestamp, 14, 14) or not is_digits(timestamp[:12], 12, 12):
+        return ""
+    quarters = gsm_quarters(timestamp[12:14])
+    if quarters is None or (guess and abs(quarters) > 48):
+        return ""
+    year, month, day, hour, minute, second = [
+        int(timestamp[i : i + 2][::-1]) for i in range(0, 12, 2)
     ]
-    try:
-        tz_check = timestamp[12:14][::-1].lower()
-        if (
-            not len(timestamp) == 14
-            or not all(char in hexdigits for char in timestamp)
-            or tz_check not in tz_in_range
-        ):
-            in_gsm = indiv_output = combined_output = ""
-        else:
-            utc_offset = None
-            swap = [timestamp[i : i + 2] for i in range(0, len(timestamp), 2)]
-            for value in swap[:]:
-                l_endian = value[::-1]
-                swap.remove(value)
-                swap.append(l_endian)
-            ts_tz = f"{int(swap[6], 16):08b}"
-            if int(ts_tz[0]) == 1:
-                utc_offset = (
-                    -int(str(int(ts_tz[1:4], 2)) + str(int(ts_tz[4:8], 2))) * 0.25
-                )
-            elif int(ts_tz[0]) == 0:
-                utc_offset = (
-                    int(str(int(ts_tz[0:4], 2)) + str(int(ts_tz[4:8], 2))) * 0.25
-                )
-            swap[6] = utc_offset
-            for string in swap[:]:
-                swap.remove(string)
-                swap.append(int(string))
-            dt_year, dt_month, dt_day, dt_hour, dt_min, dt_sec, dt_tz = swap
-            if dt_year in range(0, 50):
-                dt_year = dt_year + 2000
-            if dt_tz == 0:
-                tz_out = f"{tz_out}"
-            elif dt_tz > 0:
-                tz_out = f"{tz_out}+{str(dt_tz)}"
-            else:
-                tz_out = f"{tz_out}{str(dt_tz)}"
-            in_gsm = str(
-                dt(dt_year, dt_month, dt_day, dt_hour, dt_min, dt_sec).strftime(__fmt__)
-            )
-            indiv_output, combined_output = format_output(ts_type, in_gsm, tz_out)
-    except ValueError:
-        in_gsm = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_gsm = indiv_output = combined_output = ""
-    return in_gsm, indiv_output, combined_output, reason, tz_out
+    # the two digit year is 1990 to 2089
+    year += 2000 if year < 90 else 1900
+    text = fields_date_text(year, month, day, hour, minute, second)
+    if not text:
+        return ""
+    return text, utc_offset_label(ts_types["gsm"].time_zone, quarters)
 
 
+@encoder("gsm")
 def to_gsm(dt_obj):
     """Convert a timestamp to a GSM timestamp"""
-    ts_type, _, _, _ = ts_types["gsm"]
-    try:
-        dt_tz = dt_obj.utcoffset().seconds
-        if dt_tz == 0:
-            hex_tz = f"{0:02d}"
-        elif dt_tz < 0:
-            dt_tz = dt_tz / 3600
-            conversion = str(f"{(int(abs(dt_tz)) * 4):02d}")
-            conv_list = list(conversion)
-            high_order = f"{int(conv_list[0]):04b}"
-            low_order = f"{int(conv_list[1]):04b}"
-            high_order = f"{(int(high_order, 2) + 8):04b}"
-            hex_tz = hex(int((high_order + low_order), 2)).lstrip("0x").upper()
-        else:
-            dt_tz = dt_tz / 3600
-            conversion = str(int(dt_tz) * 4).zfill(2)
-            conv_list = list(conversion)
-            high_order = f"{int(conv_list[0]):04b}"
-            low_order = f"{int(conv_list[1]):04b}"
-            hex_tz = hex(int((high_order + low_order), 2)).lstrip("0x").upper()
-        date_list = [
-            f"{(dt_obj.year - 2000):02d}",
-            f"{dt_obj.month:02d}",
-            f"{dt_obj.day:02d}",
-            f"{dt_obj.hour:02d}",
-            f"{dt_obj.minute:02d}",
-            f"{dt_obj.second:02d}",
-            hex_tz,
-        ]
-        date_value_swap = []
-        for value in date_list[:]:
-            b_endian = value[::-1]
-            date_value_swap.append(b_endian)
-        out_gsm = "".join(date_value_swap)
-        ts_output, _ = format_output(ts_type, out_gsm)
-    except Exception:
-        handle(sys.exc_info())
-        out_gsm = ts_output = ""
-    return out_gsm, ts_output
+    quarters = int(dt_obj.utcoffset().total_seconds()) // 900
+    tens, ones = divmod(abs(quarters), 10)
+    if quarters < 0:
+        tens |= 8
+    fields = [
+        f"{dt_obj.year % 100:02d}",
+        f"{dt_obj.month:02d}",
+        f"{dt_obj.day:02d}",
+        f"{dt_obj.hour:02d}",
+        f"{dt_obj.minute:02d}",
+        f"{dt_obj.second:02d}",
+        f"{tens:X}{ones:X}",
+    ]
+    return "".join(field[::-1] for field in fields)
 
 
-def from_vm(timestamp):
+@decoder("vm")
+def from_vm(timestamp, guess=False):
     """Convert from a .vmsd createTimeHigh/createTimeLow timestamp"""
-    ts_type, reason, _, tz_out = ts_types["vm"]
-    try:
-        if "," not in timestamp:
-            in_vm = indiv_output = combined_output = ""
-        else:
-            create_time_high = int(timestamp.split(",")[0])
-            create_time_low = int(timestamp.split(",")[1])
-            try:
-                vmsd = (
-                    float(
-                        (create_time_high * 2**32)
-                        + struct.unpack("I", struct.pack("i", create_time_low))[0]
-                    )
-                    / 1000000
-                )
-            except Exception:
-                in_vm = indiv_output = combined_output = ""
-                return in_vm, indiv_output, combined_output, reason, tz_out
-            if vmsd >= 32536799999:
-                in_vm = indiv_output = combined_output = ""
-            else:
-                in_vm = dt.fromtimestamp(vmsd, timezone.utc).strftime(__fmt__)
-                indiv_output, combined_output = format_output(ts_type, in_vm, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_vm = indiv_output = combined_output = ""
-    return in_vm, indiv_output, combined_output, reason, tz_out
+    if not re.fullmatch(r"-?[0-9]{1,30},-?[0-9]{1,30}", timestamp):
+        return ""
+    high, low = [int(part) for part in timestamp.split(",")]
+    if not -(2**31) <= low < 2**31:  # low is a signed 32-bit int
+        return ""
+    microseconds = high * 2**32 + (low & 0xFFFFFFFF)
+    if guess and microseconds >= 32536799999 * 10**6:
+        return ""
+    return date_text(epochs[1970], microseconds)
 
 
+@encoder("vm")
 def to_vm(dt_obj):
     """Convert date to a .vmsd createTime* value"""
-    ts_type, _, _, _ = ts_types["vm"]
-    try:
-        unix_seconds = int((dt_obj - epochs[1970]).total_seconds()) * 1000000
-        create_time_high = int(float(unix_seconds) / 2**32)
-        unpacked_int = unix_seconds - (create_time_high * 2**32)
-        create_time_low = struct.unpack("i", struct.pack("I", unpacked_int))[0]
-        out_vm = f"{str(create_time_high)},{str(create_time_low)}"
-        ts_output, _ = format_output(ts_type, out_vm)
-    except Exception:
-        handle(sys.exc_info())
-        out_vm = ts_output = ""
-    return out_vm, ts_output
+    high, low = divmod(microseconds_since(dt_obj, epochs[1970]), 2**32)
+    signed_low = struct.unpack("i", struct.pack("I", low))[0]
+    return f"{high},{signed_low}"
 
 
-def from_tiktok(timestamp):
+@decoder("tiktok")
+def from_tiktok(timestamp, guess=False):
     """Convert a TikTok URL value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["tiktok"]
-    try:
-        if len(str(timestamp)) < 19 or not timestamp.isdigit():
-            in_tiktok = indiv_output = combined_output = ""
-        else:
-            unix_ts = int(timestamp) >> 32
-            if unix_ts >= 32536799999:
-                in_tiktok = indiv_output = combined_output = ""
-            else:
-                in_tiktok = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
-                    __fmt__
-                )
-            indiv_output, combined_output = format_output(ts_type, in_tiktok, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_tiktok = indiv_output = combined_output = ""
-    return in_tiktok, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 20, 19 if guess else 1):
+        return ""
+    seconds = int(timestamp) >> 32
+    if guess and seconds >= 32536799999:
+        return ""
+    return date_text(epochs[1970], seconds * 10**6)
 
 
+@encoder("tiktok")
 def to_tiktok(dt_obj):
     """Convert a date/time to a TikTok timestamp"""
-    ts_type, _, _, _ = ts_types["tiktok"]
-    try:
-        unix_ts = int(dt_obj.timestamp())
-        out_tiktok = str(unix_ts << 32)
-        ts_output, _ = format_output(ts_type, out_tiktok)
-    except Exception:
-        handle(sys.exc_info())
-        out_tiktok = ts_output = ""
-    return out_tiktok, ts_output
+    return str(seconds_since(dt_obj, epochs[1970]) << 32)
 
 
-def from_twitter(timestamp):
+@decoder("twitter")
+def from_twitter(timestamp, guess=False):
     """Convert a Twitter URL value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["twitter"]
-    try:
-        if len(str(timestamp)) < 18 or not timestamp.isdigit():
-            in_twitter = indiv_output = combined_output = ""
-        else:
-            unix_ts = ((int(timestamp) >> 22) + 1288834974657) / 1000
-            if unix_ts >= 32536799999:
-                in_twitter = indiv_output = combined_output = ""
-            else:
-                in_twitter = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
-                    __fmt__
-                )
-            indiv_output, combined_output = format_output(ts_type, in_twitter, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_twitter = indiv_output = combined_output = ""
-    return in_twitter, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 20, 18 if guess else 1):
+        return ""
+    unix_milli = (int(timestamp) >> 22) + 1288834974657
+    if guess and unix_milli >= 32536799999000:
+        return ""
+    return date_text(epochs[1970], unix_milli * 1000)
 
 
+@encoder("twitter")
 def to_twitter(dt_obj):
     """Convert a date/time value to a Twitter value"""
-    ts_type, _, _, _ = ts_types["twitter"]
-    try:
-        unix_ts = (dt_obj.timestamp() * 1000) - 1288834974657
-        out_twitter = str(int(unix_ts) << 22)
-        ts_output, _ = format_output(ts_type, out_twitter)
-    except Exception:
-        handle(sys.exc_info())
-        out_twitter = ts_output = ""
-    return out_twitter, ts_output
+    unix_milli = microseconds_since(dt_obj, epochs[1970]) // 1000
+    return str((unix_milli - 1288834974657) << 22)
 
 
-def from_discord(timestamp):
+@decoder("discord")
+def from_discord(timestamp, guess=False):
     """Convert a Discord URL value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["discord"]
-    try:
-        if len(str(timestamp)) < 18 or not timestamp.isdigit():
-            in_discord = indiv_output = combined_output = ""
-        else:
-            unix_ts = ((int(timestamp) >> 22) + 1420070400000) / 1000
-            if unix_ts >= 32536799999:
-                in_discord = indiv_output = combined_output = ""
-            else:
-                in_discord = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
-                    __fmt__
-                )
-            indiv_output, combined_output = format_output(ts_type, in_discord, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_discord = indiv_output = combined_output = ""
-    return in_discord, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 20, 18 if guess else 1):
+        return ""
+    unix_milli = (int(timestamp) >> 22) + 1420070400000
+    if guess and unix_milli >= 32536799999000:
+        return ""
+    return date_text(epochs[1970], unix_milli * 1000)
 
 
+@encoder("discord")
 def to_discord(dt_obj):
     """Convert a date/time to a Discord URL value"""
-    ts_type, _, _, _ = ts_types["discord"]
-    try:
-        timestamp = int(dt_obj.timestamp() * 1000) - 1420070400000
-        out_discord = str(timestamp << 22)
-        ts_output, _ = format_output(ts_type, out_discord)
-    except Exception:
-        handle(sys.exc_info())
-        out_discord = ts_output = ""
-    return out_discord, ts_output
+    unix_milli = microseconds_since(dt_obj, epochs[1970]) // 1000
+    return str((unix_milli - 1420070400000) << 22)
 
 
+@decoder("ksalnum")
 def from_ksalnum(timestamp):
     """Extract a timestamp from a KSUID alpha-numeric value"""
-    ts_type, reason, _, tz_out = ts_types["ksalnum"]
-    try:
-        if len(str(timestamp)) != 27 or not all(
-            char in KSALNUM_CHARS for char in timestamp
-        ):
-            in_ksalnum = indiv_output = combined_output = ""
-        else:
-            length, i, variation = len(timestamp), 0, 0
-            b_array = bytearray()
-            for val in timestamp:
-                variation += KSALNUM_CHARS.index(val) * (62 ** (length - (i + 1)))
-                i += 1
-            while variation > 0:
-                b_array.append(variation & 0xFF)
-                variation //= 256
-            b_array.reverse()
-            ts_bytes = bytes(b_array)[0:4]
-            unix_ts = int.from_bytes(ts_bytes, "big", signed=False) + epochs["kstime"]
-            in_ksalnum = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(ts_type, in_ksalnum, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ksalnum = indiv_output = combined_output = ""
-    return in_ksalnum, indiv_output, combined_output, reason, tz_out
+    if len(str(timestamp)) != 27 or not all(
+        char in KSALNUM_CHARS for char in timestamp
+    ):
+        return ""
+    value = 0
+    for char in timestamp:
+        value = value * 62 + KSALNUM_CHARS.index(char)
+    if value >= 1 << 160:
+        return ""
+    seconds = int.from_bytes(value.to_bytes(20, "big")[0:4], "big") + epochs["kstime"]
+    return date_text(epochs[1970], seconds * 10**6)
 
 
+@encoder("ksalnum")
 def to_ksalnum(dt_obj):
     """Convert a date/time to a KSUID alpha-numeric value"""
-    ts_type, _, _, _ = ts_types["ksalnum"]
-    try:
-        out_ksalnum = ""
-        unix_ts = int(dt_obj.timestamp())
-        ts_bytes = (unix_ts - epochs["kstime"]).to_bytes(4, "big")
-        filler = os.urandom(16)
-        all_bytes = ts_bytes + filler
-        big_int = int.from_bytes(all_bytes, "big")
-        while big_int > 0:
-            big_int, rem = divmod(big_int, 62)
-            out_ksalnum = KSALNUM_CHARS[rem] + out_ksalnum
-        out_ksalnum = out_ksalnum.rjust(27, "0")
-        ts_output, _ = format_output(ts_type, out_ksalnum)
-    except Exception:
-        handle(sys.exc_info())
-        out_ksalnum = ts_output = ""
-    return out_ksalnum, ts_output
+    ks_time = seconds_since(dt_obj, epochs[1970]) - epochs["kstime"]
+    big_int = int.from_bytes(ks_time.to_bytes(4, "big") + os.urandom(16), "big")
+    out_ksalnum = ""
+    while big_int > 0:
+        big_int, rem = divmod(big_int, 62)
+        out_ksalnum = KSALNUM_CHARS[rem] + out_ksalnum
+    return out_ksalnum.rjust(27, "0")
 
 
-def from_mastodon(timestamp):
+@decoder("mastodon")
+def from_mastodon(timestamp, guess=False):
     """Convert a Mastodon value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["mastodon"]
-    try:
-        if len(str(timestamp)) < 18 or not timestamp.isdigit():
-            in_mastodon = indiv_output = combined_output = ""
-        else:
-            ts_conversion = int(timestamp) >> 16
-            unix_ts = float(ts_conversion) / 1000.0
-            if int(unix_ts) >= 32536799999:
-                in_mastodon = indiv_output = combined_output = ""
-            else:
-                in_mastodon = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_mastodon, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_mastodon = indiv_output = combined_output = ""
-    return in_mastodon, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 20, 18 if guess else 1):
+        return ""
+    unix_milli = int(timestamp) >> 16
+    if guess and unix_milli // 1000 >= 32536799999:
+        return ""
+    return date_text(epochs[1970], unix_milli * 1000)
 
 
+@encoder("mastodon")
 def to_mastodon(dt_obj):
     """Convert a date/time to a Mastodon value"""
-    ts_type, _, _, _ = ts_types["mastodon"]
-    try:
-        unix_seconds = int((dt_obj - epochs[1970]).total_seconds()) * 1000
-        bit_shift = unix_seconds << 16
-        out_mastodon = f"{str(bit_shift)}"
-        ts_output, _ = format_output(ts_type, out_mastodon)
-    except Exception:
-        handle(sys.exc_info())
-        out_mastodon = ts_output = ""
-    return out_mastodon, ts_output
+    return str((microseconds_since(dt_obj, epochs[1970]) // 1000) << 16)
 
 
+@decoder("metasploit")
 def from_metasploit(timestamp):
     """Convert a Metasploit Payload UUID value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["metasploit"]
     meta_format = "8sBBBBBBBB"
-    try:
-        if len(str(timestamp)) < 22 or not all(
-            char in URLSAFE_CHARS for char in timestamp
-        ):
-            in_metasploit = indiv_output = combined_output = ""
-        else:
-            b64decoded = base64.urlsafe_b64decode(timestamp[0:22] + "==")
-            if len(b64decoded) < struct.calcsize(meta_format):
-                in_metasploit = indiv_output = combined_output = ""
-                return in_metasploit, indiv_output, combined_output, reason, tz_out
-            (
-                _,
-                xor1,
-                xor2,
-                _,
-                _,
-                ts1_xored,
-                ts2_xored,
-                ts3_xored,
-                ts4_xored,
-            ) = struct.unpack(meta_format, b64decoded)
-            unix_ts = struct.unpack(
-                ">I",
-                bytes(
-                    [
-                        ts1_xored ^ xor1,
-                        ts2_xored ^ xor2,
-                        ts3_xored ^ xor1,
-                        ts4_xored ^ xor2,
-                    ]
-                ),
-            )[0]
-            in_metasploit = dt.fromtimestamp(float(unix_ts), timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(
-                ts_type, in_metasploit, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_metasploit = indiv_output = combined_output = ""
-    return in_metasploit, indiv_output, combined_output, reason, tz_out
+    if len(str(timestamp)) < 22 or not all(char in URLSAFE_CHARS for char in timestamp):
+        return ""
+    raw = base64.urlsafe_b64decode(timestamp[0:22] + "==")
+    if len(raw) < struct.calcsize(meta_format):
+        return ""
+    _, xor1, xor2, _, _, ts1, ts2, ts3, ts4 = struct.unpack(meta_format, raw)
+    (seconds,) = struct.unpack(
+        ">I", bytes([ts1 ^ xor1, ts2 ^ xor2, ts3 ^ xor1, ts4 ^ xor2])
+    )
+    return date_text(epochs[1970], seconds * 10**6)
 
 
-def from_sony(timestamp):
+@decoder("sony")
+def from_sony(timestamp, guess=False):
     """Convert a Sonyflake value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["sony"]
-    try:
-        if len(str(timestamp)) != 15 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_sony = indiv_output = combined_output = ""
-        else:
-            dec_value = int(timestamp, 16)
-            ts_value = dec_value >> 24
-            unix_ts = (ts_value + 140952960000) * 10
-            in_sony = dt.fromtimestamp(float(unix_ts) / 1000.0, timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(ts_type, in_sony, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_sony = indiv_output = combined_output = ""
-    return in_sony, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 15 if guess else 16, 15 if guess else 1):
+        return ""
+    units = (int(timestamp, 16) >> 24) + 140952960000
+    return date_text(epochs[1970], units * 10000)
 
 
+@encoder("sony")
 def to_sony(dt_obj):
     """Convert a date/time to a Sonyflake value"""
-    ts_type, _, _, _ = ts_types["sony"]
-    try:
-        dec_value = int((dt_obj.timestamp() * 100) - 140952960000)
-        out_sony = f"{(dec_value << 24):0x}"
-        ts_output, _ = format_output(ts_type, out_sony)
-    except Exception:
-        handle(sys.exc_info())
-        out_sony = ts_output = ""
-    return out_sony, ts_output
+    return f"{(microseconds_since(dt_obj, _utc(2014, 9, 1)) // 10000) << 24:x}"
 
 
+@decoder("stardatetng")
+def from_stardatetng(timestamp, guess=False):
+    """Convert a Star Trek TNG Stardate to a date"""
+    shape = r"[0-9]{5}\.[0-9]" if guess else r"[0-9]{1,7}(\.[0-9]{1,6})?"
+    if not re.fullmatch(shape, timestamp):
+        return ""
+    return date_text(
+        _STARDATE_TNG_ORIGIN, round(Fraction(timestamp) * _STARDATE_TNG_UNIT)
+    )
+
+
+@encoder("stardatetng")
+def to_stardatetng(dt_obj):
+    """Convert a date to a Star Trek TNG Stardate, to a tenth"""
+    tenths = round(
+        Fraction(microseconds_since(dt_obj, _STARDATE_TNG_ORIGIN), _STARDATE_TNG_UNIT)
+        * 10
+    )
+    return f"{tenths // 10}.{tenths % 10}"
+
+
+@decoder("stardatetos")
+def from_stardatetos(timestamp, guess=False):
+    """Convert a Star Trek TOS Stardate to a date"""
+    shape = r"[0-9]{4}\.[0-9]{1,2}" if guess else r"[0-9]{1,8}(\.[0-9]{1,6})?"
+    if not re.fullmatch(shape, timestamp):
+        return ""
+    return date_text(
+        _STARDATE_TOS_ORIGIN, math.ceil(Fraction(timestamp) * _STARDATE_TOS_UNIT)
+    )
+
+
+@encoder("stardatetos")
+def to_stardatetos(dt_obj):
+    """Convert a date to a Star Trek TOS Stardate, cut to hundredths"""
+    hundredths = math.floor(
+        microseconds_since(dt_obj, _STARDATE_TOS_ORIGIN) / _STARDATE_TOS_UNIT * 100
+    )
+    return f"{hundredths // 100}.{hundredths % 100:02d}"
+
+
+@decoder("uuid")
 def from_uuid(timestamp):
     """Convert a UUID value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["uuid"]
-    try:
-        uuid_lower = timestamp.lower()
-        uuid_regex = re.compile(
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-        )
-        if not bool(uuid_regex.match(uuid_lower)):
-            in_uuid = indiv_output = combined_output = ""
-        else:
-            u_data = uuid.UUID(uuid_lower)
-            if u_data.version == 1:
-                unix_ts = u_data.time // 10000 - 12219292800000
-                in_uuid = (epochs[1970] + timedelta(milliseconds=unix_ts)).strftime(
-                    __fmt__
-                )
-                indiv_output, combined_output = format_output(ts_type, in_uuid, tz_out)
-            else:
-                in_uuid = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_uuid = indiv_output = combined_output = ""
-    return in_uuid, indiv_output, combined_output, reason, tz_out
+    uuid_lower = timestamp.lower()
+    if not re.match(
+        "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", uuid_lower
+    ):
+        return ""
+    u_data = uuid.UUID(uuid_lower)
+    if u_data.version != 1:
+        return ""
+    return date_text(epochs[1582], units_to_microseconds(u_data.time, 10**7))
 
 
+@encoder("uuid")
 def to_uuid(dt_obj):
     """Convert a date/time value to a UUID"""
-    ts_type, _, _, _ = ts_types["uuid"]
-    try:
-        timestamp = ((dt_obj - epochs[1582]) // timedelta(microseconds=1)) * 10
-        time_lo = timestamp & 0xFFFFFFFF
-        time_mid = (timestamp >> 32) & 0xFFFF
-        time_hi = (timestamp >> 48) & 0x0FFF
-        time_hi_ver_1 = time_hi | (1 << 12)
-        clock_seq = uuid.getnode() & 0x3FFF
-        clock_seq_hi_variant = (clock_seq >> 8) | 0x80
-        clock_seq_low = clock_seq & 0xFF
-        node = uuid.getnode()
-        out_uuid = str(
-            uuid.UUID(
-                fields=(
-                    time_lo,
-                    time_mid,
-                    time_hi_ver_1,
-                    clock_seq_hi_variant,
-                    clock_seq_low,
-                    node,
-                )
+    ticks = microseconds_since(dt_obj, epochs[1582]) * 10
+    node = uuid.getnode()
+    clock_seq = node & 0x3FFF
+    return str(
+        uuid.UUID(
+            fields=(
+                ticks & 0xFFFFFFFF,
+                (ticks >> 32) & 0xFFFF,
+                ((ticks >> 48) & 0x0FFF) | (1 << 12),
+                (clock_seq >> 8) | 0x80,
+                clock_seq & 0xFF,
+                node,
             )
         )
-        ts_output, _ = format_output(ts_type, out_uuid)
-    except Exception:
-        handle(sys.exc_info())
-        out_uuid = ts_output = ""
-    return out_uuid, ts_output
+    )
 
 
+@decoder("dhcp6")
 def from_dhcp6(timestamp):
     """Convert a DHCPv6 DUID value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["dhcp6"]
-    try:
-        if len(str(timestamp)) < 28 or not all(char in hexdigits for char in timestamp):
-            in_dhcp6 = indiv_output = combined_output = ""
-        else:
-            dhcp6_bytes = timestamp[8:16]
-            dhcp6_dec = int(dhcp6_bytes, 16)
-            dhcp6_ts = epochs[2000] + timedelta(seconds=int(dhcp6_dec))
-            in_dhcp6 = dhcp6_ts.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_dhcp6, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_dhcp6 = indiv_output = combined_output = ""
-    return in_dhcp6, indiv_output, combined_output, reason, tz_out
+    if len(timestamp) < 28 or not is_hex(timestamp, len(timestamp)):
+        return ""
+    return date_text(epochs[2000], int(timestamp[8:16], 16) * 10**6)
 
 
+@encoder("dhcp6")
 def to_dhcp6(dt_obj):
     """Convert a timestamp to a DHCP DUID value"""
-    ts_type, _, _, _ = ts_types["dhcp6"]
-    try:
-        unix_time = int((dt_obj - epochs[2000]).total_seconds())
-        if int(unix_time) < 0:
-            out_dhcp6 = "[!] Timestamp Boundary Exceeded [!]"
-        else:
-            dhcp6_ts = str(struct.pack(">L", unix_time).hex())
-            out_dhcp6 = f"00010001{dhcp6_ts}000000000000"
-        ts_output, _ = format_output(ts_type, out_dhcp6)
-    except Exception:
-        handle(sys.exc_info())
-        out_dhcp6 = ts_output = ""
-    return out_dhcp6, ts_output
+    return f"00010001{struct.pack('>L', seconds_since(dt_obj, epochs[2000])).hex()}000000000000"
 
 
-def from_dotnet(timestamp):
+@decoder("dotnet")
+def from_dotnet(timestamp, guess=False):
     """Convert a .NET DateTime Ticks value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["dotnet"]
-    try:
-        if len(str(timestamp)) != 18 or not (timestamp).isdigit():
-            in_dotnet = indiv_output = combined_output = ""
-        else:
-            dotnet_to_umil = (int(timestamp) - epochs["ticks"]) / epochs[
-                "hundreds_nano"
-            ]
-            if dotnet_to_umil < 0:
-                in_dotnet = indiv_output = combined_output = ""
-            else:
-                in_dotnet = dt.fromtimestamp(dotnet_to_umil, timezone.utc).strftime(
-                    __fmt__
-                )
-            indiv_output, combined_output = format_output(ts_type, in_dotnet, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_dotnet = indiv_output = combined_output = ""
-    return in_dotnet, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 18 if guess else 19, 18 if guess else 1):
+        return ""
+    if (
+        guess
+        and not epochs["ticks"]
+        <= int(timestamp)
+        < epochs["ticks"] + 32536799999 * 10**7
+    ):
+        return ""
+    return date_text(epochs[1], units_to_microseconds(int(timestamp), 10**7))
 
 
+@encoder("dotnet")
 def to_dotnet(dt_obj):
     """Convert date to a .NET DateTime Ticks value"""
-    ts_type, _, _, _ = ts_types["dotnet"]
-    try:
-        ts = dt_obj.timestamp() * epochs["hundreds_nano"]
-        out_dotnet = str(int(ts + epochs["ticks"]))
-        ts_output, _ = format_output(ts_type, out_dotnet)
-    except Exception:
-        handle(sys.exc_info())
-        out_dotnet = ts_output = ""
-    return out_dotnet, ts_output
+    return str(microseconds_since(dt_obj, epochs[1]) * 10)
 
 
-def from_gbound(timestamp):
+@decoder("gbound")
+def from_gbound(timestamp, guess=False):
     """Convert a GMail Boundary value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["gbound"]
-    try:
-        if len(str(timestamp)) != 28 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_gbound = indiv_output = combined_output = ""
-        else:
-            working_value = timestamp[12:26]
-            end = working_value[:6]
-            begin = working_value[6:14]
-            full_dec = int("".join(begin + end), 16)
-            in_gbound = dt.fromtimestamp(full_dec / 1000000, timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(ts_type, in_gbound, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_gbound = indiv_output = combined_output = ""
-    return in_gbound, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 28, 28):
+        return ""
+    working_value = timestamp[12:26]
+    end = working_value[:6]
+    begin = working_value[6:14]
+    full_dec = int(begin + end, 16)
+    if guess and full_dec >= 32536799999 * 10**6:
+        return ""
+    return date_text(epochs[1970], full_dec)
 
 
+@encoder("gbound")
 def to_gbound(dt_obj):
     """Convert date to a GMail Boundary value"""
-    ts_type, _, _, _ = ts_types["gbound"]
-    try:
-        to_int = int(((dt_obj - epochs[1970]).total_seconds()) * 1000000)
-        if len(f"{to_int:x}") < 14:
-            to_int = f"0{to_int:x}"
-        begin = to_int[8:]
-        end = to_int[:8]
-        out_gbound = f"000000000000{begin}{end}00"
-        ts_output, _ = format_output(ts_type, out_gbound)
-    except Exception:
-        handle(sys.exc_info())
-        out_gbound = ts_output = ""
-    return out_gbound, ts_output
+    to_int = f"{microseconds_since(dt_obj, epochs[1970]):014x}"
+    return f"000000000000{to_int[8:]}{to_int[:8]}00"
 
 
-def from_gmsgid(timestamp):
+@decoder("gmsgid")
+def from_gmsgid(timestamp, guess=False):
     """Convert a GMail Message ID to a date/time value"""
-    ts_type, reason, _, tz_out = ts_types["gmsgid"]
-    try:
-        gmsgid = timestamp
-        if str(gmsgid).isdigit() and len(str(gmsgid)) == 19:
-            gmsgid = str(f"{int(gmsgid):x}")
-        if len(str(gmsgid)) != 16 or not all(char in hexdigits for char in gmsgid):
-            in_gmsgid = indiv_output = combined_output = ""
-        else:
-            working_value = gmsgid[:11]
-            to_int = int(working_value, 16)
-            in_gmsgid = dt.fromtimestamp(to_int / 1000, timezone.utc).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_gmsgid, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_gmsgid = indiv_output = combined_output = ""
-    return in_gmsgid, indiv_output, combined_output, reason, tz_out
+    gmsgid = str(timestamp)
+    if is_digits(gmsgid, 19, 19):
+        gmsgid = f"{int(gmsgid):x}"
+    if not is_hex(gmsgid, 16 if guess else 17, 16 if guess else 6):
+        return ""
+    return date_text(epochs[1970], int(gmsgid[:-5], 16) * 1000)
 
 
+@encoder("gmsgid")
 def to_gmsgid(dt_obj):
     """Convert date to a GMail Message ID value"""
-    ts_type, _, _, _ = ts_types["gmsgid"]
-    try:
-        to_int = int(((dt_obj - epochs[1970]).total_seconds()) * 1000)
-        ts_hex = f"{to_int:x}"
-        out_gmsgid = f"{ts_hex}00000"
-        ts_output, _ = format_output(ts_type, out_gmsgid)
-    except Exception:
-        handle(sys.exc_info())
-        out_gmsgid = ts_output = ""
-    return out_gmsgid, ts_output
+    return f"{microseconds_since(dt_obj, epochs[1970]) // 1000:x}00000"
 
 
+@decoder("moto")
 def from_moto(timestamp):
     """Convert a Motorola 6-byte hex timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["moto"]
-    try:
-        if len(str(timestamp)) != 12 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_moto = indiv_output = combined_output = ""
-        else:
-            hex_to_dec = [
-                int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)
-            ]
-            hex_to_dec[0] = hex_to_dec[0] + 1970
-            if hex_to_dec[1] not in range(1, 13):
-                in_moto = indiv_output = combined_output = ""
-            else:
-                try:
-                    dt_obj = dt(
-                        hex_to_dec[0],
-                        hex_to_dec[1],
-                        hex_to_dec[2],
-                        hex_to_dec[3],
-                        hex_to_dec[4],
-                        hex_to_dec[5],
-                    )
-                except ValueError:
-                    in_moto = indiv_output = combined_output = ""
-                    return in_moto, indiv_output, combined_output, reason, tz_out
-                in_moto = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_moto, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_moto = indiv_output = combined_output = ""
-    return in_moto, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 12, 12):
+        return ""
+    year, month, day, hour, minute, second = bytes.fromhex(timestamp)
+    return fields_date_text(year + 1970, month, day, hour, minute, second)
 
 
+@encoder("moto")
 def to_moto(dt_obj):
     """Convert a date to Motorola's 6-byte hex timestamp"""
-    ts_type, _, _, _ = ts_types["moto"]
-    try:
-        moto_year = f"{(dt_obj.year - 1970):02x}"
-        moto_month = f"{(dt_obj.month):02x}"
-        moto_day = f"{(dt_obj.day):02x}"
-        moto_hour = f"{(dt_obj.hour):02x}"
-        moto_minute = f"{(dt_obj.minute):02x}"
-        moto_second = f"{(dt_obj.second):02x}"
-        out_moto = str(
-            f"{moto_year}{moto_month}{moto_day}"
-            f"{moto_hour}{moto_minute}{moto_second}"
-        )
-        ts_output, _ = format_output(ts_type, out_moto)
-    except Exception:
-        handle(sys.exc_info())
-        out_moto = ts_output = ""
-    return out_moto, ts_output
+    utc = dt_obj.astimezone(timezone.utc)
+    return bytes(
+        [utc.year - 1970, utc.month, utc.day, utc.hour, utc.minute, utc.second]
+    ).hex()
 
 
-def from_nokia(timestamp):
+def nokia_date_text(value, guess):
+    """
+    The date of a Nokia 4-byte value, which counts the seconds before
+    2050-01-01 down from 4294967295.
+    """
+    seconds_before_2050 = 4294967295 - value
+    if guess and seconds_before_2050 > (epochs[2050] - epochs[1970]).days * 86400:
+        return ""
+    return date_text(epochs[2050], -seconds_before_2050 * 10**6)
+
+
+@decoder("nokia")
+def from_nokia(timestamp, guess=False):
     """Convert a Nokia 4-byte value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["nokia"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_nokia = indiv_output = combined_output = ""
-        else:
-            to_int = int(timestamp, 16)
-            int_diff = to_int ^ 4294967295
-            int_diff = ~int_diff + 1
-            unix_ts = int_diff + (epochs[2050] - epochs[1970]).total_seconds()
-            if unix_ts < 0:
-                in_nokia = indiv_output = combined_output = ""
-            else:
-                in_nokia = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output, combined_output = format_output(ts_type, in_nokia, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_nokia = indiv_output = combined_output = ""
-    return in_nokia, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return nokia_date_text(int(timestamp, 16), guess)
 
 
+@encoder("nokia")
 def to_nokia(dt_obj):
     """Convert a date/time value to a Nokia 4-byte timestamp"""
-    ts_type, _, _, _ = ts_types["nokia"]
-    try:
-        unix_ts = (dt_obj - epochs[1970]).total_seconds()
-        int_diff = int(unix_ts - (epochs[2050] - epochs[1970]).total_seconds())
-        int_diff = int_diff - 1
-        dec_value = ~int_diff ^ 4294967295
-        out_nokia = f"{dec_value:x}"
-        ts_output, _ = format_output(ts_type, out_nokia)
-    except Exception:
-        handle(sys.exc_info())
-        out_nokia = ts_output = ""
-    return out_nokia, ts_output
+    return f"{4294967295 + seconds_since(dt_obj, epochs[2050]):08x}"
 
 
-def from_nokiale(timestamp):
+@decoder("nokiale")
+def from_nokiale(timestamp, guess=False):
     """Convert a little-endian Nokia 4-byte value to date/time"""
-    ts_type, reason, _, tz_out = ts_types["nokiale"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_nokiale = indiv_output = combined_output = ""
-        else:
-            to_be = "".join(
-                [timestamp[i : i + 2] for i in range(0, len(timestamp), 2)][::-1]
-            )
-            to_int = int(to_be, 16)
-            int_diff = to_int ^ 4294967295
-            int_diff = ~int_diff + 1
-            unix_ts = int_diff + (epochs[2050] - epochs[1970]).total_seconds()
-            if unix_ts < 0:
-                in_nokiale = indiv_output = combined_output = ""
-            else:
-                in_nokiale = dt.fromtimestamp(unix_ts, timezone.utc).strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_nokiale, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_nokiale = indiv_output = combined_output = ""
-    return in_nokiale, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    return nokia_date_text(int.from_bytes(bytes.fromhex(timestamp), "little"), guess)
 
 
+@encoder("nokiale")
 def to_nokiale(dt_obj):
     """Convert a date/time value to a little-endian Nokia 4-byte timestamp"""
-    ts_type, _, _, _ = ts_types["nokiale"]
-    try:
-        unix_ts = (dt_obj - epochs[1970]).total_seconds()
-        int_diff = int(unix_ts - (epochs[2050] - epochs[1970]).total_seconds())
-        int_diff = int_diff - 1
-        dec_val = ~int_diff ^ 4294967295
-        hex_val = f"{dec_val:x}"
-        out_nokiale = "".join(
-            [hex_val[i : i + 2] for i in range(0, len(hex_val), 2)][::-1]
-        )
-        ts_output, _ = format_output(ts_type, out_nokiale)
-    except Exception:
-        handle(sys.exc_info())
-        out_nokiale = ts_output = ""
-    return out_nokiale, ts_output
+    return struct.pack("<I", 4294967295 + seconds_since(dt_obj, epochs[2050])).hex()
 
 
+@decoder("ns40")
 def from_ns40(timestamp):
     """Convert a Nokia S40 7-byte value to a time/time"""
-    ts_type, reason, _, tz_out = ts_types["ns40"]
-    try:
-        if not len(timestamp) == 14 or not all(char in hexdigits for char in timestamp):
-            in_ns40 = indiv_output = combined_output = ""
-        else:
-            ns40 = timestamp
-            ns40_val = {
-                "yr": ns40[:4],
-                "mon": ns40[4:6],
-                "day": ns40[6:8],
-                "hr": ns40[8:10],
-                "min": ns40[10:12],
-                "sec": ns40[12:],
-            }
-            for each_key, _ in ns40_val.items():
-                ns40_val[str(each_key)] = int(ns40_val[str(each_key)], 16)
-            if ns40_val["yr"] > 9999:
-                in_ns40 = indiv_output = combined_output = ""
-            elif (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
-                in_ns40 = indiv_output = combined_output = ""
-            else:
-                in_ns40 = dt(
-                    ns40_val["yr"],
-                    ns40_val["mon"],
-                    ns40_val["day"],
-                    ns40_val["hr"],
-                    ns40_val["min"],
-                    ns40_val["sec"],
-                ).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ns40, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ns40 = indiv_output = combined_output = ""
-    return in_ns40, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 14, 14):
+        return ""
+    return fields_date_text(*struct.unpack(">HBBBBB", bytes.fromhex(timestamp)))
 
 
+@encoder("ns40")
 def to_ns40(dt_obj):
     """Convert a date/time value to a Nokia S40 7-byte timestamp"""
-    ts_type, _, _, _ = ts_types["ns40"]
-    try:
-        hex_vals = []
-        hex_vals.append(f"{dt_obj.year:x}".zfill(4))
-        hex_vals.append(f"{dt_obj.month:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.day:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.hour:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.minute:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.second:x}".zfill(2))
-        out_ns40 = "".join(hex_vals)
-        ts_output, _ = format_output(ts_type, out_ns40)
-    except Exception:
-        handle(sys.exc_info())
-        out_ns40 = ts_output = ""
-    return out_ns40, ts_output
+    utc = dt_obj.astimezone(timezone.utc)
+    return struct.pack(
+        ">HBBBBB", utc.year, utc.month, utc.day, utc.hour, utc.minute, utc.second
+    ).hex()
 
 
+@decoder("ns40le")
 def from_ns40le(timestamp):
     """Convert a little-endian Nokia S40 7-byte value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["ns40le"]
-    try:
-        if len(str(timestamp)) != 14 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_ns40le = indiv_output = combined_output = ""
-        else:
-            ns40le = timestamp
-            ns40_val = {
-                "yr": "".join(
-                    [ns40le[i : i + 2] for i in range(0, len(ns40le[:4]), 2)][::-1]
-                ),
-                "mon": ns40le[4:6],
-                "day": ns40le[6:8],
-                "hr": ns40le[8:10],
-                "min": ns40le[10:12],
-                "sec": ns40le[12:],
-            }
-            for each_key, _ in ns40_val.items():
-                ns40_val[str(each_key)] = int(ns40_val[str(each_key)], 16)
-            if ns40_val["yr"] > 9999:
-                in_ns40le = indiv_output = combined_output = ""
-            elif (int(ns40_val["mon"]) > 12) or (int(ns40_val["mon"] < 1)):
-                in_ns40le = indiv_output = combined_output = ""
-            else:
-                in_ns40le = dt(
-                    ns40_val["yr"],
-                    ns40_val["mon"],
-                    ns40_val["day"],
-                    ns40_val["hr"],
-                    ns40_val["min"],
-                    ns40_val["sec"],
-                ).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ns40le, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ns40le = indiv_output = combined_output = ""
-    return in_ns40le, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 14, 14):
+        return ""
+    return fields_date_text(*struct.unpack("<HBBBBB", bytes.fromhex(timestamp)))
 
 
+@encoder("ns40le")
 def to_ns40le(dt_obj):
     """Convert a date/time value to a little-endian Nokia S40 7-byte timestamp"""
-    ts_type, _, _, _ = ts_types["ns40le"]
-    try:
-        hex_vals = []
-        year_le = f"{dt_obj.year:x}".zfill(4)
-        year_le = "".join(
-            [year_le[i : i + 2] for i in range(0, len(year_le[:4]), 2)][::-1]
-        )
-        hex_vals.append(f"{year_le}".zfill(4))
-        hex_vals.append(f"{dt_obj.month:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.day:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.hour:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.minute:x}".zfill(2))
-        hex_vals.append(f"{dt_obj.second:x}".zfill(2))
-        out_ns40le = "".join(hex_vals)
-        ts_output, _ = format_output(ts_type, out_ns40le)
-    except Exception:
-        handle(sys.exc_info())
-        out_ns40le = ts_output = ""
-    return out_ns40le, ts_output
+    utc = dt_obj.astimezone(timezone.utc)
+    return struct.pack(
+        "<HBBBBB", utc.year, utc.month, utc.day, utc.hour, utc.minute, utc.second
+    ).hex()
 
 
-def from_bitdec(timestamp):
+def bitwise_date_text(value):
+    """The date in a value whose bits are the year, month (4), day (5), hour (5) and minute (6)"""
+    return fields_date_text(
+        value >> 20,
+        (value >> 16) & 15,
+        (value >> 11) & 31,
+        (value >> 6) & 31,
+        value & 63,
+    )
+
+
+def bitwise_value(dt_obj):
+    """The value of a date in the bits that bitwise_date_text reads"""
+    return (
+        (dt_obj.year << 20)
+        + (dt_obj.month << 16)
+        + (dt_obj.day << 11)
+        + (dt_obj.hour << 6)
+        + dt_obj.minute
+    )
+
+
+@decoder("bitdec")
+def from_bitdec(timestamp, guess=False):
     """Convert a 10-digit Bitwise Decimal value to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["bitdec"]
-    try:
-        if len(str(timestamp)) != 10 or not (timestamp).isdigit():
-            in_bitdec = indiv_output = combined_output = ""
-        else:
-            full_ts = int(timestamp)
-            bd_yr = full_ts >> 20
-            bd_mon = (full_ts >> 16) & 15
-            bd_day = (full_ts >> 11) & 31
-            bd_hr = (full_ts >> 6) & 31
-            bd_min = full_ts & 63
-            try:
-                in_bitdec = dt(bd_yr, bd_mon, bd_day, bd_hr, bd_min).strftime(__fmt__)
-            except ValueError:
-                in_bitdec = indiv_output = combined_output = ""
-                return in_bitdec, indiv_output, combined_output, reason, tz_out
-            indiv_output, combined_output = format_output(ts_type, in_bitdec, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_bitdec = indiv_output = combined_output = ""
-    return in_bitdec, indiv_output, combined_output, reason, tz_out
+    if not is_digits(str(timestamp), 10, 10 if guess else 1):
+        return ""
+    return bitwise_date_text(int(timestamp))
 
 
+@encoder("bitdec")
 def to_bitdec(dt_obj):
     """Convert a date/time value to a Bitwise Decimal timestamp"""
-    ts_type, _, _, _ = ts_types["bitdec"]
-    try:
-        out_bitdec = str(
-            (dt_obj.year << 20)
-            + (dt_obj.month << 16)
-            + (dt_obj.day << 11)
-            + (dt_obj.hour << 6)
-            + (dt_obj.minute)
-        )
-        ts_output, _ = format_output(ts_type, out_bitdec)
-    except Exception:
-        handle(sys.exc_info())
-        out_bitdec = ts_output = ""
-    return out_bitdec, ts_output
+    return str(bitwise_value(dt_obj))
 
 
-def from_bitdate(timestamp):
+@decoder("bitdate")
+def from_bitdate(timestamp, guess=False):
     """Convert a Samsung/LG 4-byte hex timestamp to a date/time"""
-    ts_type, reason, _, tz_out = ts_types["bitdate"]
-    try:
-        if len(str(timestamp)) != 8 or not all(char in hexdigits for char in timestamp):
-            in_bitdate = indiv_output = combined_output = ""
-        else:
-            to_le = "".join(
-                [timestamp[i : i + 2] for i in range(0, len(str(timestamp)), 2)][::-1]
-            )
-            to_binary = f"{int(to_le, 16):032b}"
-            bitdate_yr = int(to_binary[:12], 2)
-            bitdate_mon = int(to_binary[12:16], 2)
-            bitdate_day = int(to_binary[16:21], 2)
-            bitdate_hr = int(to_binary[21:26], 2)
-            bitdate_min = int(to_binary[26:32], 2)
-            if bitdate_yr not in range(1900, 2500):
-                in_bitdate = indiv_output = combined_output = ""
-                return in_bitdate, indiv_output, combined_output, reason, tz_out
-            try:
-                in_bitdate = dt(
-                    bitdate_yr, bitdate_mon, bitdate_day, bitdate_hr, bitdate_min
-                ).strftime(__fmt__)
-            except ValueError:
-                in_bitdate = indiv_output = combined_output = ""
-                return in_bitdate, indiv_output, combined_output, reason, tz_out
-            indiv_output, combined_output = format_output(ts_type, in_bitdate, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_bitdate = indiv_output = combined_output = ""
-    return in_bitdate, indiv_output, combined_output, reason, tz_out
+    if not is_hex(str(timestamp), 8, 8):
+        return ""
+    value = int.from_bytes(bytes.fromhex(timestamp), "little")
+    if guess and not 1900 <= value >> 20 < 2500:
+        return ""
+    return bitwise_date_text(value)
 
 
+@encoder("bitdate")
 def to_bitdate(dt_obj):
     """Convert a date/time value to a Samsung/LG timestamp"""
-    ts_type, _, _, _ = ts_types["bitdate"]
-    try:
-        bitdate_yr = f"{dt_obj.year:012b}"
-        bitdate_mon = f"{dt_obj.month:04b}"
-        bitdate_day = f"{dt_obj.day:05b}"
-        bitdate_hr = f"{dt_obj.hour:05b}"
-        bitdate_min = f"{dt_obj.minute:06b}"
-        to_hex = str(
-            struct.pack(
-                ">I",
-                int(
-                    bitdate_yr + bitdate_mon + bitdate_day + bitdate_hr + bitdate_min, 2
-                ),
-            ).hex()
-        )
-        out_bitdate = "".join(
-            [to_hex[i : i + 2] for i in range(0, len(to_hex), 2)][::-1]
-        )
-        ts_output, _ = format_output(ts_type, out_bitdate)
-    except Exception:
-        handle(sys.exc_info())
-        out_bitdate = ts_output = ""
-    return out_bitdate, ts_output
+    return struct.pack("<I", bitwise_value(dt_obj)).hex()
 
 
-def from_ksdec(timestamp):
+@decoder("ksdec")
+def from_ksdec(timestamp, guess=False):
     """Convert a KSUID decimal value to a date"""
-    ts_type, reason, _, tz_out = ts_types["ksdec"]
-    try:
-        if len(timestamp) != 9 or not timestamp.isdigit():
-            in_ksdec = indiv_output = combined_output = ""
-        else:
-            ts_val = int(timestamp) + int(epochs["kstime"])
-            in_ksdec = dt.fromtimestamp(float(ts_val), timezone.utc).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ksdec, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ksdec = indiv_output = combined_output = ""
-    return in_ksdec, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 9 if guess else 10, 9 if guess else 1):
+        return ""
+    if int(timestamp) > 0xFFFFFFFF:
+        return ""
+    return date_text(epochs[1970], (int(timestamp) + epochs["kstime"]) * 10**6)
 
 
+@encoder("ksdec")
 def to_ksdec(dt_obj):
     """Convert date to a KSUID decimal value"""
-    ts_type, _, _, _ = ts_types["ksdec"]
-    try:
-        unix_ts = str(int((dt_obj - epochs[1970]).total_seconds()))
-        out_ksdec = str(int(unix_ts) - int(epochs["kstime"]))
-        if int(out_ksdec) < 0:
-            out_ksdec = "[!] Timestamp Boundary Exceeded [!]"
-        ts_output, _ = format_output(ts_type, out_ksdec)
-    except Exception:
-        handle(sys.exc_info())
-        out_ksdec = ts_output = ""
-    return out_ksdec, ts_output
+    return str(seconds_since(dt_obj, epochs[1970]) - epochs["kstime"])
 
 
-def from_biomehex(timestamp):
-    """Convert an Apple Biome Hex value to a date - from Little Endian"""
-    ts_type, reason, _, tz_out = ts_types["biomehex"]
-    try:
-        biomehex = str(timestamp)
-        if len(biomehex) != 16 or not all(char in hexdigits for char in biomehex):
-            in_biomehex = indiv_output = combined_output = ""
-        else:
-            if biomehex[:2] == "41":
-                biomehex = "".join(
-                    [biomehex[i : i + 2] for i in range(0, len(biomehex), 2)][::-1]
-                )
-            byte_val = bytes.fromhex(str(biomehex))
-            nsdate_val = struct.unpack("<d", byte_val)[0]
-            if nsdate_val >= 1e17:
-                in_biomehex = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[2001] + timedelta(seconds=float(nsdate_val))
-                in_biomehex = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_biomehex, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_biomehex = indiv_output = combined_output = ""
-    return in_biomehex, indiv_output, combined_output, reason, tz_out
+@decoder("biomehex")
+def from_biomehex(timestamp, guess=False):
+    """Convert an Apple Biome Hex value to a date, from either byte order"""
+    biomehex = str(timestamp)
+    if not is_hex(biomehex, 16, 16):
+        return ""
+    seconds = biome_seconds(bytes.fromhex(biomehex))
+    if guess and not seconds < 1e17:
+        return ""
+    return seconds_to_date_text(epochs[2001], seconds)
 
 
+@encoder("biomehex")
 def to_biomehex(dt_obj):
     """Convert a date/time to an Apple Biome Hex value"""
-    ts_type, _, _, _ = ts_types["biomehex"]
-    try:
-        bplist_stamp = str(float((dt_obj - epochs[2001]).total_seconds()))
-        byte_biome = struct.pack(">d", float(bplist_stamp))
-        out_biomehex = bytes.hex(byte_biome)
-        ts_output, _ = format_output(ts_type, out_biomehex)
-    except Exception:
-        handle(sys.exc_info())
-        out_biomehex = ts_output = ""
-    return out_biomehex, ts_output
+    return struct.pack(">d", (dt_obj - epochs[2001]).total_seconds()).hex()
 
 
-def from_biome64(timestamp):
+@decoder("biome64")
+def from_biome64(timestamp, guess=False):
     """Convert a 64-bit decimal value to a date/time value"""
-    ts_type, reason, _, tz_out = ts_types["biome64"]
-    try:
-        if len(timestamp) != 19 or not timestamp.isdigit():
-            in_biome64 = indiv_output = combined_output = ""
-        else:
-            nsdate_unpacked = int(
-                struct.unpack("<d", int(timestamp).to_bytes(8, "little"))[0]
-            )
-            if nsdate_unpacked >= 1e17:
-                in_biome64 = indiv_output = combined_output = ""
-            else:
-                dt_obj = epochs[2001] + timedelta(seconds=float(nsdate_unpacked))
-                in_biome64 = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_biome64, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_biome64 = indiv_output = combined_output = ""
-    return in_biome64, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 20, 19 if guess else 1) or int(timestamp) >= 2**64:
+        return ""
+    seconds = struct.unpack("<d", int(timestamp).to_bytes(8, "little"))[0]
+    if guess and not seconds < 1e17:
+        return ""
+    return seconds_to_date_text(epochs[2001], seconds)
 
 
+@encoder("biome64")
 def to_biome64(dt_obj):
-    """Convert a date/time value to a"""
-    ts_type, _, _, _ = ts_types["biome64"]
-    try:
-        nsdate_stamp = float((dt_obj - epochs[2001]).total_seconds())
-        out_biome64 = str(int.from_bytes(struct.pack(">d", nsdate_stamp), "big"))
-        ts_output, _ = format_output(ts_type, out_biome64)
-    except Exception:
-        handle(sys.exc_info())
-        out_biome64 = ts_output = ""
-    return out_biome64, ts_output
+    """Convert a date/time value to a 64-bit decimal Biome value"""
+    seconds = (dt_obj - epochs[2001]).total_seconds()
+    return str(int.from_bytes(struct.pack(">d", seconds), "big"))
 
 
-def from_s32(timestamp):
-    """
-    Convert an S32 timestamp to a date/time value
-    """
-    ts_type, reason, _, tz_out = ts_types["s32"]
-    try:
-        result = 0
-        timestamp = str(timestamp)
-        if len(timestamp) != 9 or not all(char in S32_CHARS for char in timestamp):
-            in_s32 = indiv_output = combined_output = ""
-        else:
-            for char in timestamp:
-                result = result * 32 + S32_CHARS.index(char)
-            dt_obj = dt.fromtimestamp(result / 1000.0, timezone.utc)
-            in_s32 = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_s32, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_s32 = indiv_output = combined_output = ""
-    return in_s32, indiv_output, combined_output, reason, tz_out
+@decoder("s32")
+def from_s32(timestamp, guess=False):
+    """Convert an S32 timestamp to a date/time value"""
+    timestamp = str(timestamp)
+    if len(timestamp) != 9 or not all(char in S32_CHARS for char in timestamp):
+        return ""
+    milliseconds = 0
+    for char in timestamp:
+        milliseconds = milliseconds * 32 + S32_CHARS.index(char)
+    if guess and milliseconds >= 32536799999 * 10**3:
+        return ""
+    return date_text(epochs[1970], milliseconds * 1000)
 
 
+@encoder("s32")
 def to_s32(dt_obj):
     """Convert a date/time to an S32-encoded timestamp"""
-    ts_type, _, _, _ = ts_types["s32"]
-    try:
-        result = ""
-        index = 0
-        unix_mil = int(((dt_obj - epochs[1970]).total_seconds())) * 1000
-        while unix_mil:
-            index = unix_mil % 32
-            unix_mil = math.floor(unix_mil / 32)
-            result = S32_CHARS[index] + result
-        out_s32 = result
-        ts_output, _ = format_output(ts_type, out_s32)
-    except Exception:
-        handle(sys.exc_info())
-        out_s32 = ts_output = ""
-    return out_s32, ts_output
+    milliseconds = microseconds_since(dt_obj, epochs[1970]) // 1000
+    result = ""
+    while milliseconds:
+        milliseconds, index = divmod(milliseconds, 32)
+        result = S32_CHARS[index] + result
+    return result.rjust(9, S32_CHARS[0])
 
 
-def from_apache(timestamp):
-    """
-    Convert an Apache hex timestamp to a date/time value
+@decoder("apache")
+def from_apache(timestamp, guess=False):
+    """Convert an Apache hex timestamp to a date/time value
+
     This value has 13 hex characters, and does not fit a byte boundary
     """
-    ts_type, reason, _, tz_out = ts_types["apache"]
-    try:
-        timestamp = str(timestamp)
-        if len(timestamp) != 13 or not all(char in hexdigits for char in timestamp):
-            in_apache = indiv_output = combined_output = ""
-        else:
-            dec_val = int(timestamp, 16)
-            dt_obj = epochs[1970] + timedelta(microseconds=dec_val)
-            in_apache = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_apache, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_apache = indiv_output = combined_output = ""
-    return in_apache, indiv_output, combined_output, reason, tz_out
+    timestamp = str(timestamp)
+    if not is_hex(timestamp, 13 if guess else 15, 13 if guess else 1):
+        return ""
+    return date_text(epochs[1970], int(timestamp, 16))
 
 
+@encoder("apache")
 def to_apache(dt_obj):
     """Convert a date/time to an Apache cookie value"""
-    ts_type, _, _, _ = ts_types["apache"]
-    try:
-        apache_int = int(((dt_obj - epochs[1970]).total_seconds()) * 1000000)
-        out_apache = f"{apache_int:x}"
-        ts_output, _ = format_output(ts_type, out_apache)
-    except Exception:
-        handle(sys.exc_info())
-        out_apache = ts_output = ""
-    return out_apache, ts_output
+    return f"{microseconds_since(dt_obj, epochs[1970]):x}"
 
 
-def from_leb128hex(timestamp):
+@decoder("leb128hex")
+def from_leb128hex(timestamp, guess=False):
     """Convert a LEB 128 hex value to a date"""
-    ts_type, reason, _, tz_out = ts_types["leb128hex"]
-    try:
-        if not len(timestamp) % 2 == 0 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_leb128_hex = indiv_output = combined_output = ""
-        else:
-            ts_hex_list = [(timestamp[i : i + 2]) for i in range(0, len(timestamp), 2)]
-            unix_milli = 0
-            shift = 0
-            for hex_val in ts_hex_list:
-                byte_val = int(hex_val, 16)
-                unix_milli |= (byte_val & 0x7F) << shift
-                if (byte_val & 0x80) == 0:
-                    break
-                shift += 7
-            in_leb128_hex, _, _, _, _ = from_unixmilli(str(unix_milli))
-            indiv_output, combined_output = format_output(
-                ts_type, in_leb128_hex, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_leb128_hex = indiv_output = combined_output = ""
-    return in_leb128_hex, indiv_output, combined_output, reason, tz_out
+    if not timestamp or len(timestamp) % 2 or not is_hex(timestamp, len(timestamp)):
+        return ""
+    unix_milli = 0
+    shift = 0
+    for byte_val in bytes.fromhex(timestamp):
+        unix_milli |= (byte_val & 0x7F) << shift
+        if (byte_val & 0x80) == 0:
+            break
+        shift += 7
+    if guess and len(str(unix_milli)) != 13:
+        return ""
+    return date_text(epochs[1970], unix_milli * 1000)
 
 
+@encoder("leb128hex")
 def to_leb128hex(dt_obj):
     """Convert a date to a LEB128 hex value."""
-    ts_type, _, _, _ = ts_types["leb128hex"]
-    try:
-        unix_milli, _ = to_unixmilli(dt_obj)
-        unix_milli = int(unix_milli)
-        byte_list = []
-        while True:
-            byte_val = unix_milli & 0x7F
-            unix_milli >>= 7
-            if unix_milli != 0:
-                byte_val |= 0x80
-            byte_list.append(byte_val)
-            if unix_milli == 0:
-                break
-        out_leb128_hex = "".join([f"{byte_val:02x}" for byte_val in byte_list])
-        ts_output, _ = format_output(ts_type, out_leb128_hex)
-    except Exception:
-        handle(sys.exc_info())
-        out_leb128_hex = ts_output = ""
-    return out_leb128_hex, ts_output
+    unix_milli = microseconds_since(dt_obj, epochs[1970]) // 1000
+    byte_list = []
+    while True:
+        byte_val = unix_milli & 0x7F
+        unix_milli >>= 7
+        if unix_milli != 0:
+            byte_val |= 0x80
+        byte_list.append(byte_val)
+        if unix_milli == 0:
+            break
+    return bytes(byte_list).hex()
 
 
+@decoder("juliandec")
 def from_juliandec(timestamp):
     """Convert Julian Date decimal value to a date"""
-    ts_type, reason, _, tz_out = ts_types["juliandec"]
-    try:
-        if (
-            "." not in timestamp
-            or not (
-                (len(timestamp.split(".")[0]) == 7)
-                and (len(timestamp.split(".")[1]) in range(0, 11))
-            )
-            or not "".join(timestamp.split(".")).isdigit()
-        ):
-            in_julian_dec = indiv_output = combined_output = ""
-        else:
-            try:
-                timestamp = float(timestamp)
-            except Exception:
-                timestamp = int(timestamp)
-
-            yr, mon, day, hr, mins, sec, mil = jd.to_gregorian(timestamp)
-            dt_vals = [yr, mon, day, hr, mins, sec, mil]
-            if any(val < 0 for val in dt_vals):
-                in_julian_dec = indiv_output = combined_output = ""
-            else:
-                in_julian_dec = (
-                    dt(yr, mon, day, hr, mins, sec) + timedelta(microseconds=mil)
-                ).strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_julian_dec, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_julian_dec = indiv_output = combined_output = ""
-    return in_julian_dec, indiv_output, combined_output, reason, tz_out
+    if not re.fullmatch(r"[0-9]{7}\.[0-9]{0,10}", timestamp):
+        return ""
+    whole, _, fraction = timestamp.partition(".")
+    julian_date = Fraction(int(whole + fraction), 10 ** len(fraction))
+    return days_to_date_text(epochs[1970], julian_date - _JULIAN_UNIX_EPOCH)
 
 
+@encoder("juliandec")
 def to_juliandec(dt_obj):
     """Convert a date to a Julian Date"""
-    ts_type, _, _, _ = ts_types["juliandec"]
-    try:
-        out_julian_dec = str(
-            jd.from_gregorian(
-                dt_obj.year,
-                dt_obj.month,
-                dt_obj.day,
-                dt_obj.hour,
-                dt_obj.minute,
-                dt_obj.second,
-                dt_obj.microsecond,
-            )
-        )
-        ts_output, _ = format_output(ts_type, out_julian_dec)
-    except Exception:
-        handle(sys.exc_info())
-        out_julian_dec = ts_output = ""
-    return out_julian_dec, ts_output
+    julian_date = _JULIAN_UNIX_EPOCH + Fraction(
+        microseconds_since(dt_obj, epochs[1970]), _DAY_MICROSECONDS
+    )
+    whole, decimals = divmod(round(julian_date * 10**10), 10**10)
+    out_julian_dec = f"{whole}.{decimals:010d}".rstrip("0")
+    return out_julian_dec + "0" if out_julian_dec.endswith(".") else out_julian_dec
 
 
-def from_julianhex(timestamp):
+"""
+The top bit of the 3 byte day number is free, as the day numbers of years 1 to 9999 stay below
+0x800000. When it is set, the 4 bytes are a fraction of exactly 10 digits, so a leading zero
+(a fraction under 0.1) is kept. This sets it for those fractions.
+Values from elsewhere do not carry it and are read as plain digits.
+This is a makeshift method to ensure the leading zero following a decimal place for a fraction
+under 0.1 is tracked and applied accordingly.
+This is not a "documented" method, just an attempt to retain accuracy.
+"""
+
+
+def julian_hex_to_date(day_field, digits):
+    """The UTC date for the day number and fraction digits of a 7 byte Julian date."""
+    if day_field & _JULIAN_FIXED_DIGITS:
+        day, fraction = day_field ^ _JULIAN_FIXED_DIGITS, Fraction(digits, 10**10)
+    else:
+        day, fraction = day_field, Fraction(digits, 10 ** len(str(digits)))
+    microseconds = round((day + fraction - _JULIAN_UNIX_EPOCH) * _DAY_MICROSECONDS)
+    return epochs[1970] + timedelta(microseconds=microseconds)
+
+
+def julian_hex_parts(dt_obj):
+    """The day number and fraction digits to store for a date in 7 bytes."""
+    jd_date = _JULIAN_UNIX_EPOCH + Fraction(
+        microseconds_since(dt_obj, epochs[1970]), _DAY_MICROSECONDS
+    )
+    day, fraction = divmod(jd_date, 1)
+    digits = round(fraction * 10**10)
+    if digits == 10**10:
+        return day + 1, 0
+    if digits == 0:
+        return day, 0
+    if digits < 10**9:
+        return day | _JULIAN_FIXED_DIGITS, digits
+    if digits <= 0xFFFFFFFF:
+        return day, digits
+    digits = round(fraction * 10**9)
+    if digits == 10**9:
+        return day + 1, 0
+    return day, digits
+
+
+@decoder("julianhex")
+def from_julianhex(timestamp, guess=False):
     """Convert Julian Date hex value to a date"""
-    ts_type, reason, _, tz_out = ts_types["julianhex"]
+    if not is_hex(timestamp, 14, 14):
+        return ""
     try:
-        if not len(timestamp) // 2 == 7 or not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_julian_hex = indiv_output = combined_output = ""
-        else:
-            julianday = int(timestamp[:6], 16)
-            julianmil = int(timestamp[6:], 16)
-            julianmil = julianmil / 10 ** int((len(str(julianmil))))
-            julian_date = int(julianday) + int(julianmil)
-            yr, mon, day, hr, mins, sec, mil = jd.to_gregorian(julian_date)
-            dt_vals = [yr, mon, day, hr, mins, sec, mil]
-            if yr > 3000 or any(val < 0 for val in dt_vals):
-                in_julian_hex = indiv_output = combined_output = ""
-            else:
-                dt_obj = dt(yr, mon, day, hr, mins, sec, mil)
-                in_julian_hex = dt_obj.strftime(__fmt__)
-                indiv_output, combined_output = format_output(
-                    ts_type, in_julian_hex, tz_out
-                )
-    except Exception:
-        handle(sys.exc_info())
-        in_julian_hex = indiv_output = combined_output = ""
-    return in_julian_hex, indiv_output, combined_output, reason, tz_out
+        utc_date = julian_hex_to_date(int(timestamp[:6], 16), int(timestamp[6:], 16))
+    except OverflowError:
+        return ""
+    if guess and utc_date.year > 3000:
+        return ""
+    return date_string(utc_date)
 
 
+@encoder("julianhex")
 def to_julianhex(dt_obj):
     """Convert a date to a Julian Hex Date"""
-    ts_type, _, _, _ = ts_types["julianhex"]
-    try:
-        jul_dec = jd.from_gregorian(
-            dt_obj.year,
-            dt_obj.month,
-            dt_obj.day,
-            dt_obj.hour,
-            dt_obj.minute,
-            dt_obj.second,
-        )
-        if isinstance(jul_dec, float):
-            left_val, right_val = str(jul_dec).split(".")
-            left_val = f"{int(left_val):06x}"
-            right_val = f"{int(right_val):08x}"
-        elif isinstance(jul_dec, int):
-            left_val = f"{jul_dec:06x}"
-            right_val = f"{0:08x}"
-        out_julian_hex = f"{str(left_val)}{str(right_val)}"
-        ts_output, _ = format_output(ts_type, out_julian_hex)
-    except Exception:
-        handle(sys.exc_info())
-        out_julian_hex = ts_output = ""
-    return out_julian_hex, ts_output
+    day_field, digits = julian_hex_parts(dt_obj.astimezone(timezone.utc))
+    return f"{day_field:06x}{digits:08x}"
 
 
+@decoder("semioctet")
 def from_semioctet(timestamp):
     """Convert from a Semi-Octet decimal value to a date"""
-    ts_type, reason, _, tz_out = ts_types["semioctet"]
-    try:
-        yr = mon = day = hr = mins = sec = None
-        if (
-            len(str(timestamp)) != 12
-            or len(str(timestamp)) != 14
-            and not str(timestamp).isdigit()
-        ):
-            in_semi_octet = indiv_output = combined_output = ""
-        else:
-            if len(str(timestamp)) == 12:
-                yr, mon, day, hr, mins, sec = [
-                    (a + b)[::-1] for a, b in zip(timestamp[::2], timestamp[1::2])
-                ]
-            elif len(str(timestamp)) == 14:
-                yr, mon, day, hr, mins, sec, _ = [
-                    (a + b)[::-1] for a, b in zip(timestamp[::2], timestamp[1::2])
-                ]
-            try:
-                dt_obj = dt(
-                    int(yr) + 2000, int(mon), int(day), int(hr), int(mins), int(sec)
-                )
-            except ValueError:
-                in_semi_octet = indiv_output = combined_output = ""
-                return in_semi_octet, indiv_output, combined_output, reason, tz_out
-            in_semi_octet = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(
-                ts_type, in_semi_octet, tz_out
-            )
-    except Exception:
-        handle(sys.exc_info())
-        in_semi_octet = indiv_output = combined_output = ""
-    return in_semi_octet, indiv_output, combined_output, reason, tz_out
+    if not is_digits(str(timestamp), 12, 12):
+        return ""
+    year, month, day, hour, minute, second = [
+        int(timestamp[i : i + 2][::-1]) for i in range(0, 12, 2)
+    ]
+    return fields_date_text(year + 2000, month, day, hour, minute, second)
 
 
+@encoder("semioctet")
 def to_semioctet(dt_obj):
     """Convert a date to a Semi-Octet decimal value"""
-    ts_type, _, _, _ = ts_types["semioctet"]
+    fields = [
+        f"{dt_obj.year - 2000:02d}",
+        f"{dt_obj.month:02d}",
+        f"{dt_obj.day:02d}",
+        f"{dt_obj.hour:02d}",
+        f"{dt_obj.minute:02d}",
+        f"{dt_obj.second:02d}",
+    ]
+    return "".join(field[::-1] for field in fields)
+
+
+def urlsafe_protobuf(text):
+    """
+    The message in a urlsafe base64 encoded protobuf.
+    A leading 0, 1 or 2 is skipped, as a prefix that is not part of the base64.
+    """
+    if not text or not all(char in URLSAFE_CHARS for char in text):
+        return None
+    if text[0].isdigit() and int(text[0]) in range(0, 3):
+        text = text[1:]
     try:
-        swap_list = []
-        ts_vals = [
-            str(f"{(dt_obj.year - 2000):02d}"),
-            str(f"{dt_obj.month:02d}"),
-            str(f"{dt_obj.day:02d}"),
-            str(f"{dt_obj.hour:02d}"),
-            str(f"{dt_obj.minute:02d}"),
-            str(f"{dt_obj.second:02d}"),
-        ]
-        for each in ts_vals:
-            swap_list.append(each[::-1])
-        out_semi_octet = "".join(swap_list)
-        ts_output, _ = format_output(ts_type, out_semi_octet)
-    except Exception:
-        handle(sys.exc_info())
-        out_semi_octet = ts_output = ""
-    return out_semi_octet, ts_output
+        raw = base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+        message, _ = blackboxprotobuf.decode_message(raw)
+    except (base64.binascii.Error, DecoderException, TypeError):
+        return None
+    return message
 
 
+@decoder("ved")
 def from_ved(timestamp):
     """Convert from a VED urlsafe base64 encoded protobuf"""
-    ts_type, reason, _, tz_out = ts_types["ved"]
-    try:
-        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
-            in_ved = indiv_output = combined_output = ""
-        else:
-            decoded_ved = None
-            if timestamp[0].isdigit() and int(timestamp[0]) in range(0, 3):
-                timestamp = timestamp[1:]
-            padding_check = len(timestamp) % 4
-            if padding_check != 0:
-                padding_reqd = 4 - padding_check
-                result_ved = timestamp + (padding_reqd * "=")
-            else:
-                result_ved = timestamp
-            try:
-                decoded_ved = base64.urlsafe_b64decode(result_ved)
-            except base64.binascii.Error:
-                in_ved = indiv_output = combined_output = ""
-            try:
-                buff_content, _ = blackboxprotobuf.decode_message(decoded_ved)
-            except (DecoderException, TypeError):
-                in_ved = indiv_output = combined_output = ""
-                return in_ved, indiv_output, combined_output, reason, tz_out
-            if "13" in buff_content:
-                ved_ts = buff_content["13"]["1"]["1"]
-                in_ved = dt.fromtimestamp(ved_ts / 1000000, timezone.utc).strftime(
-                    __fmt__
-                )
-                indiv_output, combined_output = format_output(ts_type, in_ved, tz_out)
-            else:
-                in_ved = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_ved = indiv_output = combined_output = ""
-    return in_ved, indiv_output, combined_output, reason, tz_out
+    message = urlsafe_protobuf(timestamp)
+    if message is None:
+        return ""
+    ved_field = message.get("13")
+    ved_inner = ved_field.get("1") if isinstance(ved_field, dict) else None
+    ved_ts = ved_inner.get("1") if isinstance(ved_inner, dict) else None
+    if not isinstance(ved_ts, int):
+        return ""
+    return date_text(epochs[1970], ved_ts)
 
 
+@decoder("gclid")
 def from_gclid(timestamp):
     """Convert from a gclid urlsafe base64 encoded protobuf"""
-    ts_type, reason, _, tz_out = ts_types["gclid"]
-    try:
-        if not timestamp or not all(char in URLSAFE_CHARS for char in timestamp):
-            in_gclid = indiv_output = combined_output = ""
-        else:
-            decoded_gclid = None
-            if timestamp[0].isdigit() and int(timestamp[0]) in range(0, 3):
-                timestamp = timestamp[1:]
-            padding_check = len(timestamp) % 4
-            if padding_check != 0:
-                padding_reqd = 4 - padding_check
-                result_gclid = timestamp + (padding_reqd * "=")
-            else:
-                result_gclid = timestamp
-            try:
-                decoded_gclid = base64.urlsafe_b64decode(result_gclid)
-            except base64.binascii.Error:
-                in_gclid = indiv_output = combined_output = ""
-            try:
-                buff_content, _ = blackboxprotobuf.decode_message(decoded_gclid)
-            except (DecoderException, TypeError):
-                in_gclid = indiv_output = combined_output = ""
-                return in_gclid, indiv_output, combined_output, reason, tz_out
-            if (
-                "1" in buff_content
-                and isinstance(buff_content["1"], int)
-                and len(str(buff_content["1"])) == 16
-            ):
-                gclid_ts = buff_content["1"]
-                in_gclid = dt.fromtimestamp(gclid_ts / 1000000, timezone.utc).strftime(
-                    __fmt__
-                )
-                indiv_output, combined_output = format_output(ts_type, in_gclid, tz_out)
-            else:
-                in_gclid = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_gclid = indiv_output = combined_output = ""
-    return in_gclid, indiv_output, combined_output, reason, tz_out
+    message = urlsafe_protobuf(timestamp)
+    if message is None:
+        return ""
+    gclid_ts = message.get("1")
+    if not isinstance(gclid_ts, int) or len(str(gclid_ts)) != 16:
+        return ""
+    return date_text(epochs[1970], gclid_ts)
 
 
-def from_linkedin(timestamp):
+@decoder("linkedin")
+def from_linkedin(timestamp, guess=False):
     """Convert from a LinkedIn Post Activity ID"""
-    ts_type, reason, _, tz_out = ts_types["linkedin"]
-    try:
-        if not str(timestamp).isdigit():
-            in_linkedin = indiv_output = combined_output = ""
-        else:
-            bin_convert = bin(int(timestamp))[2:43]
-            li_ts = int(bin_convert, 2) / 1000
-            in_linkedin = dt.fromtimestamp(li_ts, timezone.utc).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_linkedin, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_linkedin = indiv_output = combined_output = ""
-    return in_linkedin, indiv_output, combined_output, reason, tz_out
+    if not is_digits(str(timestamp), 20, 19 if guess else 1):
+        return ""
+    return date_text(epochs[1970], (int(timestamp) >> 22) * 1000)
 
 
+@encoder("linkedin")
 def to_linkedin(dt_obj):
     """Convert a date/time to a LinkedIn Post Activity ID"""
-    ts_type, _, _, _ = ts_types["linkedin"]
     padding = "1011100101100100110110"
-    try:
-        unix_ts = dt_obj.timestamp() * 1000
-        to_bin = bin(int(unix_ts))[2:43]
-        out_linkedin = str(int(to_bin + padding, 2))
-        ts_output, _ = format_output(ts_type, out_linkedin)
-    except Exception:
-        handle(sys.exc_info())
-        out_linkedin = ts_output = ""
-    return out_linkedin, ts_output
+    unix_milli = microseconds_since(dt_obj, epochs[1970]) // 1000
+    return str((unix_milli << len(padding)) | int(padding, 2))
 
 
-def from_ulid(timestamp):
+@decoder("ulid")
+def from_ulid(timestamp, guess=False):
     """Convert from a ULID value"""
-    ts_type, reason, _, tz_out = ts_types["ulid"]
+    if not all(char in BASE32_CHARS for char in timestamp) or len(str(timestamp)) != 26:
+        return ""
     try:
-        if (
-            not all(char in BASE32_CHARS for char in timestamp)
-            or len(str(timestamp)) != 26
-        ):
-            in_ulid = indiv_output = combined_output = ""
-        else:
-            ulid_dt = ULID.parse(timestamp).datetime
-            in_ulid = ulid_dt.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ulid, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ulid = indiv_output = combined_output = ""
-    return in_ulid, indiv_output, combined_output, reason, tz_out
+        unix_milli = int.from_bytes(ULID.parse(timestamp).bytes[:6], "big")
+    except ValueError:
+        return ""
+    if guess and unix_milli >= 32536799999 * 10**3:
+        return ""
+    return date_text(epochs[1970], unix_milli * 1000)
 
 
+@encoder("ulid")
 def to_ulid(dt_obj):
     """Convert a date to a ULID value"""
-    ts_type, _, _, _ = ts_types["ulid"]
-    try:
-        out_ulid = str(ULID.from_datetime(dt_obj))
-        ts_output, _ = format_output(ts_type, out_ulid)
-    except Exception:
-        handle(sys.exc_info())
-        out_ulid = ts_output = ""
-    return out_ulid, ts_output
+    unix_milli = microseconds_since(dt_obj, epochs[1970]) // 1000
+    return str(ULID.from_bytes(unix_milli.to_bytes(6, "big") + os.urandom(10)))
 
 
-def from_dttm(timestamp):
+@decoder("dttm")
+def from_dttm(timestamp, guess=False):
     """Convert a Microsoft DTTM timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["dttm"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_dttm = indiv_output = combined_output = ""
-        else:
-            int_ts = int(timestamp, 16)
-            binary = f"{int_ts:032b}"
-            stamp = [
-                binary[:3],
-                binary[3:12],
-                binary[12:16],
-                binary[16:21],
-                binary[21:26],
-                binary[26:32],
-            ]
-            for binary in stamp[:]:
-                dec = int(binary, 2)
-                stamp.remove(binary)
-                stamp.append(dec)
-            dttm_dow = stamp[0]
-            dttm_year = stamp[1] + 1900
-            dttm_month = stamp[2]
-            dttm_dom = stamp[3]
-            dttm_hour = stamp[4]
-            dttm_min = stamp[5]
-            try:
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (
-                            dttm_dow,
-                            dttm_year,
-                            dttm_month,
-                            dttm_dom,
-                            dttm_hour,
-                            dttm_min,
-                        ),
-                        (
-                            (0, 6),
-                            (1900, 2050),
-                            (1, 13),
-                            (0, monthrange(dttm_year, dttm_month)[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_dttm = indiv_output = combined_output = ""
-                    return in_dttm, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_dttm = indiv_output = combined_output = ""
-                return in_dttm, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(dttm_year, dttm_month, dttm_dom, dttm_hour, dttm_min, 0)
-            in_dttm = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_dttm, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_dttm = indiv_output = combined_output = ""
-    return in_dttm, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    value = int(timestamp, 16)
+    day_of_week, year = value >> 29, ((value >> 20) & 0x1FF) + 1900
+    if day_of_week > 6 or (guess and year >= 2050):
+        return ""
+    return fields_date_text(
+        year, (value >> 16) & 15, (value >> 11) & 31, (value >> 6) & 31, value & 63
+    )
 
 
+@encoder("dttm")
 def to_dttm(dt_obj):
     """Convert a date to a Microsoft DTTM timestamp"""
-    ts_type, _, _, _ = ts_types["dttm"]
-    try:
-        year = f"{(dt_obj.year - 1900):09b}"
-        month = f"{dt_obj.month:04b}"
-        day = f"{dt_obj.day:05b}"
-        hour = f"{dt_obj.hour:05b}"
-        minute = f"{dt_obj.minute:06b}"
-        dow = f"{dt_obj.isoweekday():03b}"
-        out_dttm = str(
-            struct.pack(">I", int(dow + year + month + day + hour + minute, 2)).hex()
-        )
-        ts_output, _ = format_output(ts_type, out_dttm)
-    except Exception:
-        handle(sys.exc_info())
-        out_dttm = ts_output = ""
-    return out_dttm, ts_output
+    day_of_week = dt_obj.isoweekday() % 7
+    value = (
+        day_of_week << 29
+        | (dt_obj.year - 1900) << 20
+        | dt_obj.month << 16
+        | dt_obj.day << 11
+        | dt_obj.hour << 6
+        | dt_obj.minute
+    )
+    return struct.pack(">I", value).hex()
 
 
+@decoder("bcd")
 def from_bcd(timestamp):
     """Convert a Binary Coded Decimal timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["bcd"]
-    try:
-        if len(timestamp) != 12 and not timestamp.isdigit():
-            in_bcd = indiv_output = combined_output = ""
-        else:
-            yr, mon, day, hr, mins, sec = [
-                timestamp[i : i + 2] for i in range(0, len(timestamp), 2)
-            ]
-            yr, mon, day, hr, mins, sec = (
-                int(yr) + 2000,
-                int(mon),
-                int(day),
-                int(hr),
-                int(mins),
-                int(sec),
-            )
-            in_bcd = dt(yr, mon, day, hr, mins, sec, tzinfo=timezone.utc).strftime(
-                __fmt__
-            )
-            indiv_output, combined_output = format_output(ts_type, in_bcd, tz_out)
-    except ValueError:
-        in_bcd = indiv_output = combined_output = ""
-    except Exception:
-        handle(sys.exc_info())
-        in_bcd = indiv_output = combined_output = ""
-    return in_bcd, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 12, 12):
+        return ""
+    year, month, day, hour, minute, second = [
+        int(timestamp[i : i + 2]) for i in range(0, 12, 2)
+    ]
+    return fields_date_text(year + 2000, month, day, hour, minute, second)
 
 
+@encoder("bcd")
 def to_bcd(dt_obj):
     """Convert a date/time to a Binary Coded Decimal"""
-    ts_type, _, _, _ = ts_types["bcd"]
-    try:
-        yr, mon, day, hr, mins, sec = dt_obj.strftime("%Y-%m-%d-%H-%M-%S").split("-")
-        yr = str(int(yr) - 2000)
-        out_bcd = f"{yr}{mon}{day}{hr}{mins}{sec}"
-        ts_output, _ = format_output(ts_type, out_bcd)
-    except Exception:
-        handle(sys.exc_info())
-        out_bcd = ts_output = ""
-    return out_bcd, ts_output
+    return (
+        f"{dt_obj.year - 2000:02d}{dt_obj.month:02d}{dt_obj.day:02d}"
+        f"{dt_obj.hour:02d}{dt_obj.minute:02d}{dt_obj.second:02d}"
+    )
 
 
+@decoder("dvr")
 def from_dvr(timestamp):
     """Convert a DVR (WFS / DHFS) file system timestamp to a date"""
-    ts_type, reason, _, tz_out = ts_types["dvr"]
-    try:
-        if not len(timestamp) == 8 or not all(char in hexdigits for char in timestamp):
-            in_dvr = indiv_output = combined_output = ""
-        else:
-            int_ts = int(timestamp, 16)
-            binary = f"{int_ts:032b}"
-            stamp = [
-                binary[:6],
-                binary[6:10],
-                binary[10:15],
-                binary[15:20],
-                binary[20:26],
-                binary[26:32],
-            ]
-            for binary in stamp[:]:
-                dec = int(binary, 2)
-                stamp.remove(binary)
-                stamp.append(dec)
-            dvr_yr = stamp[0] + 2000
-            dvr_mon = stamp[1]
-            dvr_day = stamp[2]
-            dvr_hr = stamp[3]
-            dvr_min = stamp[4]
-            dvr_sec = stamp[5]
-            try:
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (
-                            dvr_yr,
-                            dvr_mon,
-                            dvr_day,
-                            dvr_hr,
-                            dvr_min,
-                            dvr_sec,
-                        ),
-                        (
-                            (2000, 3000),
-                            (1, 13),
-                            (0, monthrange(dvr_yr, dvr_mon)[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_dvr = indiv_output = combined_output = ""
-                    return in_dvr, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_dvr = indiv_output = combined_output = ""
-                return in_dvr, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(dvr_yr, dvr_mon, dvr_day, dvr_hr, dvr_min, dvr_sec)
-            in_dvr = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_dvr, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_dvr = indiv_output = combined_output = ""
-    return in_dvr, indiv_output, combined_output, reason, tz_out
+    if not is_hex(timestamp, 8, 8):
+        return ""
+    value = int(timestamp, 16)
+    return fields_date_text(
+        (value >> 26) + 2000,
+        (value >> 22) & 15,
+        (value >> 17) & 31,
+        (value >> 12) & 31,
+        (value >> 6) & 63,
+        value & 63,
+    )
 
 
+@encoder("dvr")
 def to_dvr(dt_obj):
     """Convert a date to a DVR (WFS / DHFS) file system timestamp"""
-    ts_type, _, _, _ = ts_types["dvr"]
-    try:
-        year = f"{(dt_obj.year - 2000):06b}"
-        month = f"{dt_obj.month:04b}"
-        day = f"{dt_obj.day:05b}"
-        hour = f"{dt_obj.hour:05b}"
-        minute = f"{dt_obj.minute:06b}"
-        sec = f"{dt_obj.second:06b}"
-        out_dvr = str(
-            struct.pack(">I", int(year + month + day + hour + minute + sec, 2)).hex()
-        )
-        ts_output, _ = format_output(ts_type, out_dvr)
-    except Exception:
-        handle(sys.exc_info())
-        out_dvr = ts_output = ""
-    return out_dvr, ts_output
+    value = (
+        (dt_obj.year - 2000) << 26
+        | dt_obj.month << 22
+        | dt_obj.day << 17
+        | dt_obj.hour << 12
+        | dt_obj.minute << 6
+        | dt_obj.second
+    )
+    return struct.pack(">I", value).hex()
 
 
-def from_logtime(timestamp):
-    ts_type, reason, _, tz_out = ts_types["logtime"]
-    try:
-        if len(str(timestamp)) != 16 and not all(
-            char in hexdigits for char in timestamp
-        ):
-            in_logtime = indiv_output = combined_output = ""
-        else:
-            try:
-                vals = [
-                    int(timestamp[i : i + 2], 16) for i in range(0, len(timestamp), 2)
-                ]
-                if len(vals) < 6:
-                    in_logtime = indiv_output = combined_output = ""
-                    return in_logtime, indiv_output, combined_output, reason, tz_out
-                out_of_range = any(
-                    not low <= value < high
-                    for value, (low, high) in zip(
-                        (
-                            vals[5] + 1900,
-                            vals[4],
-                            vals[3],
-                            vals[2],
-                            vals[1],
-                            vals[0],
-                        ),
-                        (
-                            (2000, 3000),
-                            (1, 13),
-                            (0, monthrange(vals[5] + 1900, vals[4])[1] + 1),
-                            (0, 24),
-                            (0, 60),
-                            (0, 60),
-                        ),
-                    )
-                )
-                if out_of_range:
-                    in_logtime = indiv_output = combined_output = ""
-                    return in_logtime, indiv_output, combined_output, reason, tz_out
-            except (IllegalMonthError, ValueError):
-                in_logtime = indiv_output = combined_output = ""
-                return in_logtime, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt(vals[5] + 1900, vals[4], vals[3], vals[2], vals[1], vals[0])
-            in_logtime = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_logtime, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_logtime = indiv_output = combined_output = ""
-    return in_logtime, indiv_output, combined_output, reason, tz_out
+@decoder("logtime")
+def from_logtime(timestamp, guess=False):
+    """Convert a 16 character hex log time, of seconds to the year from 1900 in 6 bytes, to a date"""
+    if not is_hex(str(timestamp), 16, 16):
+        return ""
+    second, minute, hour, day, month, year = bytes.fromhex(timestamp)[:6]
+    if guess and year + 1900 < 2000:
+        return ""
+    return fields_date_text(year + 1900, month, day, hour, minute, second)
 
 
+@encoder("logtime")
 def to_logtime(dt_obj):
-    ts_type, _, _, _ = ts_types["logtime"]
-    try:
-        vals = [
-            dt_obj.second,
-            dt_obj.minute,
-            dt_obj.hour,
-            dt_obj.day,
-            dt_obj.month,
-            dt_obj.year - 1900,
-        ]
-        out_logtime = "".join(f"{i:02X}" for i in vals) + "0000"
-        ts_output, _ = format_output(ts_type, out_logtime)
-    except Exception:
-        handle(sys.exc_info())
-        out_logtime = ts_output = ""
-    return out_logtime, ts_output
+    """Convert a date to a 16 character hex log time"""
+    utc = dt_obj.astimezone(timezone.utc)
+    fields = [utc.second, utc.minute, utc.hour, utc.day, utc.month, utc.year - 1900]
+    return "".join(f"{field:02X}" for field in fields) + "0000"
 
 
-def from_ntp(timestamp):
-    ts_type, reason, _, tz_out = ts_types["ntp"]
+@decoder("ntp")
+def from_ntp(timestamp, guess=False):
+    """Convert an NTP seconds value, with or without a fraction, to a date"""
     parts = str(timestamp).split(".")
-    try:
-        if len(parts) > 2:
-            in_ntp = indiv_output = combined_output = ""
-        elif len(parts[0]) != 10 and not parts[0].isdigit():
-            in_ntp = indiv_output = combined_output = ""
-        elif len(parts) == 2 and not parts[1].isdigit():
-            in_ntp = indiv_output = combined_output = ""
-        elif len(parts) == 1 and len(parts[0]) != 10:
-            in_ntp = indiv_output = combined_output = ""
-        else:
-            unix_ts = float(timestamp) - epochs["ntp"]
-            if unix_ts < 0:
-                in_ntp = indiv_output = combined_output = ""
-                return in_ntp, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt.fromtimestamp(unix_ts, timezone.utc)
-            in_ntp = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_ntp, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_ntp = indiv_output = combined_output = ""
-    return in_ntp, indiv_output, combined_output, reason, tz_out
+    if len(parts) > 2 or not is_digits(parts[0], 12):
+        return ""
+    if len(parts) == 2 and not is_digits(parts[1], 30):
+        return ""
+    if guess and len(parts) == 1 and len(parts[0]) != 10:
+        return ""
+    fraction = parts[1] if len(parts) == 2 else ""
+    microseconds = units_to_microseconds(int(parts[0] + fraction), 10 ** len(fraction))
+    if guess and microseconds < epochs["ntp"] * 10**6:
+        return ""
+    return date_text(_utc(1900), microseconds)
 
 
+@encoder("ntp")
 def to_ntp(dt_obj):
-    ts_type, _, _, _ = ts_types["ntp"]
-    try:
-        unix_ts = dt_obj.timestamp()
-        out_ntp = str(unix_ts + epochs["ntp"])
-        ts_output, _ = format_output(ts_type, out_ntp)
-    except Exception:
-        handle(sys.exc_info())
-        out_ntp = ts_output = ""
-    return out_ntp, ts_output
+    """Convert a date to an NTP seconds value with its fraction"""
+    seconds, fraction = divmod(microseconds_since(dt_obj, _utc(1900)), 10**6)
+    return f"{seconds}.{f'{fraction:06d}'.rstrip('0') or '0'}"
 
 
-def from_tai(timestamp):
+@decoder("tai")
+def from_tai(timestamp, guess=False):
     """Convert TAI Seconds value to a date"""
-    ts_type, reason, _, tz_out = ts_types["tai"]
-    try:
-        if len(str(timestamp)) != 10 or not timestamp.isdigit():
-            in_tai = indiv_output = combined_output = ""
-        else:
-            tai_sec_val = float(timestamp)
-            unix_sec_val = tai_sec_val - epochs["tai"]
-            dt_val = dt.fromtimestamp(float(unix_sec_val), timezone.utc)
-            in_tai = dt_val.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_tai, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_tai = indiv_output = combined_output = ""
-    return in_tai, indiv_output, combined_output, reason, tz_out
+    if not is_digits(timestamp, 10 if guess else 12, 10 if guess else 1):
+        return ""
+    return date_text(epochs[1970], (int(timestamp) - epochs["tai"]) * 10**6)
 
 
+@encoder("tai")
 def to_tai(dt_obj):
     """Convert date to a TAI Seconds value"""
-    ts_type, _, _, _ = ts_types["tai"]
-    try:
-        out_tai = str(int(dt_obj.timestamp() + epochs["tai"]))
-        ts_output, _ = format_output(ts_type, out_tai)
-    except Exception:
-        handle(sys.exc_info())
-        out_tai = ts_output = ""
-    return out_tai, ts_output
+    return str(seconds_since(dt_obj, epochs[1970]) + epochs["tai"])
 
 
-def from_taimilli(timestamp):
+@decoder("taimilli")
+def from_taimilli(timestamp, guess=False):
     """Convert TAI Millisecond value to a date"""
-    ts_type, reason, _, tz_out = ts_types["taimilli"]
-    try:
-        if len(str(timestamp)) != 13 or not str(timestamp).isdigit():
-            in_tai_milli = indiv_output = combined_output = ""
-        else:
-            tai_milli_val = float(timestamp)
-            unix_milli_val = (tai_milli_val / 1000.0) - epochs["tai"]
-            in_tai_milli = dt.fromtimestamp(
-                float(unix_milli_val), timezone.utc
-            ).strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_tai_milli, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_tai_milli = indiv_output = combined_output = ""
-    return in_tai_milli, indiv_output, combined_output, reason, tz_out
+    if not is_digits(str(timestamp), 13 if guess else 15, 13 if guess else 1):
+        return ""
+    return date_text(epochs[1970], (int(timestamp) - epochs["tai"] * 1000) * 1000)
 
 
+@encoder("taimilli")
 def to_taimilli(dt_obj):
     """Convert date to a TAI Millisecond value"""
-    ts_type, _, _, _ = ts_types["taimilli"]
-    try:
-        out_tai_milli = str(int((dt_obj.timestamp() + epochs["tai"]) * 1000))
-        ts_output, _ = format_output(ts_type, out_tai_milli)
-    except Exception:
-        handle(sys.exc_info())
-        out_tai_milli = ts_output = ""
-    return out_tai_milli, ts_output
+    return str(microseconds_since(dt_obj, epochs[1970]) // 1000 + epochs["tai"] * 1000)
 
 
+@decoder("horolog")
 def from_horolog(timestamp):
     """Convert a Horolog value to a date"""
-    ts_type, reason, _, tz_out = ts_types["horolog"]
+    parts = str(timestamp).split(",")
+    if len(parts) != 2:
+        return ""
     try:
-        if "," not in timestamp:
-            in_horolog = indiv_output = combined_output = ""
-        elif len(str(timestamp).split(",")) > 2:
-            in_horolog = indiv_output = combined_output = ""
-        try:
-            days, secs = map(int, str(timestamp).split(","))
-        except ValueError:
-            in_horolog = indiv_output = combined_output = ""
-            return in_horolog, indiv_output, combined_output, reason, tz_out
-        if len(str(days)) != 5 and not str(days).isdigit() and not str(secs).isdigit():
-            in_horolog = indiv_output = combined_output = ""
-        else:
-            try:
-                dt_obj = epochs[1840] + timedelta(days=days, seconds=secs)
-            except OverflowError:
-                in_horolog = indiv_output = combined_output = ""
-                return in_horolog, indiv_output, combined_output, reason, tz_out
-            in_horolog = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_horolog, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_horolog = indiv_output = combined_output = ""
-    return in_horolog, indiv_output, combined_output, reason, tz_out
+        days, secs = int(parts[0]), int(parts[1])
+    except ValueError:
+        return ""
+    if len(str(days)) != 5 and not str(days).isdigit() and not str(secs).isdigit():
+        return ""
+    return date_text(epochs[1840], (days * 86400 + secs) * 10**6)
 
 
+@encoder("horolog")
 def to_horolog(dt_obj):
     """Convert date to a Horolog value"""
-    ts_type, _, _, _ = ts_types["horolog"]
-    try:
-        delta = dt_obj - epochs[1840]
-        days = delta.days
-        secs = (dt_obj.hour * 3600) + (dt_obj.minute * 60) + dt_obj.second
-        out_horolog = f"{days},{secs}"
-        ts_output, _ = format_output(ts_type, out_horolog)
-    except Exception:
-        handle(sys.exc_info())
-        out_horolog = ts_output = ""
-    return out_horolog, ts_output
+    days = (dt_obj.replace(tzinfo=None) - epochs[1840].replace(tzinfo=None)).days
+    secs = (dt_obj.hour * 3600) + (dt_obj.minute * 60) + dt_obj.second
+    return f"{days},{secs}"
 
 
-def from_mars(timestamp):
+@decoder("mars")
+def from_mars(timestamp, guess=False):
     """Convert a Mars Sol Date value to a date"""
-    ts_type, reason, _, tz_out = ts_types["mars"]
-    try:
-        if "." not in timestamp:
-            in_mars = indiv_output = combined_output = ""
-        elif len(str(timestamp).split(".")) > 2:
-            in_mars = indiv_output = combined_output = ""
-        try:
-            left, right = map(int, str(timestamp).split("."))
-        except ValueError:
-            in_mars = indiv_output = combined_output = ""
-            return in_mars, indiv_output, combined_output, reason, tz_out
-        if len(str(left)) != 5 or not str(left).isdigit() or not str(right).isdigit():
-            in_mars = indiv_output = combined_output = ""
-        else:
-            msd = float(timestamp)
-            jd_tt = ((msd + 0.00096) - 44796.0) * 1.02749125242 + 2451549.5
-            jd_utc = jd_tt - ((epochs["tai"] + 32.184) / 86400)
-            unix_ts = (jd_utc - 2440587.5) * 86400
-            if unix_ts >= 32536799999:
-                in_mars = indiv_output = combined_output = ""
-                return in_mars, indiv_output, combined_output, reason, tz_out
-            dt_obj = dt.fromtimestamp(unix_ts, timezone.utc)
-            in_mars = dt_obj.strftime(__fmt__)
-            indiv_output, combined_output = format_output(ts_type, in_mars, tz_out)
-    except Exception:
-        handle(sys.exc_info())
-        in_mars = indiv_output = combined_output = ""
-    return in_mars, indiv_output, combined_output, reason, tz_out
+    match = re.fullmatch(r"([0-9]+)\.([0-9]+)", timestamp)
+    if not match or not is_digits(
+        str(int(match[1])), 5 if guess else 7, 5 if guess else 1
+    ):
+        return ""
+    msd = Fraction(timestamp)
+    jd_tt = ((msd + Fraction("0.00096")) - 44796) * Fraction(
+        "1.02749125242"
+    ) + Fraction("2451549.5")
+    jd_utc = jd_tt - (epochs["tai"] + Fraction("32.184")) / 86400
+    unix_ts = (jd_utc - Fraction("2440587.5")) * 86400
+    if guess and not 0 <= unix_ts < 32536799999:
+        return ""
+    return seconds_to_date_text(epochs[1970], unix_ts)
 
 
+@encoder("mars")
 def to_mars(dt_obj):
     """Convert date to a Mars Sol Date value"""
-    ts_type, _, _, _ = ts_types["mars"]
+    unix_ts = Fraction(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    jd_utc = (unix_ts / 86400) + _JULIAN_UNIX_EPOCH
+    jd_tt = jd_utc + ((epochs["tai"] + Fraction("32.184")) / 86400)
+    msd = (
+        ((jd_tt - Fraction("2451549.5")) / Fraction("1.02749125242"))
+        + 44796
+        - Fraction("0.00096")
+    )
+    whole, decimals = divmod(round(msd * 10**10), 10**10)
+    return f"{whole}.{decimals:010d}"
+
+
+@decoder("uuid6")
+def from_uuid6(timestamp):
+    """Convert a version 6 UUID value to date/time"""
+    uuid_lower = timestamp.lower()
+    if not re.fullmatch(UUID_PATTERN, uuid_lower) or uuid.UUID(uuid_lower).version != 6:
+        return ""
+    digits = uuid_lower.replace("-", "")
+    ticks = int(digits[:12] + digits[13:16], 16)
+    return date_text(epochs[1582], units_to_microseconds(ticks, 10**7))
+
+
+@encoder("uuid6")
+def to_uuid6(dt_obj):
+    """Convert a date/time value to a version 6 UUID, with a random clock and node"""
+    ticks = microseconds_since(dt_obj, epochs[1582]) * 10
+    random_bits = int.from_bytes(os.urandom(8), "big")
+    clock_seq = (random_bits >> 48) & 0x3FFF
+    node = (random_bits & 0xFFFFFFFFFFFF) | (1 << 40)
+    return str(
+        uuid.UUID(
+            fields=(
+                ticks >> 28,
+                (ticks >> 12) & 0xFFFF,
+                0x6000 | (ticks & 0xFFF),
+                (clock_seq >> 8) | 0x80,
+                clock_seq & 0xFF,
+                node,
+            )
+        )
+    )
+
+
+@decoder("uuid7")
+def from_uuid7(timestamp):
+    """Convert a version 7 UUID value to date/time"""
+    uuid_lower = timestamp.lower()
+    if not re.fullmatch(UUID_PATTERN, uuid_lower) or uuid.UUID(uuid_lower).version != 7:
+        return ""
+    return date_text(epochs[1970], int(uuid_lower[:8] + uuid_lower[9:13], 16) * 1000)
+
+
+@encoder("uuid7")
+def to_uuid7(dt_obj):
+    """Convert a date/time value to a version 7 UUID, with random bits after the time"""
+    milliseconds = microseconds_since(dt_obj, epochs[1970]) // 1000
+    random_bits = int.from_bytes(os.urandom(10), "big")
+    rand_a, rand_b = (random_bits >> 62) & 0xFFF, random_bits & (2**62 - 1)
+    return str(
+        uuid.UUID(int=milliseconds << 80 | 7 << 76 | rand_a << 64 | 0b10 << 62 | rand_b)
+    )
+
+
+@decoder("objectid")
+def from_objectid(timestamp, guess=False):
+    """Convert a MongoDB ObjectId to a date/time"""
+    if not is_hex(timestamp, 24, 24):
+        return ""
+    seconds = int(timestamp[:8], 16)
+    if guess and not 1230768000 <= seconds < 2**31:
+        return ""
+    return date_text(epochs[1970], seconds * 10**6)
+
+
+@encoder("objectid")
+def to_objectid(dt_obj):
+    """Convert a date/time to a MongoDB ObjectId, with 8 random bytes after the seconds"""
+    return (
+        struct.pack(">I", seconds_since(dt_obj, epochs[1970])).hex()
+        + os.urandom(8).hex()
+    )
+
+
+@decoder("unixnano")
+def from_unixnano(timestamp, guess=False):
+    """Convert Unix Nanosecond value to a date"""
+    if not is_digits(timestamp, 19 if guess else 21, 19 if guess else 1):
+        return ""
+    return date_text(epochs[1970], units_to_microseconds(int(timestamp), 10**9))
+
+
+@encoder("unixnano")
+def to_unixnano(dt_obj):
+    """Convert date to a Unix Nanosecond value"""
+    return str(microseconds_since(dt_obj, epochs[1970]) * 1000)
+
+
+@decoder("apfs")
+def from_apfs(timestamp, guess=False):
+    """Convert an APFS little-endian 64-bit nanosecond value to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    nanoseconds = int.from_bytes(bytes.fromhex(timestamp), "little")
+    if guess and not 10**18 <= nanoseconds < 4102444800 * 10**9:
+        return ""
+    return date_text(epochs[1970], units_to_microseconds(nanoseconds, 10**9))
+
+
+@encoder("apfs")
+def to_apfs(dt_obj):
+    """Convert a date to an APFS little-endian 64-bit nanosecond value"""
+    return struct.pack("<Q", microseconds_since(dt_obj, epochs[1970]) * 1000).hex()
+
+
+@decoder("unixsecfrac")
+def from_unixsecfrac(timestamp, guess=False):
+    """Convert Unix seconds with a fraction to a date"""
+    shape = r"[0-9]{10}\.[0-9]{1,9}" if guess else r"[0-9]{1,12}\.[0-9]{1,9}"
+    if not re.fullmatch(shape, timestamp):
+        return ""
+    return date_text(epochs[1970], round(Fraction(timestamp) * 10**6))
+
+
+@encoder("unixsecfrac")
+def to_unixsecfrac(dt_obj):
+    """Convert a date to Unix seconds with 6 decimals"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    return f"{seconds}.{microseconds:06d}"
+
+
+@decoder("instagram")
+def from_instagram(timestamp, guess=False):
+    """Convert an Instagram ID to a date/time"""
+    if not is_digits(timestamp, 20, 19 if guess else 1) or int(timestamp) >= 2**64:
+        return ""
+    milliseconds = (int(timestamp) >> 23) + _INSTAGRAM_EPOCH_MILLISECONDS
+    return date_text(epochs[1970], milliseconds * 1000)
+
+
+@encoder("instagram")
+def to_instagram(dt_obj):
+    """Convert a date/time to an Instagram ID, with no shard or sequence"""
+    milliseconds = microseconds_since(dt_obj, epochs[1970]) // 1000
+    return str((milliseconds - _INSTAGRAM_EPOCH_MILLISECONDS) << 23)
+
+
+@decoder("firebase")
+def from_firebase(timestamp, guess=False):
+    """Convert a Firebase Push ID to a date/time"""
+    if len(timestamp) != 20 or not all(char in PUSH_CHARS for char in timestamp):
+        return ""
+    milliseconds = 0
+    for char in timestamp[:8]:
+        milliseconds = milliseconds * 64 + PUSH_CHARS.index(char)
+    if guess and not 1325376000000 <= milliseconds < 2**42:
+        return ""
+    return date_text(epochs[1970], milliseconds * 1000)
+
+
+@encoder("firebase")
+def to_firebase(dt_obj):
+    """Convert a date/time to a Firebase Push ID, with 12 random characters after the time"""
+    milliseconds = microseconds_since(dt_obj, epochs[1970]) // 1000
+    prefix = ""
+    for _ in range(8):
+        milliseconds, digit = divmod(milliseconds, 64)
+        prefix = PUSH_CHARS[digit] + prefix
+    return prefix + "".join(PUSH_CHARS[byte & 63] for byte in os.urandom(12))
+
+
+@decoder("dotnetbin")
+def from_dotnetbin(timestamp, guess=False):
+    """Convert a .NET DateTime.ToBinary value to a date/time"""
+    if (
+        not re.fullmatch(r"-?[0-9]{1,19}", timestamp)
+        or not -(2**63) <= int(timestamp) < 2**63
+    ):
+        return ""
+    value = int(timestamp) & 0xFFFFFFFFFFFFFFFF
+    if guess and value >> 62 == 0:
+        return ""
+    ticks = value & _DOTNET_TICKS_MASK
+    return date_text(epochs[1], units_to_microseconds(ticks, 10**7))
+
+
+@encoder("dotnetbin")
+def to_dotnetbin(dt_obj):
+    """Convert a date to a .NET DateTime.ToBinary value of the UTC kind"""
+    return str(_DOTNET_KIND_UTC | microseconds_since(dt_obj, epochs[1]) * 10)
+
+
+def mssql_date_text(days, ticks, guess):
+    """The date of a SQL Server datetime from its days since 1900 and 300ths of a second"""
+    if ticks >= _MSSQL_TICKS_PER_DAY:
+        return ""
+    if (
+        guess
+        and not (dt(1990, 1, 1) - dt(1900, 1, 1)).days
+        <= days
+        < (dt(2100, 1, 1) - dt(1900, 1, 1)).days
+    ):
+        return ""
+    return date_text(
+        _utc(1900), days * 86400 * 10**6 + units_to_microseconds(ticks, 300)
+    )
+
+
+def mssql_parts(dt_obj):
+    """The days since 1900 and 300ths of a second of a date, to the nearest 300th"""
+    microseconds = (dt_obj.replace(tzinfo=None) - dt(1900, 1, 1)) // _MICROSECOND
+    return divmod(round(Fraction(microseconds * 300, 10**6)), _MSSQL_TICKS_PER_DAY)
+
+
+@decoder("mssql")
+def from_mssql(timestamp, guess=False):
+    """Convert a SQL Server datetime, as CAST to binary(8) shows it, to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    days, ticks = struct.unpack(">iI", bytes.fromhex(timestamp))
+    return mssql_date_text(days, ticks, guess)
+
+
+@encoder("mssql")
+def to_mssql(dt_obj):
+    """Convert a date to a SQL Server datetime, as CAST to binary(8) shows it"""
+    days, ticks = mssql_parts(dt_obj)
+    return struct.pack(">iI", days, ticks).hex()
+
+
+@decoder("mssqlle")
+def from_mssqlle(timestamp, guess=False):
+    """Convert a SQL Server datetime, as it is stored on disk, to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    ticks, days = struct.unpack("<Ii", bytes.fromhex(timestamp))
+    return mssql_date_text(days, ticks, guess)
+
+
+@encoder("mssqlle")
+def to_mssqlle(dt_obj):
+    """Convert a date to a SQL Server datetime, as it is stored on disk"""
+    days, ticks = mssql_parts(dt_obj)
+    return struct.pack("<Ii", ticks, days).hex()
+
+
+@decoder("oracle")
+def from_oracle(timestamp, guess=False):
+    """Convert an Oracle DATE, as 14 hex characters or the 7 bytes DUMP shows, to a date"""
+    if re.fullmatch(r"[0-9]{1,3}(,[0-9]{1,3}){6}", timestamp):
+        values = [int(part) for part in timestamp.split(",")]
+        if max(values) > 255:
+            return ""
+    elif is_hex(timestamp, 14, 14):
+        values = list(bytes.fromhex(timestamp))
+    else:
+        return ""
+    century, year, month, day, hour, minute, second = values
+    full_year = (century - 100) * 100 + year - 100
+    if guess and not 1950 <= full_year < 2100:
+        return ""
+    return fields_date_text(full_year, month, day, hour - 1, minute - 1, second - 1)
+
+
+@encoder("oracle")
+def to_oracle(dt_obj):
+    """Convert a date to an Oracle DATE as 14 hex characters"""
+    return bytes(
+        [
+            dt_obj.year // 100 + 100,
+            dt_obj.year % 100 + 100,
+            dt_obj.month,
+            dt_obj.day,
+            dt_obj.hour + 1,
+            dt_obj.minute + 1,
+            dt_obj.second + 1,
+        ]
+    ).hex()
+
+
+@decoder("ntp64")
+def from_ntp64(timestamp, guess=False):
+    """Convert an NTP 64-bit timestamp, 32 bits of seconds and 32 bits of fraction, to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    seconds, fraction = int(timestamp[:8], 16), int(timestamp[8:], 16)
+    if guess and seconds < 3155673600:
+        return ""
+    return date_text(
+        _utc(1900), seconds * 10**6 + units_to_microseconds(fraction, 2**32)
+    )
+
+
+@encoder("ntp64")
+def to_ntp64(dt_obj):
+    """Convert a date to an NTP 64-bit timestamp"""
+    total = round(Fraction(microseconds_since(dt_obj, _utc(1900)) * 2**32, 10**6))
+    seconds, fraction = divmod(total, 2**32)
+    return f"{seconds:08x}{fraction:08x}"
+
+
+@decoder("symbian")
+def from_symbian(timestamp, guess=False):
+    """Convert a Symbian TTime, microseconds since the year 0, to a date"""
+    if not is_digits(timestamp, 18, 17 if guess else 1):
+        return ""
+    return date_text(epochs[1970], int(timestamp) - _SYMBIAN_YEAR_ZERO_SECONDS * 10**6)
+
+
+@encoder("symbian")
+def to_symbian(dt_obj):
+    """Convert a date to a Symbian TTime"""
+    return str(
+        microseconds_since(dt_obj, epochs[1970]) + _SYMBIAN_YEAR_ZERO_SECONDS * 10**6
+    )
+
+
+@decoder("garmin")
+def from_garmin(timestamp, guess=False):
+    """Convert a Garmin FIT date_time to a date"""
+    if not is_digits(timestamp, 10, 9 if guess else 1) or int(timestamp) >= _UINT32:
+        return ""
+    if guess and int(timestamp) < 0x10000000:
+        return ""
+    return date_text(_utc(1989, 12, 31), int(timestamp) * 10**6)
+
+
+@encoder("garmin")
+def to_garmin(dt_obj):
+    """Convert a date to a Garmin FIT date_time"""
+    return str(seconds_since(dt_obj, _utc(1989, 12, 31)))
+
+
+@decoder("ext4")
+def from_ext4(timestamp, guess=False):
+    """Convert an ext4 inode time to a date"""
+    match = re.fullmatch(
+        r"(?:0x)?([0-9a-f]{8}):(?:0x)?([0-9a-f]{8})", timestamp.lower()
+    )
+    if not match:
+        return ""
+    seconds, extra = int(match[1], 16), int(match[2], 16)
+    if seconds >= 2**31:
+        seconds -= 2**32
+    seconds += (extra & 3) << 32
+    nanoseconds = extra >> 2
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if nanoseconds >= 10**9 or (guess and not 946684800 <= seconds < 4102444800):
+        return ""
+    return date_text(
+        epochs[1970], seconds * 10**6 + units_to_microseconds(nanoseconds, 10**9)
+    )
+
+
+@encoder("ext4")
+def to_ext4(dt_obj):
+    """Convert a date to an ext4 inode time"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    epoch_bits = (seconds + 2**31) >> 32
+    low = seconds - (epoch_bits << 32)
+    return f"{low & 0xFFFFFFFF:08x}:{(microseconds * 1000 << 2 | epoch_bits):08x}"
+
+
+def pcap_date_text(seconds, microseconds, guess):
+    """The date of the seconds and microseconds in a pcap record header"""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if microseconds >= 10**6 or (guess and not 946684800 <= seconds < 4102444800):
+        return ""
+    return date_text(epochs[1970], seconds * 10**6 + microseconds)
+
+
+@decoder("pcap")
+def from_pcap(timestamp, guess=False):
+    """Convert a little-endian pcap record time to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    return pcap_date_text(*struct.unpack("<II", bytes.fromhex(timestamp)), guess)
+
+
+@encoder("pcap")
+def to_pcap(dt_obj):
+    """Convert a date to a little-endian pcap record time"""
+    return struct.pack(
+        "<II", *divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    ).hex()
+
+
+@decoder("pcapbe")
+def from_pcapbe(timestamp, guess=False):
+    """Convert a big-endian pcap record time to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    return pcap_date_text(*struct.unpack(">II", bytes.fromhex(timestamp)), guess)
+
+
+@encoder("pcapbe")
+def to_pcapbe(dt_obj):
+    """Convert a date to a big-endian pcap record time"""
+    return struct.pack(
+        ">II", *divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    ).hex()
+
+
+@decoder("iso9660")
+def from_iso9660(timestamp, guess=False):
+    """Convert an ISO 9660 7-byte recording date to a date"""
+    if not is_hex(timestamp, 14, 14):
+        return ""
+    year, month, day, hour, minute, second, quarters = struct.unpack(
+        "<6Bb", bytes.fromhex(timestamp)
+    )
+    # when guessing, only the years 1990 to 2099 are taken
+    if not -48 <= quarters <= 52 or (guess and not 1990 <= 1900 + year < 2100):
+        return ""
+    text = fields_date_text(1900 + year, month, day, hour, minute, second)
+    return (
+        (text, utc_offset_label(ts_types["iso9660"].time_zone, quarters))
+        if text
+        else ""
+    )
+
+
+@encoder("iso9660")
+def to_iso9660(dt_obj):
+    """Convert a date to an ISO 9660 7-byte recording date in local time with its UTC offset"""
+    quarters = int(dt_obj.utcoffset().total_seconds()) // 900
+    if not -48 <= quarters <= 52:
+        return ""
+    fields = (
+        dt_obj.year - 1900,
+        dt_obj.month,
+        dt_obj.day,
+        dt_obj.hour,
+        dt_obj.minute,
+        dt_obj.second,
+    )
+    return struct.pack("<6Bb", *fields, quarters).hex()
+
+
+@decoder("exfatext")
+def from_exfatext(timestamp, guess=False):
+    """Convert an exFAT time with its 10 ms increment and UTC offset bytes to a date"""
+    if not is_hex(timestamp, 12, 12):
+        return ""
+    value, increment, offset = (
+        int(timestamp[:8], 16),
+        int(timestamp[8:10], 16),
+        int(timestamp[10:], 16),
+    )
+    moment = dos_datetime(value)
+    if moment is None or increment > 199:
+        return ""
+    # when guessing, only the years up to 2099 are taken
+    if guess and moment.year >= 2100:
+        return ""
+    text = date_string(moment + timedelta(milliseconds=increment * 10))
+    if not offset & 0x80:
+        return text
+    return text, utc_offset_label(
+        "UTC", (offset & 0x7F) - (0x80 if offset & 0x40 else 0)
+    )  # offset is a signed 7 bit count of 15 minute steps
+
+
+@encoder("exfatext")
+def to_exfatext(dt_obj):
+    """Convert a date to an exFAT time with its 10 ms increment"""
+    quarters = int(dt_obj.utcoffset().total_seconds()) // 900
+    if not -64 <= quarters <= 63:
+        return ""
+    increment = ((dt_obj.second % 2) * 10**6 + dt_obj.microsecond) // 10000
+    return f"{dos_value(dt_obj):08x}{increment:02x}{0x80 | quarters & 0x7F:02x}"
+
+
+@decoder("tar")
+def from_tar(timestamp, guess=False):
+    """Convert a tar header time to a date"""
+    if not re.fullmatch(r"[0-7]{11}" if guess else r"[0-7]{1,12}", timestamp):
+        return ""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 946684800 <= int(timestamp, 8) < 4102444800:
+        return ""
+    return date_text(epochs[1970], int(timestamp, 8) * 10**6)
+
+
+@encoder("tar")
+def to_tar(dt_obj):
+    """Convert a date to a tar header time of 11 octal digits"""
+    return f"{seconds_since(dt_obj, epochs[1970]):011o}"
+
+
+@decoder("tai64n")
+def from_tai64n(timestamp, guess=False):
+    """Convert a TAI64N label to a date"""
+    text = timestamp[1:] if timestamp.startswith("@") else timestamp
+    if not is_hex(text, 24, 24):
+        return ""
+    label, nanoseconds = int(text[:16], 16), int(text[16:], 16)
+    seconds = label - 2**62 - 10
+    if not 2**62 <= label < 2**63 or nanoseconds >= 10**9:
+        return ""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 946684800 <= seconds < 4102444800:
+        return ""
+    return date_text(
+        epochs[1970], seconds * 10**6 + units_to_microseconds(nanoseconds, 10**9)
+    )
+
+
+@encoder("tai64n")
+def to_tai64n(dt_obj):
+    """Convert a date to a TAI64N label"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    return f"{2**62 + 10 + seconds:016x}{microseconds * 1000:08x}"
+
+
+@decoder("cdma")
+def from_cdma(timestamp, guess=False):
+    """Convert a CDMA SMS time of 6 BCD bytes to a date"""
+    if not is_digits(timestamp, 12, 12):
+        return ""
+    year, month, day, hour, minute, second = [
+        int(timestamp[i : i + 2]) for i in range(0, 12, 2)
+    ]
+    full_year = year + (1900 if year >= 96 else 2000)
+    if guess and full_year >= 2000:
+        return ""
+    return fields_date_text(full_year, month, day, hour, minute, second)
+
+
+@encoder("cdma")
+def to_cdma(dt_obj):
+    """Convert a date to a CDMA SMS time"""
+    return (
+        f"{dt_obj.year % 100:02d}{dt_obj.month:02d}{dt_obj.day:02d}"
+        f"{dt_obj.hour:02d}{dt_obj.minute:02d}{dt_obj.second:02d}"
+    )
+
+
+@decoder("tid")
+def from_tid(timestamp, guess=False):
+    """Convert a Bluesky TID to a date"""
+    if not re.fullmatch(r"[234567a-j][234567a-z]{12}", timestamp):
+        return ""
+    value = 0
+    for char in timestamp:
+        value = value * 32 + S32_CHARS.index(char)
+    microseconds = value >> 10
+    if guess and microseconds < 1640995200 * 10**6:
+        return ""
+    return date_text(epochs[1970], microseconds)
+
+
+@encoder("tid")
+def to_tid(dt_obj):
+    """Convert a date to a Bluesky TID"""
+    value = (
+        microseconds_since(dt_obj, epochs[1970]) << 10
+        | int.from_bytes(os.urandom(2), "big") & 1023
+    )
+    characters = ""
+    for _ in range(13):
+        value, index = divmod(value, 32)
+        characters = S32_CHARS[index] + characters
+    return characters
+
+
+@decoder("mjd")
+def from_mjd(timestamp, guess=False):
+    """Convert a Modified Julian Date to a date"""
+    shape = r"[0-9]{5}\.[0-9]{1,12}" if guess else r"[0-9]{1,7}(\.[0-9]{1,15})?"
+    if not re.fullmatch(shape, timestamp):
+        return ""
+    return days_to_date_text(_utc(1858, 11, 17), Fraction(timestamp))
+
+
+@encoder("mjd")
+def to_mjd(dt_obj):
+    """Convert a date to a Modified Julian Date"""
+    return decimal_days(dt_obj, _utc(1858, 11, 17))
+
+
+@decoder("quicktime")
+def from_quicktime(timestamp, guess=False):
+    """Convert a QuickTime / MP4 time to a date"""
+    if len(timestamp) not in (8, 16) or not is_hex(timestamp, 16):
+        return ""
+    seconds = int(timestamp, 16)
+    # when guessing, only 1990-01-01 to 2099-12-31 are taken
+    if guess and not 2713996800 <= seconds < 6185289600:
+        return ""
+    return date_text(epochs[1904], seconds * 10**6)
+
+
+@encoder("quicktime")
+def to_quicktime(dt_obj):
+    """Convert a date to a QuickTime / MP4 time"""
+    seconds = seconds_since(dt_obj, epochs[1904])
+    return f"{seconds:08x}" if seconds < _UINT32 else f"{seconds:016x}"
+
+
+@decoder("matroska")
+def from_matroska(timestamp, guess=False):
+    """Convert a Matroska / WebM date to a date"""
+    if not re.fullmatch(r"[0-9]{18,19}" if guess else r"-?[0-9]{1,19}", timestamp):
+        return ""
+    nanoseconds = int(timestamp)
+    # when guessing, only 2004-03-03 (18 digits) to 2099-12-31 are taken
+    if not -(2**63) <= nanoseconds < 2**63 or (
+        guess and nanoseconds >= 3124137600 * 10**9
+    ):
+        return ""
+    return date_text(epochs[2001], units_to_microseconds(nanoseconds, 10**9))
+
+
+@encoder("matroska")
+def to_matroska(dt_obj):
+    """Convert a date to a Matroska / WebM date"""
+    return str(microseconds_since(dt_obj, epochs[2001]) * 1000)
+
+
+def postgres_date_text(microseconds, guess):
+    """The date of the signed microseconds since 2000-01-01 in a PostgreSQL timestamp"""
+    # when guessing, only 2003-03-01 to 2099-12-31 are taken
+    if not -(2**63) <= microseconds < 2**63 or (
+        guess and not 10**14 <= microseconds < 3155760000 * 10**6
+    ):
+        return ""
+    return date_text(epochs[2000], microseconds)
+
+
+@decoder("postgres")
+def from_postgres(timestamp, guess=False):
+    """Convert a PostgreSQL timestamp to a date"""
+    if not re.fullmatch(r"[0-9]{15,16}" if guess else r"-?[0-9]{1,19}", timestamp):
+        return ""
+    return postgres_date_text(int(timestamp), guess)
+
+
+@encoder("postgres")
+def to_postgres(dt_obj):
+    """Convert a date to a PostgreSQL timestamp"""
+    return str(microseconds_since(dt_obj, epochs[2000]))
+
+
+@decoder("postgresbe")
+def from_postgresbe(timestamp, guess=False):
+    """Convert a big-endian PostgreSQL timestamp to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    return postgres_date_text(struct.unpack(">q", bytes.fromhex(timestamp))[0], guess)
+
+
+@encoder("postgresbe")
+def to_postgresbe(dt_obj):
+    """Convert a date to a big-endian PostgreSQL timestamp"""
+    return struct.pack(">q", microseconds_since(dt_obj, epochs[2000])).hex()
+
+
+@decoder("postgresle")
+def from_postgresle(timestamp, guess=False):
+    """Convert a little-endian PostgreSQL timestamp to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    return postgres_date_text(struct.unpack("<q", bytes.fromhex(timestamp))[0], guess)
+
+
+@encoder("postgresle")
+def to_postgresle(dt_obj):
+    """Convert a date to a little-endian PostgreSQL timestamp"""
+    return struct.pack("<q", microseconds_since(dt_obj, epochs[2000])).hex()
+
+
+@decoder("telegram")
+def from_telegram(timestamp, guess=False):
+    """Convert a Telegram MTProto message ID to a date"""
+    if not is_digits(timestamp, 20, 19 if guess else 1) or int(timestamp) >= 2**64:
+        return ""
+    seconds, fraction = divmod(int(timestamp), _UINT32)
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 946684800 <= seconds < 4102444800:
+        return ""
+    return date_text(
+        epochs[1970], seconds * 10**6 + units_to_microseconds(fraction, _UINT32)
+    )
+
+
+@encoder("telegram")
+def to_telegram(dt_obj):
+    """Convert a date to a Telegram MTProto message ID"""
+    fraction = round(
+        Fraction(microseconds_since(dt_obj, epochs[1970]) * _UINT32, 10**6)
+    )
+    return str(fraction & ~3)
+
+
+@decoder("unixdays")
+def from_unixdays(timestamp, guess=False):
+    """Convert whole days since 1970-01-01 to a date"""
+    if not is_digits(timestamp, 5 if guess else 7, 5 if guess else 1):
+        return ""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 10957 <= int(timestamp) < 47482:
+        return ""
+    return date_text(epochs[1970], int(timestamp) * _DAY_MICROSECONDS)
+
+
+@encoder("unixdays")
+def to_unixdays(dt_obj):
+    """Convert a date to whole days since 1970-01-01"""
+    return str((dt_obj - epochs[1970]) // timedelta(days=1))
+
+
+@decoder("matlab")
+def from_matlab(timestamp, guess=False):
+    """Convert a MATLAB datenum to a date"""
+    if not re.fullmatch(
+        r"[0-9]{6}\.[0-9]{1,12}" if guess else r"[0-9]{1,7}(\.[0-9]{1,15})?", timestamp
+    ):
+        return ""
+    days = Fraction(timestamp)
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 730486 <= days < 767011:
+        return ""
+    return days_to_date_text(epochs[1970], days - _MATLAB_UNIX_EPOCH)
+
+
+@encoder("matlab")
+def to_matlab(dt_obj):
+    """Convert a date to a MATLAB datenum"""
+    return decimal_days(dt_obj, epochs[1970], _MATLAB_UNIX_EPOCH)
+
+
+@decoder("sas")
+def from_sas(timestamp, guess=False):
+    """Convert a SAS datetime to a date"""
+    if not re.fullmatch(
+        r"[0-9]{10}(\.[0-9]{1,6})?" if guess else r"[0-9]{1,12}(\.[0-9]{1,9})?",
+        timestamp,
+    ):
+        return ""
+    seconds = Fraction(timestamp)
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 1262304000 <= seconds < 4418064000:
+        return ""
+    return date_text(_utc(1960), round(seconds * 10**6))
+
+
+@encoder("sas")
+def to_sas(dt_obj):
+    """Convert a date to a SAS datetime"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, _utc(1960)), 10**6)
+    return f"{seconds}.{microseconds:06d}"
+
+
+@decoder("sasdate")
+def from_sasdate(timestamp, guess=False):
+    """Convert a SAS datetime to a date"""
+    if not is_digits(timestamp, 5 if guess else 7, 5 if guess else 1):
+        return ""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 14610 <= int(timestamp) < 51135:
+        return ""
+    return date_text(_utc(1960), int(timestamp) * _DAY_MICROSECONDS)
+
+
+@encoder("sasdate")
+def to_sasdate(dt_obj):
+    """Convert a date to a SAS datetime"""
+    return str((dt_obj - _utc(1960)) // timedelta(days=1))
+
+
+@decoder("gacookie")
+def from_gacookie(timestamp):
+    """Convert the time in a Google Analytics _ga or _gid cookie to a date"""
+    match = re.fullmatch(r"GA[0-9]\.[0-9]{1,2}\.[0-9]{1,10}\.([0-9]{1,12})", timestamp)
+    return date_text(epochs[1970], int(match[1]) * 10**6) if match else ""
+
+
+@decoder("fbcookie")
+def from_fbcookie(timestamp):
+    """Convert the time in a Facebook _fbp or _fbc cookie to a date"""
+    match = re.fullmatch(
+        r"fb\.[0-9]{1,2}\.([0-9]{1,15})\.[0-9A-Za-z_-]{1,200}", timestamp
+    )
+    return date_text(epochs[1970], int(match[1]) * 1000) if match else ""
+
+
+@decoder("xray")
+def from_xray(timestamp):
+    """Convert an AWS X-Ray trace ID to a date"""
+    match = re.fullmatch(r"1-([0-9a-fA-F]{8})-[0-9a-fA-F]{24}", timestamp)
+    return date_text(epochs[1970], int(match[1], 16) * 10**6) if match else ""
+
+
+@encoder("xray")
+def to_xray(dt_obj):
+    """Convert a date to an AWS X-Ray trace ID"""
+    return f"1-{seconds_since(dt_obj, epochs[1970]):08x}-{os.urandom(12).hex()}"
+
+
+@decoder("int96")
+def from_int96(timestamp, guess=False):
+    """Convert a Parquet INT96 timestamp to a date"""
+    if not is_hex(timestamp, 24, 24):
+        return ""
+    nanoseconds, day = struct.unpack("<qi", bytes.fromhex(timestamp))
+    # when guessing, only the days from 2000-01-01 to 2099-12-31 are taken
+    if not 0 <= nanoseconds < 86400 * 10**9 or (guess and not 2451545 <= day < 2488070):
+        return ""
+    microseconds = (day - _INT96_UNIX_DAY) * _DAY_MICROSECONDS + units_to_microseconds(
+        nanoseconds, 10**9
+    )
+    return date_text(epochs[1970], microseconds)
+
+
+@encoder("int96")
+def to_int96(dt_obj):
+    """Convert a date to a Parquet INT96 timestamp"""
+    days, microseconds = divmod(
+        microseconds_since(dt_obj, epochs[1970]), _DAY_MICROSECONDS
+    )
+    return struct.pack("<qi", microseconds * 1000, days + _INT96_UNIX_DAY).hex()
+
+
+@decoder("xfs")
+def from_xfs(timestamp, guess=False):
+    """Convert an XFS inode time to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    seconds, nanoseconds = struct.unpack(">iI", bytes.fromhex(timestamp))
+    # when guessing, only 2000-01-01 to 2038 are taken
+    if nanoseconds >= 10**9 or (guess and not 946684800 <= seconds):
+        return ""
+    return date_text(
+        epochs[1970], seconds * 10**6 + units_to_microseconds(nanoseconds, 10**9)
+    )
+
+
+@encoder("xfs")
+def to_xfs(dt_obj):
+    """Convert a date to an XFS inode time"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    return struct.pack(">iI", seconds, microseconds * 1000).hex()
+
+
+@decoder("xfsbig")
+def from_xfsbig(timestamp, guess=False):
+    """Convert an XFS bigtime value to a date"""
+    if not is_hex(timestamp, 16, 16):
+        return ""
+    nanoseconds = int(timestamp, 16)
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if (
+        guess
+        and not (946684800 + 2**31) * 10**9
+        <= nanoseconds
+        < (4102444800 + 2**31) * 10**9
+    ):
+        return ""
+    return date_text(_XFS_BIGTIME_EPOCH, units_to_microseconds(nanoseconds, 10**9))
+
+
+@encoder("xfsbig")
+def to_xfsbig(dt_obj):
+    """Convert a date to an XFS bigtime value"""
+    return f"{microseconds_since(dt_obj, _XFS_BIGTIME_EPOCH) * 1000:016x}"
+
+
+@decoder("btrfs")
+def from_btrfs(timestamp, guess=False):
+    """Convert a Btrfs inode time to a date"""
+    if not is_hex(timestamp, 24, 24):
+        return ""
+    seconds, nanoseconds = struct.unpack("<qI", bytes.fromhex(timestamp))
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if nanoseconds >= 10**9 or (guess and not 946684800 <= seconds < 4102444800):
+        return ""
+    return date_text(
+        epochs[1970], seconds * 10**6 + units_to_microseconds(nanoseconds, 10**9)
+    )
+
+
+@encoder("btrfs")
+def to_btrfs(dt_obj):
+    """Convert a date to a Btrfs inode time"""
+    seconds, microseconds = divmod(microseconds_since(dt_obj, epochs[1970]), 10**6)
+    return struct.pack("<qI", seconds, microseconds * 1000).hex()
+
+
+@decoder("efitime")
+def from_efitime(timestamp, guess=False):
+    """Convert a UEFI EFI_TIME to a date"""
+    if not is_hex(timestamp, 32, 32):
+        return ""
+    year, month, day, hour, minute, second, nanosecond, zone, _ = struct.unpack(
+        "<HBBBBBxIhBx", bytes.fromhex(timestamp)
+    )
+    # when guessing, only the years 1990 to 2099 are taken
+    if (
+        nanosecond >= 10**9
+        or not (-1440 <= zone <= 1440 or zone == 2047)
+        or not 1900 <= year
+        or (guess and not 1990 <= year < 2100)
+    ):
+        return ""
     try:
-        unix_ts = dt_obj.timestamp()
-        jd_utc = (unix_ts / 86400) + 2440587.5
-        jd_tt = jd_utc + ((epochs["tai"] + 32.184) / 86400)
-        out_mars = str(((jd_tt - 2451549.5) / 1.02749125242) + 44796.0 - 0.00096)
-        ts_output, _ = format_output(ts_type, out_mars)
-    except Exception:
-        handle(sys.exc_info())
-        out_mars = ts_output = ""
-    return out_mars, ts_output
+        base = dt(year, month, day, hour, minute, second)
+    except ValueError:
+        return ""
+    text = date_text(base, units_to_microseconds(nanosecond, 10**9))
+    return (
+        (text, utc_offset_label("UTC", -zone / 15)) if text and zone != 2047 else text
+    )
+
+
+@encoder("efitime")
+def to_efitime(dt_obj):
+    """Convert a date to a UEFI EFI_TIME"""
+    zone = -int(dt_obj.utcoffset().total_seconds()) // 60
+    if not -1440 <= zone <= 1440:
+        return ""
+    fields = (
+        dt_obj.year,
+        dt_obj.month,
+        dt_obj.day,
+        dt_obj.hour,
+        dt_obj.minute,
+        dt_obj.second,
+    )
+    return struct.pack(
+        "<HBBBBBxIhBx", *fields, dt_obj.microsecond * 1000, zone, 0
+    ).hex()
+
+
+@decoder("xid")
+def from_xid(timestamp, guess=False):
+    """Convert an xid to a date"""
+    if not re.fullmatch(r"[0-9a-v]{20}", timestamp):
+        return ""
+    seconds = int(timestamp, 32) >> 68
+    # when guessing, only 2010-01-01 to 2099-12-31 are taken
+    if guess and not 1262304000 <= seconds < 4102444800:
+        return ""
+    return date_text(epochs[1970], seconds * 10**6)
+
+
+@encoder("xid")
+def to_xid(dt_obj):
+    """Convert a date to an xid"""
+    value = (
+        int.from_bytes(
+            seconds_since(dt_obj, epochs[1970]).to_bytes(4, "big") + os.urandom(8),
+            "big",
+        )
+        << 4
+    )
+    characters = ""
+    for _ in range(20):
+        value, index = divmod(value, 32)
+        characters = XID_CHARS[index] + characters
+    return characters
+
+
+@decoder("cuid")
+def from_cuid(timestamp, guess=False):
+    """Convert a cuid to a date"""
+    if not re.fullmatch(r"c[0-9a-z]{24}", timestamp):
+        return ""
+    milliseconds = int(timestamp[1:9], 36)
+    # when guessing, only 2012-01-01 on is taken, which is the first cuid
+    if guess and milliseconds < 1325376000000:
+        return ""
+    return date_text(epochs[1970], milliseconds * 1000)
+
+
+@encoder("cuid")
+def to_cuid(dt_obj):
+    """Convert a date to a cuid"""
+    value = microseconds_since(dt_obj, epochs[1970]) // 1000
+    characters = ""
+    for _ in range(8):
+        value, index = divmod(value, 36)
+        characters = BASE36_CHARS[index] + characters
+    return (
+        "c"
+        + characters
+        + "0000"
+        + "".join(BASE36_CHARS[byte % 36] for byte in os.urandom(12))
+    )
+
+
+@decoder("stata")
+def from_stata(timestamp, guess=False):
+    """Convert a Stata %tc clock time to a date"""
+    if not is_digits(timestamp, 13 if guess else 15, 13 if guess else 1):
+        return ""
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 1262304000000 <= int(timestamp) < 4418064000000:
+        return ""
+    return date_text(_utc(1960), int(timestamp) * 1000)
+
+
+@encoder("stata")
+def to_stata(dt_obj):
+    """Convert a date to a Stata %tc clock time"""
+    return str(microseconds_since(dt_obj, _utc(1960)) // 1000)
+
+
+@decoder("spss")
+def from_spss(timestamp, guess=False):
+    """Convert an SPSS value to a date"""
+    if not re.fullmatch(
+        r"[0-9]{11}(\.[0-9]{1,6})?" if guess else r"[0-9]{1,12}(\.[0-9]{1,9})?",
+        timestamp,
+    ):
+        return ""
+    seconds = Fraction(timestamp)
+    # when guessing, only 2000-01-01 to 2099-12-31 are taken
+    if guess and not 13166064000 <= seconds < 16321824000:
+        return ""
+    return date_text(_utc(1582, 10, 14), round(seconds * 10**6))
+
+
+@encoder("spss")
+def to_spss(dt_obj):
+    """Convert a date to an SPSS value"""
+    seconds, microseconds = divmod(
+        microseconds_since(dt_obj, _utc(1582, 10, 14)), 10**6
+    )
+    return f"{seconds}.{microseconds:06d}"
+
+
+@decoder("mysql")
+def from_mysql(timestamp, guess=False):
+    """Convert a MySQL DATETIME to a date"""
+    if len(timestamp) not in (10, 12, 14, 16) or not is_hex(timestamp, 16):
+        return ""
+    # the sign bit, 17 bits of year * 13 + month, then day, hour, minute and second in 5, 5, 6 and 6 bits
+    packed = int(timestamp[:10], 16)
+    year, month = divmod(packed >> 22 & 0x1FFFF, 13)
+    day, hour, minute, second = (
+        packed >> 17 & 31,
+        packed >> 12 & 31,
+        packed >> 6 & 63,
+        packed & 63,
+    )
+    # fraction is hundredths in 1 byte, units of 100 microseconds in 2, and microseconds in 3
+    fraction, (unit, limit) = (
+        int(timestamp[10:] or "0", 16),
+        {0: (0, 1), 2: (10000, 100), 4: (100, 10000), 6: (1, 10**6)}[
+            len(timestamp) - 10
+        ],
+    )
+    # when guessing, only the years 1990 to 2099 are taken
+    if not packed >> 39 or fraction >= limit or (guess and not 1990 <= year < 2100):
+        return ""
+    try:
+        base = dt(year, month, day, hour, minute, second)
+    except ValueError:
+        return ""
+    return date_text(base, fraction * unit)
+
+
+@encoder("mysql")
+def to_mysql(dt_obj):
+    """Convert a date to a MySQL DATETIME"""
+    packed = (
+        1 << 39
+        | (dt_obj.year * 13 + dt_obj.month) << 22
+        | dt_obj.day << 17
+        | dt_obj.hour << 12
+        | dt_obj.minute << 6
+        | dt_obj.second
+    )
+    return f"{packed:010x}" + (
+        f"{dt_obj.microsecond:06x}" if dt_obj.microsecond else ""
+    )
+
+
+@decoder("udf")
+def from_udf(timestamp, guess=False):
+    """Convert a UDF timestamp to a date"""
+    if not is_hex(timestamp, 24, 24):
+        return ""
+    type_zone, year, month, day, hour, minute, second, centis, hundreds, micros = (
+        struct.unpack("<HHBBBBBBBB", bytes.fromhex(timestamp))
+    )
+    kind, zone = type_zone >> 12, type_zone & 0xFFF
+    if zone & 0x800:
+        zone -= 0x1000
+    # when guessing, only the years 1990 to 2099 are taken
+    if (
+        kind > 2
+        or max(centis, hundreds, micros) > 99
+        or (guess and not 1990 <= year < 2100)
+    ):
+        return ""
+    if kind == 1 and not (-1440 <= zone <= 1440 or zone == -2047):
+        return ""
+    try:
+        base = dt(year, month, day, hour, minute, second)
+    except ValueError:
+        return ""
+    text = date_text(base, centis * 10000 + hundreds * 100 + micros)
+    if not text or kind == 2 or (kind == 1 and zone == -2047):
+        return text
+    return text, utc_offset_label("UTC", zone / 15 if kind else 0)
+
+
+@encoder("udf")
+def to_udf(dt_obj):
+    """Convert a date to a UDF timestamp"""
+    zone = int(dt_obj.utcoffset().total_seconds()) // 60
+    centis, rest = divmod(dt_obj.microsecond, 10000)
+    fields = (
+        dt_obj.year,
+        dt_obj.month,
+        dt_obj.day,
+        dt_obj.hour,
+        dt_obj.minute,
+        dt_obj.second,
+    )
+    return struct.pack(
+        "<HHBBBBBBBB", 1 << 12 | zone & 0xFFF, *fields, centis, rest // 100, rest % 100
+    ).hex()
 
 
 def result_year(result):
@@ -5471,11 +3774,10 @@ def result_year(result):
         return dt.strptime(f"{parts[0]} {clock}", __fmt__).year
 
 
-def date_range(start, end, check_date):
-    """Check if date is in range of start and end, return True if it is"""
-    if start <= end:
-        return start <= check_date <= end
-    return start <= check_date or check_date <= end
+def accepts_guess(func):
+    """Whether a decoder takes a guess argument, to read only what is likely when guessing."""
+    code = getattr(func, "__wrapped__", func).__code__
+    return "guess" in code.co_varnames[: code.co_argcount]
 
 
 def from_all(timestamps, tz_name=None):
@@ -5485,11 +3787,16 @@ def from_all(timestamps, tz_name=None):
     for _, funcs in single_funcs.items():
         func = funcs[0]
         func_name = func.__name__.replace("from_", "")
-        (result, _, combined_output, _, tz_out) = func(timestamps)
+        if accepts_guess(func):
+            (result, _, combined_output, _, tz_out) = func(timestamps, guess=True)
+        else:
+            (result, _, combined_output, _, tz_out) = func(timestamps)
         if result and combined_output:
             if isinstance(result, str):
                 if tz_name is not None:
                     new_ts, new_tz, _ = convert_timezone(tz_name, result)
+                    if not new_ts:
+                        continue
                     combined_output = combined_output.replace(result, new_ts)
                     combined_output = combined_output.replace(tz_out, new_tz)
                     tz_out = new_tz
@@ -5536,23 +3843,40 @@ def to_timestamps(dt_obj, tz_name=None):
 
 def gui():
     """Execute the application"""
+    if __package__ in (None, "") and not getattr(sys, "frozen", False):
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     try:
-        from ctypes import windll
+        from time_decode.gui import run
+    except ImportError as error:
+        if (error.name or "").split(".")[0] != "PyQt6":
+            raise
+        print(
+            f"[!] The GUI needs PyQt6, which could not be loaded ({error}).\n"
+            '    Install it with: python3 -m pip install "time-decode[gui]"',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    run()
 
-        app_id = f"digitalsleuth.time-decode.gui.v{__version__.replace('.','-')}"
-        windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
-    except ImportError:
-        pass
-    td_app = QApplication([__appname__, "windows:darkmode=2"])
-    td_app.setApplicationDisplayName(__appname__)
-    td_app.setApplicationName(__appname__)
-    icon = QPixmap()
-    icon.loadFromData(base64.b64decode(TimeDecodeGui.__fingerprint__))
-    td_app.setWindowIcon(QIcon(icon))
-    td_app.setStyle("Fusion")
-    td_form = TimeDecodeGui()
-    td_form.show()
-    td_app.exec()
+
+def set_date_format(fmt):
+    global __fmt__
+    __fmt__ = fmt
+
+
+def __getattr__(name):
+    if name in (
+        "NewWindow",
+        "CsvWindow",
+        "AboutWindow",
+        "ContextMenu",
+        "UiMainWindow",
+        "TimeDecodeGui",
+    ):
+        from time_decode import gui as gui_module
+
+        return getattr(gui_module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def handle(error):
@@ -5607,8 +3931,8 @@ def format_output(ts_type, ts, tz=None):
     return indiv_output, combined_output
 
 
-def tzdata_timezones():
-    """Get the tzdata timezones and put them in a list for the timezone drop-down"""
+@functools.lru_cache(maxsize=None)
+def tzdata_names():
     try:
         import tzdata
 
@@ -5622,19 +3946,34 @@ def tzdata_timezones():
                 if rel_path.startswith(("posix", "right")):
                     continue
                 timezones.add(rel_path)
-        return sorted(timezones)
+        return tuple(sorted(timezones))
     except ModuleNotFoundError:
         from zoneinfo import available_timezones
 
-        return sorted(
-            tz for tz in available_timezones() if not tz.startswith(("posix", "right"))
+        return tuple(
+            sorted(
+                tz
+                for tz in available_timezones()
+                if not tz.startswith(("posix", "right"))
+            )
         )
 
 
-def common_timezone_offsets(dt_obj):
-    """Generates a list of all tzdata timezones for conversion, sorted by UTC offset"""
-    timezone_offsets = [("UTC - Default", "")]
-    duplicates = [
+def tzdata_timezones():
+    """Get the tzdata timezones and put them in a list for the timezone drop-down"""
+    return list(tzdata_names())
+
+
+@functools.lru_cache(maxsize=None)
+def cached_zone(tz_name):
+    try:
+        return tzone(tz_name)
+    except Exception:
+        return None
+
+
+DUPLICATE_ZONES = frozenset(
+    (
         "Factory",
         "Zulu",
         "Etc/Zulu",
@@ -5651,32 +3990,46 @@ def common_timezone_offsets(dt_obj):
         "Etc/GMT0",
         "Etc/UCT",
         "Universal",
-    ]
-    for tz_name in tzdata_timezones():
-        if tz_name in duplicates:
+    )
+)
+
+
+def common_timezone_offsets(dt_obj):
+    """Generates a list of all tzdata timezones for conversion, sorted by UTC offset"""
+    timezone_offsets = [("UTC - Default", "")]
+    for tz_name in tzdata_names():
+        if tz_name in DUPLICATE_ZONES:
+            continue
+        set_timezone = cached_zone(tz_name)
+        if set_timezone is None:
             continue
         try:
-            set_timezone = tzone(tz_name)
-            dt_val = dt_obj.astimezone(set_timezone)
-            offset_tz = dt_val.utcoffset()
-            if offset_tz is None:
-                continue
-            offset_seconds = offset_tz.total_seconds()
-            hours, remainder = divmod(abs(offset_seconds), 3600)
-            minutes = remainder // 60
-            sign = "+" if offset_seconds >= 0 else "-"
-            int_offset = f"{sign}{int(hours):02}:{int(minutes):02}"
-            formatted_offset = f"UTC{int_offset}"
-            timezone_offsets.append((formatted_offset, tz_name))
+            offset_tz = dt_obj.astimezone(set_timezone).utcoffset()
         except Exception:
             continue
+        if offset_tz is None:
+            continue
+        timezone_offsets.append((f"UTC{utc_offset_text(offset_tz)}", tz_name))
     timezone_offsets.sort(key=lambda x: x[0])
     return timezone_offsets
 
 
+def decode_group(group, timestamp):
+    """Decode with each type in a group, returning the first hit or an empty result"""
+    for name in type_groups[group]:
+        result = single_funcs[name][0](timestamp)
+        if result[0]:
+            return result
+    _, reason, _, tz_out = ts_types[group]
+    return "", "", "", reason, tz_out
+
+
 def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
     """Loads a CSV file, reads a column and decodes the timestamps from the selected format"""
-    ts_func = single_funcs[ts_choice][0]
+    if ts_choice in type_groups:
+        ts_func = lambda ts: decode_group(ts_choice, ts)
+    else:
+        ts_func = single_funcs[ts_choice][0]
     src_file = os.path.normpath(os.path.abspath(src_file))
     dst_file = f"{os.path.splitext(src_file)[0]}_out.csv"
     status = False
@@ -5746,14 +4099,15 @@ def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
                     results = ts_func(row[column_num])
                     result = results[0]
                     type_reason = results[3]
-                if result:
-                    if tz_name is not None:
-                        new_result, new_tz, _ = convert_timezone(tz_name, result)
-                        if new_tz.startswith("+") or new_tz.startswith("-"):
-                            result = f"{new_result}{new_tz}"
-                        else:
-                            result = f"{new_result} {new_tz}"
-                else:
+                if result and tz_name is not None:
+                    new_result, new_tz, _ = convert_timezone(tz_name, result)
+                    if not new_result:
+                        result = ""
+                    elif new_tz.startswith("+") or new_tz.startswith("-"):
+                        result = f"{new_result}{new_tz}"
+                    else:
+                        result = f"{new_result} {new_tz}"
+                if not result:
                     skipped += 1
                 row.append(result)
                 csv_output.append(row)
@@ -5775,6 +4129,14 @@ def generate_csv(src_file, ts_choice, column_num=None, tz_name=None):
     return status, dst_file, reason
 
 
+def utc_offset_text(offset):
+    total = int(offset.total_seconds())
+    hours, remainder = divmod(abs(total), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    text = f"{'-' if total < 0 else '+'}{hours:02d}:{minutes:02d}"
+    return f"{text}:{seconds:02d}" if seconds else text
+
+
 def convert_timezone(tz_name, dt_val):
     """Separate function to take a string date/time and convert it to the identified time zone"""
     tz = tzone(tz_name)
@@ -5782,10 +4144,12 @@ def convert_timezone(tz_name, dt_val):
         dt_obj = dt.fromisoformat(dt_val).replace(tzinfo=timezone.utc)
     except ValueError:
         dt_obj = dt.strptime(dt_val, __fmt__).replace(tzinfo=timezone.utc)
-    tz_change = dt_obj.astimezone(tz)
-    tz_offset = tz_change.strftime("%z")
-    tz_offset = f"{tz_offset[:3]}:{tz_offset[3:]}"
-    tz_selected = tz_change.strftime(__fmt__)
+    try:
+        tz_change = dt_obj.astimezone(tz)
+    except OverflowError:
+        return "", "", None
+    tz_offset = utc_offset_text(tz_change.utcoffset())
+    tz_selected = date_string(tz_change)
     if check_daylight(dt_obj, tz):
         tz_out = f"{tz_offset} DST"
     else:
@@ -5800,6 +4164,27 @@ def check_daylight(dtval, tz):
     else:
         dtval = dtval.astimezone(tz)
     return dtval.dst() != timedelta(0, 0)
+
+
+def parse_date(value):
+    """Parse an ISO 8601 or current date-format string, returning None if neither fits"""
+    try:
+        return dt.fromisoformat(value)
+    except ValueError:
+        pass
+    try:
+        return dt.strptime(value, __fmt__)
+    except ValueError:
+        return None
+
+
+def valid_timezone(tz_name):
+    """Check that a time zone name can be loaded"""
+    try:
+        tzone(tz_name)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return False
+    return True
 
 
 def list_timezones():
@@ -5828,24 +4213,253 @@ def list_date_formats():
     print(table)
 
 
+def _utc(year, month=1, day=1, hour=0, minute=0, second=0, microsecond=0):
+    return dt(year, month, day, hour, minute, second, microsecond, tzinfo=_UTC)
+
+
+def _end_of(year):
+    """The last instant of a year"""
+    return dt(year, 12, 31, 23, 59, 59, 999999)
+
+
+def _span(epoch, seconds=0, milliseconds=0, microseconds=0):
+    """The last instant a counter of the given size can reach from its epoch"""
+    return (
+        epoch
+        + timedelta(
+            seconds=seconds, milliseconds=milliseconds, microseconds=microseconds
+        )
+        - _MICROSECOND
+    )
+
+
+# The first and last date each encoder can write, as (first, last, wall_clock).
+ENCODER_RANGES = {
+    "active": (_utc(1601), _AWARE_MAX, False),
+    "apache": (_utc(1970), _AWARE_MAX, False),
+    "apfs": (epochs[1970], _span(epochs[1970], microseconds=2**64 // 1000), False),
+    "bcd": (dt(2000, 1, 1), _end_of(2099), True),
+    "biome64": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "biomehex": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "bitdate": (dt(1, 1, 1), _end_of(4095), True),
+    "bitdec": (dt(1, 1, 1), _end_of(4095), True),
+    "bplist": (epochs[2001], _AWARE_MAX, False),
+    "btrfs": (_AWARE_MIN, _AWARE_MAX, False),
+    "cdma": (dt(1996, 1, 1), _end_of(2095), True),
+    "chrome": (_utc(1601), _AWARE_MAX, False),
+    "cookie": (_utc(1601), _AWARE_MAX, False),
+    "cuid": (epochs[1970], _span(epochs[1970], milliseconds=36**8), False),
+    "dhcp6": (epochs[2000], _span(epochs[2000], seconds=_UINT32), False),
+    "discord": (
+        _utc(2015),
+        _span(_utc(2015), milliseconds=2**42),
+        False,
+    ),
+    "dotnet": (_AWARE_MIN, _AWARE_MAX, False),
+    "dotnetbin": (_AWARE_MIN, _AWARE_MAX, False),
+    "dttm": (dt(1900, 1, 1), _end_of(2411), True),
+    "dvr": (dt(2000, 1, 1), _end_of(2063), True),
+    "efitime": (dt(1900, 1, 1), dt.max, True),
+    "eitime": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "exfat": (dt(1980, 1, 1), _end_of(2107), True),
+    "exfatext": (dt(1980, 1, 1), _end_of(2107), True),
+    "ext4": (
+        epochs[1970] - timedelta(seconds=2**31),
+        _span(epochs[1970], seconds=2**34 - 2**31),
+        False,
+    ),
+    "fat": (dt(1980, 1, 1), _end_of(2107), True),
+    "filetimebe": (_utc(1601), _AWARE_MAX, False),
+    "filetimele": (_utc(1601), _AWARE_MAX, False),
+    "filetimelohi": (_utc(1601), _AWARE_MAX, False),
+    "firebase": (epochs[1970], _AWARE_MAX, False),
+    "garmin": (_utc(1989, 12, 31), _span(_utc(1989, 12, 31), seconds=_UINT32), False),
+    "gbound": (epochs[1970], _span(epochs[1970], microseconds=2**56), False),
+    "gmsgid": (epochs[1970], _AWARE_MAX, False),
+    "gps": (epochs[1980], _AWARE_MAX, False),
+    "gsm": (dt(1990, 1, 1), _end_of(2089), True),
+    "hfsbe": (epochs[1904], _span(epochs[1904], seconds=_UINT32), False),
+    "hfsdec": (epochs[1904], _AWARE_MAX, False),
+    "hfsle": (epochs[1904], _span(epochs[1904], seconds=_UINT32), False),
+    "horolog": (dt(1840, 12, 31), dt.max, True),
+    "hotmail": (_utc(1601), _AWARE_MAX, False),
+    "instagram": (
+        _utc(2011, 8, 24, 21, 7, 1, 721000),
+        _span(_utc(2011, 8, 24, 21, 7, 1, 721000), milliseconds=2**41),
+        False,
+    ),
+    "int96": (_AWARE_MIN, _AWARE_MAX, False),
+    "iostime": (
+        epochs[2001] + timedelta(microseconds=10 ** (IOSTIME_DIGITS[0] - 1) // 1000),
+        epochs[2001]
+        + timedelta(microseconds=10 ** IOSTIME_DIGITS[-1] // 1000)
+        - _MICROSECOND,
+        False,
+    ),
+    "iso9660": (dt(1900, 1, 1), _end_of(2155), True),
+    "juliandec": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "julianhex": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "ksalnum": (
+        _utc(2014, 5, 13, 16, 53, 20),
+        _span(_utc(2014, 5, 13, 16, 53, 20), seconds=_UINT32),
+        False,
+    ),
+    "ksdec": (
+        _utc(2014, 5, 13, 16, 53, 20),
+        _span(_utc(2014, 5, 13, 16, 53, 20), seconds=_UINT32),
+        False,
+    ),
+    "leb128hex": (epochs[1970], _AWARE_MAX, False),
+    "linkedin": (epochs[1970], _span(epochs[1970], milliseconds=2**42), False),
+    "logtime": (_utc(1900), _end_of(2155).replace(tzinfo=_UTC), False),
+    "mac": (epochs[2001], _AWARE_MAX, False),
+    "mars": (_utc(1873, 12, 29, 12, 2, 56, 449929), _AWARE_MAX, False),
+    "mastodon": (epochs[1970], _AWARE_MAX, False),
+    "matlab": (_AWARE_MIN, _AWARE_MAX, False),
+    "matroska": (epochs[2001] - _MATROSKA_SPAN, epochs[2001] + _MATROSKA_SPAN, False),
+    "mjd": (_utc(1858, 11, 17), _AWARE_MAX, False),
+    "moto": (_utc(1970), _end_of(2225).replace(tzinfo=_UTC), False),
+    "ms1904": (epochs[1904], _AWARE_MAX, False),
+    "msdos": (dt(1980, 1, 1), _end_of(2107), True),
+    "mssql": (dt(1753, 1, 1), dt(9999, 12, 31, 23, 59, 59, 998332), True),
+    "mssqlle": (dt(1753, 1, 1), dt(9999, 12, 31, 23, 59, 59, 998332), True),
+    "mysql": (dt(1000, 1, 1), dt.max, True),
+    "nokia": (
+        epochs[2050] - timedelta(seconds=_UINT32 - 1),
+        epochs[2050] + timedelta(seconds=1) - _MICROSECOND,
+        False,
+    ),
+    "nokiale": (
+        epochs[2050] - timedelta(seconds=_UINT32 - 1),
+        epochs[2050] + timedelta(seconds=1) - _MICROSECOND,
+        False,
+    ),
+    "ns40": (_AWARE_MIN, _AWARE_MAX, False),
+    "ns40le": (_AWARE_MIN, _AWARE_MAX, False),
+    "ntp": (_utc(1900), _AWARE_MAX, False),
+    "ntp64": (_utc(1900), _span(_utc(1900), seconds=_UINT32), False),
+    "objectid": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "oleauto": (epochs[1899], _AWARE_MAX, False),
+    "olebe": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "olele": (_AWARE_MIN, _utc(9999, 12, 31, 23, 59, 59), False),
+    "oracle": (dt(1, 1, 1), dt.max, True),
+    "prtime": (epochs[1970], _AWARE_MAX, False),
+    "s32": (epochs[1970], _span(epochs[1970], milliseconds=32**9), False),
+    "semioctet": (dt(2000, 1, 1), _end_of(2099), True),
+    "sony": (_utc(2014, 9, 1), _span(_utc(2014, 9, 1), milliseconds=10 * 2**39), False),
+    "pcap": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "pcapbe": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "postgres": (_AWARE_MIN, _AWARE_MAX, False),
+    "postgresbe": (_AWARE_MIN, _AWARE_MAX, False),
+    "postgresle": (_AWARE_MIN, _AWARE_MAX, False),
+    "quicktime": (epochs[1904], _AWARE_MAX, False),
+    "sas": (_utc(1960), _AWARE_MAX, False),
+    "sasdate": (_utc(1960), _AWARE_MAX, False),
+    "spss": (_utc(1582, 10, 14), _AWARE_MAX, False),
+    "stardatetng": (
+        _STARDATE_TNG_ORIGIN,
+        _utc(9999, 12, 31, 23, 30),
+        False,
+    ),
+    "stardatetos": (_STARDATE_TOS_ORIGIN, _AWARE_MAX, False),
+    "stata": (_utc(1960), _AWARE_MAX, False),
+    "symantec": (_utc(1970), _end_of(2225).replace(tzinfo=_UTC), False),
+    "symbian": (_AWARE_MIN, _AWARE_MAX, False),
+    "systemtime": (_AWARE_MIN, _AWARE_MAX, False),
+    "tai": (epochs[1970], _AWARE_MAX, False),
+    "tai64n": (epochs[1970], _AWARE_MAX, False),
+    "taimilli": (epochs[1970], _AWARE_MAX, False),
+    "tar": (epochs[1970], _span(epochs[1970], seconds=8**11), False),
+    "telegram": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "tid": (epochs[1970], _span(epochs[1970], microseconds=2**53), False),
+    "tiktok": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "twitter": (
+        _utc(2010, 11, 4, 1, 42, 54, 657000),
+        _span(_utc(2010, 11, 4, 1, 42, 54, 657000), milliseconds=2**42),
+        False,
+    ),
+    "udf": (dt(1, 1, 1), dt.max, True),
+    "ulid": (epochs[1970], _utc(9999, 12, 31, 23, 59, 59), False),
+    "uuid6": (epochs[1582], _span(epochs[1582], microseconds=2**60 // 10), False),
+    "uuid7": (epochs[1970], _AWARE_MAX, False),
+    "unixdays": (epochs[1970], _AWARE_MAX, False),
+    "unixhex32be": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "unixhex32le": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "unixmilli": (epochs[1970], _AWARE_MAX, False),
+    "unixmillihex": (epochs[1970], _AWARE_MAX, False),
+    "unixnano": (epochs[1970], _AWARE_MAX, False),
+    "unixsec": (epochs[1970], _AWARE_MAX, False),
+    "unixsecfrac": (epochs[1970], _AWARE_MAX, False),
+    "uuid": (epochs[1582], _span(epochs[1582], microseconds=2**60 // 10), False),
+    "vm": (epochs[1970], _AWARE_MAX, False),
+    "xfs": (
+        epochs[1970] - timedelta(seconds=2**31),
+        _span(epochs[1970], seconds=2**31),
+        False,
+    ),
+    "xfsbig": (
+        _XFS_BIGTIME_EPOCH,
+        _XFS_BIGTIME_EPOCH + timedelta(microseconds=2**64 // 1000),
+        False,
+    ),
+    "xid": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+    "xray": (epochs[1970], _span(epochs[1970], seconds=_UINT32), False),
+}
+
+
+def _within_range(func, first, last, wall_clock):
+    """Wrap an encoder so that it returns an empty result outside of its first and last dates"""
+
+    @functools.wraps(func)
+    def guarded(dt_obj):
+        try:
+            value = dt_obj.replace(tzinfo=None) if wall_clock else dt_obj
+            if not first <= value <= last:
+                return "", ""
+        except (OverflowError, TypeError):
+            return "", ""
+        return func(dt_obj)
+
+    guarded.first, guarded.last = first, last
+    return guarded
+
+
+for _name, (_first, _last, _wall_clock) in ENCODER_RANGES.items():
+    globals()[f"to_{_name}"] = _within_range(
+        globals()[f"to_{_name}"], _first, _last, _wall_clock
+    )
+
+
 single_funcs = {
     "active": [from_active, to_active],
     "apache": [from_apache, to_apache],
+    "apfs": [from_apfs, to_apfs],
     "biome64": [from_biome64, to_biome64],
     "biomehex": [from_biomehex, to_biomehex],
     "bplist": [from_bplist, to_bplist],
     "iostime": [from_iostime, to_iostime],
     "mac": [from_mac, to_mac],
+    "xray": [from_xray, to_xray],
     "bcd": [from_bcd, to_bcd],
     "bitdate": [from_bitdate, to_bitdate],
     "bitdec": [from_bitdec, to_bitdec],
+    "tid": [from_tid, to_tid],
+    "btrfs": [from_btrfs, to_btrfs],
+    "cdma": [from_cdma, to_cdma],
+    "cuid": [from_cuid, to_cuid],
     "dhcp6": [from_dhcp6, to_dhcp6],
     "discord": [from_discord, to_discord],
     "dvr": [from_dvr, to_dvr],
     "exfat": [from_exfat, to_exfat],
+    "exfatext": [from_exfatext, to_exfatext],
+    "ext4": [from_ext4, to_ext4],
+    "fbcookie": [from_fbcookie, None],
     "fat": [from_fat, to_fat],
+    "firebase": [from_firebase, to_firebase],
+    "garmin": [from_garmin, to_garmin],
     "gbound": [from_gbound, to_gbound],
     "gmsgid": [from_gmsgid, to_gmsgid],
+    "gacookie": [from_gacookie, None],
     "chrome": [from_chrome, to_chrome],
     "eitime": [from_eitime, to_eitime],
     "gclid": [from_gclid, None],
@@ -5856,6 +4470,8 @@ single_funcs = {
     "hfsle": [from_hfsle, to_hfsle],
     "hfsdec": [from_hfsdec, to_hfsdec],
     "horolog": [from_horolog, to_horolog],
+    "instagram": [from_instagram, to_instagram],
+    "iso9660": [from_iso9660, to_iso9660],
     "logtime": [from_logtime, to_logtime],
     "juliandec": [from_juliandec, to_juliandec],
     "julianhex": [from_julianhex, to_julianhex],
@@ -5865,35 +4481,69 @@ single_funcs = {
     "linkedin": [from_linkedin, to_linkedin],
     "mars": [from_mars, to_mars],
     "mastodon": [from_mastodon, to_mastodon],
+    "matlab": [from_matlab, to_matlab],
+    "matroska": [from_matroska, to_matroska],
     "metasploit": [from_metasploit, None],
     "dotnet": [from_dotnet, to_dotnet],
+    "dotnetbin": [from_dotnetbin, to_dotnetbin],
     "systemtime": [from_systemtime, to_systemtime],
     "dttm": [from_dttm, to_dttm],
     "ms1904": [from_ms1904, to_ms1904],
     "hotmail": [from_hotmail, to_hotmail],
     "msdos": [from_msdos, to_msdos],
+    "mssql": [from_mssql, to_mssql],
+    "mssqlle": [from_mssqlle, to_mssqlle],
+    "mjd": [from_mjd, to_mjd],
+    "objectid": [from_objectid, to_objectid],
     "moto": [from_moto, to_moto],
     "prtime": [from_prtime, to_prtime],
+    "mysql": [from_mysql, to_mysql],
     "ns40": [from_ns40, to_ns40],
     "ns40le": [from_ns40le, to_ns40le],
     "nokia": [from_nokia, to_nokia],
     "nokiale": [from_nokiale, to_nokiale],
+    "ntp64": [from_ntp64, to_ntp64],
     "ntp": [from_ntp, to_ntp],
+    "oracle": [from_oracle, to_oracle],
+    "int96": [from_int96, to_int96],
+    "pcap": [from_pcap, to_pcap],
+    "pcapbe": [from_pcapbe, to_pcapbe],
+    "postgres": [from_postgres, to_postgres],
+    "postgresbe": [from_postgresbe, to_postgresbe],
+    "postgresle": [from_postgresle, to_postgresle],
+    "quicktime": [from_quicktime, to_quicktime],
     "s32": [from_s32, to_s32],
+    "sasdate": [from_sasdate, to_sasdate],
+    "sas": [from_sas, to_sas],
     "semioctet": [from_semioctet, to_semioctet],
     "sony": [from_sony, to_sony],
+    "spss": [from_spss, to_spss],
+    "stardatetng": [from_stardatetng, to_stardatetng],
+    "stardatetos": [from_stardatetos, to_stardatetos],
+    "stata": [from_stata, to_stata],
     "symantec": [from_symantec, to_symantec],
+    "symbian": [from_symbian, to_symbian],
     "taimilli": [from_taimilli, to_taimilli],
     "tai": [from_tai, to_tai],
+    "tai64n": [from_tai64n, to_tai64n],
+    "tar": [from_tar, to_tar],
+    "telegram": [from_telegram, to_telegram],
     "tiktok": [from_tiktok, to_tiktok],
     "twitter": [from_twitter, to_twitter],
+    "udf": [from_udf, to_udf],
+    "efitime": [from_efitime, to_efitime],
     "ulid": [from_ulid, to_ulid],
+    "unixdays": [from_unixdays, to_unixdays],
     "unixhex32be": [from_unixhex32be, to_unixhex32be],
     "unixhex32le": [from_unixhex32le, to_unixhex32le],
     "unixmilli": [from_unixmilli, to_unixmilli],
     "unixmillihex": [from_unixmillihex, to_unixmillihex],
+    "unixnano": [from_unixnano, to_unixnano],
     "unixsec": [from_unixsec, to_unixsec],
+    "unixsecfrac": [from_unixsecfrac, to_unixsecfrac],
     "uuid": [from_uuid, to_uuid],
+    "uuid6": [from_uuid6, to_uuid6],
+    "uuid7": [from_uuid7, to_uuid7],
     "vm": [from_vm, to_vm],
     "cookie": [from_cookie, to_cookie],
     "filetimelohi": [from_filetimelohi, to_filetimelohi],
@@ -5902,21 +4552,46 @@ single_funcs = {
     "olebe": [from_olebe, to_olebe],
     "olele": [from_olele, to_olele],
     "oleauto": [from_oleauto, to_oleauto],
+    "xfsbig": [from_xfsbig, to_xfsbig],
+    "xfs": [from_xfs, to_xfs],
+    "xid": [from_xid, to_xid],
 }
 __types__ = len(single_funcs)
+type_groups = {"nsdate": ("bplist", "mac", "iostime")}
+
+
+class HelpFormatter(argparse.RawTextHelpFormatter):
+    """Keeps the timestamp options listed as plain flags though they take an optional value"""
+
+    def _format_args(self, action, default_metavar):
+        if action.nargs == "?" and action.metavar == "":
+            return ""
+        return super()._format_args(action, default_metavar)
+
+
+def use_unicode_output():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            "┌─┬┐│└┴┘".encode(getattr(stream, "encoding", None) or "ascii")
+        except (UnicodeEncodeError, LookupError):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (AttributeError, ValueError, OSError):
+                pass
 
 
 def main():
     """Parse all passed arguments"""
     global __fmt__
-    now = dt.now(timezone.utc).strftime(__fmt__)
+    use_unicode_output()
+    now = date_string(dt.now(timezone.utc))
     arg_parse = argparse.ArgumentParser(
         description=f"Time Decoder and Converter v"
         f"{str(__version__)} - supporting "
         f"{str(__types__)} timestamps!\n\n"
         f"Some timestamps are only part of the entire value, and as such, full\n"
         f"timestamps may not be generated based on only the date/time portion.",
-        formatter_class=argparse.RawTextHelpFormatter,
+        formatter_class=HelpFormatter,
         usage=argparse.SUPPRESS,
     )
     arg_parse.add_argument(
@@ -5973,6 +4648,12 @@ def main():
         help="Output only the timestamp, not the description",
     )
     arg_parse.add_argument(
+        "--now",
+        "-n",
+        action="store_true",
+        help="With --to, use the current date/time as the value for conversion",
+    )
+    arg_parse.add_argument(
         "--to",
         action="store_true",
         help="Convert a date/time to a selected timestamp format",
@@ -6004,7 +4685,13 @@ def main():
         default=None,
     )
     for argument, data in ts_types.items():
-        arg_parse.add_argument(f"--{argument}", metavar="", help=f"{data.ts_type}")
+        arg_parse.add_argument(
+            f"--{argument}",
+            metavar="",
+            nargs="?",
+            const=True,
+            help=data.ts_type.replace("%", "%%"),
+        )
     arg_parse.add_argument(
         "--version", "-v", action="version", version=arg_parse.description
     )
@@ -6025,7 +4712,22 @@ def main():
                 "Please use the --date-formats argument to find a valid NAME."
             )
         )
+    if args.tz is not None and not valid_timezone(args.tz):
+        arg_parse.error(
+            f"[!] The time zone {args.tz} was not found.\n"
+            "Please use the --timezones argument to find a valid name."
+        )
     all_args = vars(args)
+    if args.gui:
+        gui()
+        return
+    for argument in ts_types:
+        if all_args[argument] is True and not (args.to and args.now):
+            arg_parse.error(f"argument --{argument}: expected one argument")
+    if args.now and not args.to:
+        arg_parse.error(
+            "[!] --now can only be used with --to, ie. --to --unixsec --now"
+        )
     if args.formats:
         formats(args.formats)
         sys.exit(0)
@@ -6054,21 +4756,24 @@ def main():
         print("\r")
         return
     if args.timestamp:
-        _, ts_outputs = to_timestamps(args.timestamp, args.tz)
-        print(f"\n[+] Converting {args.timestamp} to {len(ts_outputs)} timestamps:\n")
-        for ts_val in ts_outputs:
-            print(ts_val)
+        ts_dict, ts_outputs = to_timestamps(args.timestamp, args.tz)
+        if args.minimal:
+            for ts_value in ts_dict.values():
+                print(ts_value)
+        else:
+            print(
+                f"\n[+] Converting {args.timestamp} to {len(ts_outputs)} timestamps:\n"
+            )
+            for ts_val in ts_outputs:
+                print(ts_val)
         print("\r")
-        return
-    if args.gui:
-        gui()
         return
     if args.csv:
         if len(args.csv) == 2:
             src_file = os.path.normpath(os.path.abspath(args.csv[0]))
             ts_type = args.csv[1]
             src_exists = os.path.exists(src_file) and os.path.isfile(src_file)
-            if ts_type in single_funcs and src_exists:
+            if (ts_type in single_funcs or ts_type in type_groups) and src_exists:
                 result, dst, reason = generate_csv(src_file, ts_type, tz_name=args.tz)
                 dst = os.path.normpath(dst)
                 if result:
@@ -6086,7 +4791,7 @@ def main():
             ts_type = args.csv[1]
             column = args.csv[2]
             src_exists = os.path.exists(src_file) and os.path.isfile(src_file)
-            if ts_type in single_funcs and src_exists:
+            if (ts_type in single_funcs or ts_type in type_groups) and src_exists:
                 result, dst, reason = generate_csv(
                     src_file, ts_type, column, tz_name=args.tz
                 )
@@ -6109,30 +4814,58 @@ def main():
                 )
             )
         return
-    for arg_passed, funcs in single_funcs.items():
-        requested = all_args[arg_passed]
-        if requested and not args.to:
-            date_time, indiv_output, _, reason, _ = funcs[0](requested)
+    if args.to and not any(all_args[arg] for arg in ts_types):
+        arg_parse.error(
+            "[!] --to requires a timestamp type to convert to, "
+            "ie. --to --unixsec 'YYYY-MM-DD HH:MM:SS'"
+        )
+    now = dt.now(tzone(args.tz) if args.tz else timezone.utc)
+    requests = [(arg, all_args[arg], None) for arg in single_funcs if all_args[arg]]
+    for group, members in type_groups.items():
+        if all_args[group]:
+            requests.extend((member, all_args[group], group) for member in members)
+    group_hits = set()
+    for arg_passed, requested, group in requests:
+        funcs = single_funcs[arg_passed]
+        if not args.to:
+            date_time, indiv_output, _, reason, tz_label = funcs[0](requested)
             if not date_time:
-                print(f"[!] {reason}")
+                if group is None:
+                    print(f"[!] {reason}")
             else:
+                group_hits.add(group)
+                if args.tz is not None:
+                    date_time, tz_label, _ = convert_timezone(args.tz, date_time)
+                    if not date_time:
+                        print(
+                            f"[!] {requested} is outside the dates that {args.tz} can show."
+                        )
+                        continue
+                    indiv_output = (
+                        f"{ts_types[arg_passed].ts_type}: {date_time} {tz_label}"
+                    )
                 if args.minimal:
-                    print(date_time)
+                    print(f"{date_time} {tz_label}")
                 else:
                     print(indiv_output)
-        elif requested and args.to:
-            try:
-                dt_obj = dt.fromisoformat(requested)
-            except ValueError:
-                dt_obj = dt.strptime(requested, __fmt__)
-            except Exception:
+        else:
+            if args.now:
+                if requested is not True:
+                    arg_parse.error(
+                        f"[!] --now cannot be combined with a date/time for --{arg_passed}."
+                    )
+                dt_obj = now
+                requested = "now"
+            else:
+                dt_obj = parse_date(requested)
+            if dt_obj is None:
                 arg_parse.error(
-                    "[!] Format should be 'YYYY-MM-DD HH:MM:SS.fff' in 24h fmt."
+                    f"[!] Unable to read '{requested}' as a date/time.\n"
+                    "[!] Format should be 'YYYY-MM-DD HH:MM:SS.fff' in 24h fmt. "
                     "Milliseconds (.fff) are optional.\n"
                     "[!] Otherwise, use --date-formats to find an accepted format and use:\n"
                     "[!] --date-format NAME where NAME is the format NAME, not the format STRING."
                 )
-                return
             if not dt_obj.tzinfo:
                 if not args.tz:
                     dt_obj = dt_obj.replace(tzinfo=timezone.utc)
@@ -6153,6 +4886,10 @@ def main():
                     print(timestamp)
                 else:
                     print(formatted_output)
+    if not args.to:
+        for group in type_groups:
+            if all_args[group] and group not in group_hits:
+                print(f"[!] {ts_types[group].reason}")
 
 
 if __name__ == "__main__":

@@ -3,24 +3,28 @@ requires = ["setuptools >= 77.0.30"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-exclude = ["debian*", "binaries*", "build*", "dist*", "tests*"]
+include = ["time_decode*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "time_decode.time_decode.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [project]
 name = "time-decode"
-version = "10.4.2"
+dynamic = ["version"]
 dependencies = [
-    "PyQt6",
     "colorama",
     "tzdata",
-    "juliandate",
     "prettytable",
     "python-ulid>=3.1.0",
     "bbpb"
 ]
 requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   {name = "Corey Forman (digitalsleuth)", email = "github@digitalsleuth.ca"}
 ]
@@ -32,9 +36,16 @@ readme = "README.md"
 keywords = ["digital forensics", "dfir", "timestamp", "decode", "encode"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Information Technology",
   "Programming Language :: Python :: 3",
+  "Topic :: Security",
+  "Topic :: System :: Recovery Tools",
   "Operating System :: OS Independent"
 ]
+
+[project.optional-dependencies]
+gui = ["PyQt6"]
+test = ["PyQt6", "pytest"]
 
 [project.urls]
 Homepage = "https://github.com/digitalsleuth/time_decode"
@@ -42,3 +53,6 @@ References = "https://github.com/digitalsleuth/time_decode/blob/master/REFERENCE
 
 [project.scripts]
 time-decode = "time_decode.time_decode:main"
+
+[project.gui-scripts]
+time-decode-gui = "time_decode.time_decode:gui"
