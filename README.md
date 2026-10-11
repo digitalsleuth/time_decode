@@ -183,4 +183,4 @@ References/Sources for all material can also be found in the REFERENCES.md docum
 
 # Additional Code
 
-From v11.0.0 and up, time-decode utilizes a modified version of Beat Reichenbach's [qt-themes](https://github.com/beatreichenbach/qt-themes), released under the [MIT License](https://github.com/beatreichenbach/qt-themes/blob/main/LICENSE), to support PyQt6.
+From v11.0.0 and up, time-decode utilizes a modified version of Beat Reichenbach's [qt-themes](https://github.com/beatreichenbach/qt-themes), released under the [MIT License](https://github.com/beatreichenbach/qt-themes/blob/main/LICENSE), to provide theme support for time-decode's PyQt6 GUI.
