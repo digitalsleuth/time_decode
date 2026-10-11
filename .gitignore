@@ -8,5 +8,7 @@ __pycache__
 @eaDir
 tests*
 entry_*
-newver.py
 .pytest*
+Dockerfile*
+make_version*
+wheelhouse*
