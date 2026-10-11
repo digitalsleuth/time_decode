@@ -1,10 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-__version__ = '10.4.2'
+import re
+from pathlib import Path
+
+root = Path(SPECPATH)
+__version__ = re.search(
+    r'^__version__ = "([^"]+)"',
+    (root / 'time_decode' / 'time_decode.py').read_text(encoding='utf-8'),
+    re.MULTILINE,
+).group(1)
 
 a = Analysis(
-    ['time_decode/time_decode.py'],
-    pathex=[],
+    [str(root / 'entry_cli.py')],
+    pathex=[str(root)],
     binaries=[],
     datas=[],
     hiddenimports=[],
@@ -35,6 +43,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='version.txt',
-    icon=['td.ico'],
+    version=str(root / 'version.txt'),
+    icon=[str(root / 'td.ico')],
 )

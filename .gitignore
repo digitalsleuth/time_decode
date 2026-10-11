@@ -6,4 +6,9 @@ debian
 __pycache__
 .DS_Store
 @eaDir
-tests
+tests*
+entry_*
+.pytest*
+Dockerfile*
+make_version*
+wheelhouse*
