@@ -12,11 +12,11 @@ If you have any questions, suggestions, helpful thoughts of any kind, please fee
 All requirements will get installed automatically when following the below install methods. The additional packages which get installed are:
 
 # Install
-`python3 -m pip install time-decode` or `python3 -m pip install git+https://github.com/digitalsleuth/time_decode`
+`python -m pip install time-decode` or `python -m pip install git+https://github.com/digitalsleuth/time_decode`
 
 To use the GUI (`--gui` or `time-decode-gui`), include the `gui` extra which adds PyQt6:
 
-`python3 -m pip install "time-decode[gui]"`
+`python -m pip install "time-decode[gui]"`
 
 This python script provides the following conversions from existing timestamps:
 
