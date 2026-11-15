@@ -71,6 +71,7 @@ This python script provides the following conversions from existing timestamps:
 │ Julian Date hex               │ Julian Date hex values are 14 characters (7 bytes)                                │ 258c80524d235b                           │ --julianhex    │
 │ KSUID Alpha-numeric           │ KSUID values are 27 alpha-numeric characters                                      │ 2PChRqPZDwT9m2gBDLd5uy7XNTr              │ --ksalnum      │
 │ KSUID Decimal                 │ KSUID decimal timestamps are up to 10 digits in length                            │ 346371930                                │ --ksdec        │
+│ LEB128 FILETIME               │ LEB128 FILETIME timestamps are variable-length and even-length                    │ aea3f7b4fda0efed01                       │ --lebfiletime  │
 │ LEB128 Hex time               │ LEB128 Hex timestamps are variable-length and even-length                         │ d0cf83dfe932                             │ --leb128hex    │
 │ LinkedIn Activity time        │ LinkedIn Activity timestamps contain only digits                                  │ 7324176984442343424                      │ --linkedin     │
 │ Mars Sol Date time            │ Mars Sol Date time values are up to 7 digits '.' 1 or more digits                 │ 54103.12581                              │ --mars         │

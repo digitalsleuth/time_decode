@@ -31,8 +31,8 @@ from prettytable import PrettyTable, TableStyle
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 init(autoreset=True)
 __author__ = "Corey Forman (digitalsleuth)"
-__date__ = "2026-10-09"
-__version__ = "11.0.0"
+__date__ = "2026-11-15"
+__version__ = "11.1.0"
 __description__ = "Python 3 Date Time Conversion Tool"
 __fmt__ = "%Y-%m-%d %H:%M:%S.%f"
 __red__ = "\033[1;31m"
@@ -328,6 +328,12 @@ ts_types = {
         "KSUID Decimal",
         "KSUID decimal timestamps are up to 10 digits in length",
         "346371930",
+        "UTC",
+    ),
+    "lebfiletime": TsTypes(
+        "LEB128 FILETIME",
+        "LEB128 FILETIME timestamps are variable-length and even-length",
+        "aea3f7b4fda0efed01",
         "UTC",
     ),
     "leb128hex": TsTypes(
@@ -2218,6 +2224,30 @@ def from_apache(timestamp, guess=False):
 def to_apache(dt_obj):
     """Convert a date/time to an Apache cookie value"""
     return f"{microseconds_since(dt_obj, epochs[1970]):x}"
+
+
+@decoder("lebfiletime")
+def from_lebfiletime(timestamp, guess=False):
+    if len(timestamp) % 2 or not is_hex(timestamp, 20, 2):
+        return ""
+    data = bytes.fromhex(timestamp)
+    if data[-1] & 0x80 or any(byte < 0x80 for byte in data[:-1]):
+        return ""
+    ticks = sum((byte & 0x7F) << (7 * place) for place, byte in enumerate(data))
+    if guess and len(str(ticks)) != 18:
+        return ""
+    return date_text(epochs[1601], units_to_microseconds(ticks, 10**7))
+
+
+@encoder("lebfiletime")
+def to_lebfiletime(dt_obj):
+    ticks = microseconds_since(dt_obj, epochs[1601]) * 10
+    data = bytearray()
+    while True:
+        data.append(ticks & 0x7F | (0x80 if ticks > 0x7F else 0))
+        ticks >>= 7
+        if not ticks:
+            return data.hex()
 
 
 @decoder("leb128hex")
@@ -4310,6 +4340,7 @@ ENCODER_RANGES = {
         False,
     ),
     "leb128hex": (epochs[1970], _AWARE_MAX, False),
+    "lebfiletime": (_utc(1601), _AWARE_MAX, False),
     "linkedin": (epochs[1970], _span(epochs[1970], milliseconds=2**42), False),
     "logtime": (_utc(1900), _end_of(2155).replace(tzinfo=_UTC), False),
     "mac": (epochs[2001], _AWARE_MAX, False),
@@ -4478,6 +4509,7 @@ single_funcs = {
     "ksalnum": [from_ksalnum, to_ksalnum],
     "ksdec": [from_ksdec, to_ksdec],
     "leb128hex": [from_leb128hex, to_leb128hex],
+    "lebfiletime": [from_lebfiletime, to_lebfiletime],
     "linkedin": [from_linkedin, to_linkedin],
     "mars": [from_mars, to_mars],
     "mastodon": [from_mastodon, to_mastodon],
