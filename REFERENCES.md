@@ -64,6 +64,9 @@
 - https://github.com/apache/httpd/blob/trunk/modules/metadata/mod_usertrack.c#L99
 ### LEB128 hex value (thanks to Justin Lazenby for identifying this one!)
 - https://en.wikipedia.org/wiki/LEB128
+### LEB128 FILETIME value (a ULEB128 of 100-nanosecond intervals since 1601-01-01 UTC)
+- https://en.wikipedia.org/wiki/LEB128
+- https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-filetime
 ### Julian hex values
 - https://stackoverflow.com/questions/56067745/hex-numbers-that-translate-into-date-and-time-stamps
 ### Julian decimal values
